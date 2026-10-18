@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.4] - 2026-10-18
+
 ### Fixed
 
 - **WebSocket errors logged every few minutes on quiet servers** ([tinkerologie/unraid-api#118](https://github.com/tinkerologie/unraid-api/issues/118)): subscriptions that see no events for 5 minutes (notifications, UPS, array and container stats on an idle server) logged `Unexpected error in ... WebSocket` with a `TimeoutError` traceback each time they timed out and reconnected. unraid-api 1.13.2 raises its own `UnraidTimeoutError` for these idle timeouts, which the integration already treats as a normal reconnect, so they are now logged at debug level only. Entity data was never affected.
