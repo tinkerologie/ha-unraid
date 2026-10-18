@@ -62,7 +62,7 @@ The only sanctioned data flow is:
 | **Python**           | 3.14.2+ (`requires-python`; CI uses 3.14.2) |
 | **HA minimum**       | 2026.9.0 (`hacs.json`, `pyproject.toml`; device registry 2026.8 + Probatio 2026.9) |
 | **HA target**        | 2026.10 and later developer practice          |
-| **Key dependency**   | `unraid-api>=1.13.1`                          |
+| **Key dependency**   | `unraid-api>=1.13.2`                          |
 | **iot_class**        | `local_polling` (plus websocket push for container stats and UPS) |
 | **Config flow**      | Yes (UI only, no YAML)                        |
 | **Platforms**        | `sensor`, `binary_sensor`, `switch`, `button`, `event`, `update` |
