@@ -7,7 +7,6 @@
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/ruaan-deysel)](https://github.com/sponsors/ruaan-deysel)
 [![Community Forum](https://img.shields.io/badge/Community-Forum-blue)](https://community.home-assistant.io/t/unraid-integration)
 [![License](https://img.shields.io/github/license/tinkerologie/ha-unraid)](./LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tinkerologie/ha-unraid)
 
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg
 [hacs]: https://github.com/hacs/integration
