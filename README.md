@@ -1,14 +1,12 @@
 # Home Assistant Integration for Unraid®
 
-[![HACS Integration][hacsbadge]][hacs]
+<!-- BADGES:START -->
+[![Marketplace and HACS](https://img.shields.io/badge/Marketplace%20%7C%20HACS-Default-orange.svg)](https://www.hacs.xyz/docs/marketplace/)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/tinkerologie/ha-unraid)](https://github.com/tinkerologie/ha-unraid/commits/main)
-[![GitHub Release](https://img.shields.io/github/v/release/tinkerologie/ha-unraid?sort=semver)](https://github.com/tinkerologie/ha-unraid/releases)
-[![GitHub Issues](https://img.shields.io/github/issues/tinkerologie/ha-unraid)](https://github.com/tinkerologie/ha-unraid/issues)
-[![Community Forum](https://img.shields.io/badge/Community-Forum-blue)](https://community.home-assistant.io/t/unraid-integration)
+[![GitHub Release](https://img.shields.io/github/v/release/tinkerologie/ha-unraid)](https://github.com/tinkerologie/ha-unraid/releases)
+[![codecov](https://codecov.io/gh/tinkerologie/ha-unraid/graph/badge.svg)](https://codecov.io/gh/tinkerologie/ha-unraid)
 [![License](https://img.shields.io/github/license/tinkerologie/ha-unraid)](./LICENSE)
-
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg
-[hacs]: https://github.com/hacs/integration
+<!-- BADGES:END -->
 
 A Home Assistant custom integration for monitoring and controlling Unraid servers via the official GraphQL API.
 
