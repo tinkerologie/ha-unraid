@@ -14,4 +14,4 @@ jobs:
   label:
     permissions:
       issues: write # add bug/enhancement labels, and create them if missing
-    uses: tinkerologie/.github/.github/workflows/issue-labeler.yml@d0f9f9b745d716bd70ccd4e1f8580a1e3082b80e # v1.5.5
+    uses: tinkerologie/.github/.github/workflows/issue-labeler.yml@8b5a48edcfc57a283ca85244a572e16ebd539571 # v1.6.0
