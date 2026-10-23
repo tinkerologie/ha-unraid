@@ -62,6 +62,16 @@ updates:
           - pytest*
           - syrupy
           - coverage*
+    # Packages pytest-homeassistant-custom-component pins exactly (==). Bumping one on
+    # its own makes the lock unsatisfiable and fails the whole update run, so they
+    # move only when pytest-homeassistant-custom-component does (STANDARDS.md §6).
+    ignore:
+      - dependency-name: pydantic
+      - dependency-name: pytest
+      - dependency-name: pytest-asyncio
+      - dependency-name: pytest-cov
+      - dependency-name: pytest-timeout
+      - dependency-name: syrupy
 
   # Maintain frontend npm dependencies
   - package-ecosystem: npm
