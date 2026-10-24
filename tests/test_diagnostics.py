@@ -7,6 +7,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
+from unraid_api.models import VmDomain
 
 from custom_components.unraid.diagnostics import async_get_config_entry_diagnostics
 from tests.conftest import make_infra_data, make_storage_data, make_system_data
@@ -251,3 +252,29 @@ async def test_diagnostics_entity_counts_with_data(mock_hass):
     assert counts["shares"] == len(storage_coordinator.data.shares)
     assert "has_boot" in counts
     assert "plugins" in counts
+
+
+@pytest.mark.parametrize("uuid", [None, "", "private-vm-uuid"])
+async def test_diagnostics_vm_uuid_redaction(mock_hass, mock_config_entry, uuid):
+    """Include VM summaries, redacting UUIDs recursively only when present."""
+    coordinator = MagicMock()
+    coordinator.last_update_success = True
+    coordinator.last_update_success_time = None
+    coordinator.data = make_system_data(
+        vms=[VmDomain(id="vm:1", name="Ubuntu", state="RUNNING", uuid=uuid)]
+    )
+    mock_config_entry.runtime_data.system_coordinator = coordinator
+    result = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
+    vm = result["system_coordinator"]["vms"][0]
+    assert vm["name"] == "Ubuntu"
+    assert vm["state"] == "RUNNING"
+    assert ("uuid" in vm) is bool(uuid)
+    if uuid:
+        assert vm["uuid"] == "**REDACTED**"
+        assert uuid not in str(result)
+
+
+async def test_diagnostics_vm_summary_without_data(mock_hass, mock_config_entry):
+    """An unavailable coordinator has an empty VM summary."""
+    result = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
+    assert result["system_coordinator"]["vms"] == []

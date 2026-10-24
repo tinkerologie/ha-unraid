@@ -218,8 +218,8 @@ class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
     """
     Button to restart a Docker container.
 
-    Performs a stop + start sequence since Unraid's GraphQL API
-    does not have a native restart mutation.
+    Delegates to unraid-api, which uses the native restart mutation when
+    supported and falls back to stop + start on older APIs.
 
     Disabled by default - users can enable per-container as needed.
     """

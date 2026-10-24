@@ -7,6 +7,15 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore hardware temperature metrics on Unraid API 4.37.6 and later using standby-aware collection, while keeping older or unknown API versions on polling that omits temperature queries to avoid waking disks ([#369](https://github.com/tinkerologie/ha-unraid/issues/369), [#203](https://github.com/tinkerologie/ha-unraid/issues/203), [#211](https://github.com/tinkerologie/ha-unraid/issues/211)). Polling intervals are unchanged. Reload the integration after upgrading the server API to discover temperature entities.
+
+### Changed
+
+- Require unraid-api 1.14.0, including native Docker restart support with an older-API fallback. Expose optional VM UUID attributes and include redacted VM UUIDs in diagnostics without changing entity identities.
+- Update the development lockfile to Pillow 13.0.0 to clear the dependency audit's decoder security advisories.
+
 ## [2026.10.4] - 2026-10-18
 
 ### Fixed

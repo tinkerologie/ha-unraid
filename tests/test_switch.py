@@ -526,12 +526,14 @@ def test_vm_switch_is_off_when_shut_down() -> None:
     assert switch.is_on is False
 
 
-def test_vm_switch_attributes() -> None:
-    """Test VM switch extra attributes with state only (unraid-api 1.8.0+)."""
+@pytest.mark.parametrize("uuid", [None, "", "vm-uuid-123"])
+def test_vm_switch_attributes(uuid) -> None:
+    """Expose optional UUID metadata without changing name-based identities."""
     vm = VmDomain(
         id="vm:1",
         name="Ubuntu",
         state="RUNNING",
+        uuid=uuid,
     )
     coordinator = MagicMock(spec=UnraidSystemCoordinator)
     coordinator.data = make_system_data(vms=[vm])
@@ -545,9 +547,9 @@ def test_vm_switch_attributes() -> None:
 
     attrs = switch.extra_state_attributes
     assert attrs["state"] == "RUNNING"
-    # VmDomain in unraid-api 1.8.0+ only has id, name, state
-    # Optional attributes (memory, vcpu, autostart, primaryGpu) are exposed
-    # via getattr() if present in future API versions
+    assert attrs.get("uuid") == (uuid or None)
+    assert ("uuid" in attrs) is bool(uuid)
+    assert switch.unique_id == "test-uuid_vm_switch_Ubuntu"
     assert "memory" not in attrs
     assert "vcpu" not in attrs
 

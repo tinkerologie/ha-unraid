@@ -21,7 +21,7 @@ dependencies = [
     "homeassistant>=2026.9.0",
     "aiohttp>=3.14.3",
     "pydantic>=2.13.4",
-    "unraid-api>=1.13.2",
+    "unraid-api>=1.14.0",
 ]
 
 [project.optional-dependencies]
@@ -145,6 +145,7 @@ disallow_untyped_defs = false
 # - pip PYSEC-2026-196
 # - uv GHSA-pjjw-68hj-v9mw (arbitrary file deletion through RECORD entries)
 # - Pygments CVE-2026-4539 / GHSA-5239-wwwm-4pmq (ReDoS in GUID regex)
+# - Pillow GHSA-78g4-xqwv-q3g8 and related decoder advisories fixed in 13.0.0
 #
 # NOT overridden: zeroconf CVE-2026-47180/47183/47184. Home Assistant's
 # `zeroconf` integration manifest hard-pins `zeroconf==0.148.0` and reinstalls
@@ -160,6 +161,7 @@ override-dependencies = [
     "pip>=26.1.2",
     "uv>=0.11.6",
     "pygments>=2.20.0",
+    "pillow>=13.0.0",
 ]
 
 [tool.bandit]

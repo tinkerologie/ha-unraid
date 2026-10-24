@@ -18,7 +18,9 @@ from homeassistant.helpers.update_coordinator import (
     TimestampDataUpdateCoordinator,
     UpdateFailed,
 )
+from packaging.version import InvalidVersion, Version
 from unraid_api import (
+    MIN_STANDBY_SAFE_TEMPERATURE_API_VERSION,
     ServerInfo,
     SystemMetrics,
     UnraidArray,
@@ -183,6 +185,19 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         self._previously_unavailable = False
         # Static server info captured at setup; never re-queried on the hot path.
         self._server_info = server_info
+        # Temperature collection is safe for sleeping disks only after the API
+        # switched to standby-aware SMART reads. Decide once from setup data.
+        try:
+            self._use_temperature_metrics = Version(
+                server_info.api_version or ""
+            ) >= Version(MIN_STANDBY_SAFE_TEMPERATURE_API_VERSION)
+        except InvalidVersion:
+            self._use_temperature_metrics = False
+        _LOGGER.debug(
+            "System metrics temperature collection %s for API version %s",
+            "enabled" if self._use_temperature_metrics else "disabled",
+            server_info.api_version,
+        )
         # Docker container list is polled at DOCKER_POLL_INTERVAL rather than on
         # every system poll. Between fetches the last result is reused so docker
         # entities stay populated. async_request_docker_refresh() forces an
@@ -889,11 +904,14 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         _LOGGER.debug("Starting system data update")
         try:
             # Phase 1: Required calls — run concurrently.
-            # NOTE: Use get_system_metrics_safe() to avoid querying individual disk
-            # temperatures (metrics.temperature.sensors), which invokes smartctl and
-            # wakes sleeping disks on every 30s poll.
+            # Older/unknown APIs must omit temperature queries to preserve standby.
+            get_metrics = (
+                self.api_client.get_system_metrics
+                if self._use_temperature_metrics
+                else self.api_client.get_system_metrics_safe
+            )
             metrics, notifications = await asyncio.gather(
-                self.api_client.get_system_metrics_safe(),
+                get_metrics(),
                 self.api_client.get_notification_overview(),
             )
             info = self._server_info

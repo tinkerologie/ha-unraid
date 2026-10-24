@@ -3631,6 +3631,8 @@ class VirtualMachineStatusSensor(UnraidSensorEntity[UnraidSystemCoordinator]):
         }
         if vm.state:
             attrs["raw_state"] = vm.state
+        if vm.uuid:
+            attrs["uuid"] = vm.uuid
         return attrs
 
 
