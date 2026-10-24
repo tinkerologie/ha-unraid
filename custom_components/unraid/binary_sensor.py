@@ -5,8 +5,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.components.binary_sensor.const import BinarySensorDeviceClass
+# Keep the platform re-export for HA 2026.9, before the const module split.
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,  # pyright: ignore[reportPrivateImportUsage]
+    BinarySensorEntity,
+)
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator

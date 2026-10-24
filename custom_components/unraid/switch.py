@@ -5,8 +5,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.switch import SwitchEntity
-from homeassistant.components.switch.const import SwitchDeviceClass
+# Keep the platform re-export for HA 2026.9, before the const module split.
+from homeassistant.components.switch import (
+    SwitchDeviceClass,  # pyright: ignore[reportPrivateImportUsage]
+    SwitchEntity,
+)
 from homeassistant.const import EntityCategory
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
