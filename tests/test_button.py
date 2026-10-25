@@ -890,8 +890,8 @@ async def test_setup_entry_creates_container_and_vm_buttons(hass):
 
     await async_setup_entry(hass, mock_entry, capture_entities)
 
-    # 3 parity + 3 notification + 1 container restart + 2 docker update
-    # + 1 VM * 5 buttons = 14
+    # 3 parity + 3 notification + 3 container actions + 2 Docker update
+    # + 1 VM * 5 buttons = 16
     assert len(entities) == 16
     entity_types = [type(e).__name__ for e in entities]
     assert entity_types.count("DockerContainerRestartButton") == 1

@@ -191,6 +191,7 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Start container."""
+        # Resolve the latest container ID after recreation before dispatching.
         self._get_container()
         try:
             await self.coordinator.async_start_container(self._container_id)
