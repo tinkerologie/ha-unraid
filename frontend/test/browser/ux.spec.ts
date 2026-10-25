@@ -399,3 +399,189 @@ test("long server detail values stay inside narrow grid cells", async ({ page })
   expect(sizes.some((row) => row.text.includes("999999"))).toBe(true);
   expect(sizes.filter((row) => row.width > row.parent)).toEqual([]);
 });
+
+test("dashboard mounts Docker and UPS panels with forwarded defaults", async ({
+  page,
+}) => {
+  const dashboard = page.locator("#dashboard-card");
+  for (const [label, child] of [
+    ["Docker", "unraid-docker-card"],
+    ["UPS Power", "unraid-ups-card"],
+  ]) {
+    const tab = dashboard.getByRole("tab", { name: label!, exact: true });
+    await tab.focus();
+    await page.keyboard.press("Enter");
+    await expect(dashboard.locator(child!)).toBeVisible();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+  }
+});
+
+test("five-share search announces results and opens details by keyboard", async ({
+  page,
+}) => {
+  await page.evaluate(async () => {
+    const fixture = window as unknown as {
+      mockHass: { states: Record<string, unknown> };
+      details: string[];
+    };
+    fixture.details = [];
+    document.addEventListener("hass-more-info", (event) =>
+      fixture.details.push((event as CustomEvent).detail.entityId)
+    );
+    for (let i = 1; i <= 3; i++) {
+      const id = `sensor.cube_share_archive${i}_usage`;
+      fixture.mockHass.states[id] = {
+        entity_id: id,
+        state: "10",
+        attributes: {
+          friendly_name: `Cube Share Archive${i} usage`,
+          color: "green-on",
+        },
+      };
+    }
+    const card = document.querySelector("#shares-card") as HTMLElement & {
+      hass: unknown;
+      updateComplete: Promise<unknown>;
+    };
+    card.hass = { ...fixture.mockHass };
+    await card.updateComplete;
+  });
+  const card = page.locator("#shares-card");
+  await expect(card.locator("button.list-row")).toHaveCount(5);
+  await card.getByRole("searchbox", { name: "Filter shares" }).fill("Archive");
+  await expect(card.locator("button.list-row")).toHaveCount(3);
+  await expect(card.getByRole("status")).toHaveText("3 of 5 shares shown");
+  await card.locator("button.list-row").first().focus();
+  await page.keyboard.press("Enter");
+  expect(
+    await page.evaluate(() => (window as unknown as { details: string[] }).details)
+  ).toEqual(["sensor.cube_share_archive1_usage"]);
+});
+
+test("network details support keyboard and disable rows without a details entity", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const fixture = window as unknown as { details: string[] };
+    fixture.details = [];
+    document.addEventListener("hass-more-info", (event) =>
+      fixture.details.push((event as CustomEvent).detail.entityId)
+    );
+  });
+  const row = page.locator("#network-card .network-row");
+  await row.focus();
+  await page.keyboard.press("Space");
+  expect(
+    await page.evaluate(() => (window as unknown as { details: string[] }).details)
+  ).toEqual(["sensor.cube_network_eth0_ip_address"]);
+  await page.evaluate(async () => {
+    const fixture = window as unknown as {
+      mockHass: { states: Record<string, unknown> };
+    };
+    for (const id of [
+      "sensor.cube_network_eth0_ip_address",
+      "sensor.cube_network_eth0_rx_throughput",
+      "binary_sensor.cube_network_eth0_link",
+    ])
+      delete fixture.mockHass.states[id];
+    const card = document.querySelector("#network-card") as HTMLElement & {
+      hass: unknown;
+      updateComplete: Promise<unknown>;
+    };
+    card.hass = { ...fixture.mockHass };
+    await card.updateComplete;
+  });
+  await expect(row).toBeDisabled();
+});
+
+for (const type of ["server", "ups"]) {
+  test(`${type} details activate by keyboard and disable when entities are missing`, async ({
+    page,
+  }) => {
+    await page.evaluate(async (cardType) => {
+      const fixture = window as unknown as {
+        mockHass: { states: Record<string, unknown> };
+        details: string[];
+      };
+      fixture.details = [];
+      document.addEventListener("hass-more-info", (event) =>
+        fixture.details.push((event as CustomEvent).detail.entityId)
+      );
+      for (const [suffix, state] of Object.entries({
+        notifications_unread_alert: "0",
+        ups_status: "online",
+        ups_runtime: "30",
+        ups_power: "50",
+        ups_output_voltage: "230",
+        ups_battery_health: "good",
+      })) {
+        const id = `sensor.cube_${suffix}`;
+        fixture.mockHass.states[id] = { entity_id: id, state, attributes: {} };
+      }
+      const card = document.querySelector(`#${cardType}-card`) as HTMLElement & {
+        hass: unknown;
+        updateComplete: Promise<unknown>;
+      };
+      card.hass = { ...fixture.mockHass };
+      await card.updateComplete;
+    }, type);
+    const card = page.locator(`#${type}-card`);
+    const buttons = card.locator("button:enabled");
+    const count = type === "server" ? 8 : 6;
+    await expect(buttons).toHaveCount(count);
+    for (const button of await buttons.all()) {
+      await button.focus();
+      await page.keyboard.press("Enter");
+    }
+    const details = await page.evaluate(
+      () => (window as unknown as { details: string[] }).details
+    );
+    expect(details).toHaveLength(count);
+    expect(details.every(Boolean)).toBe(true);
+    await page.evaluate(async (cardType) => {
+      const fixture = window as unknown as { mockHass: Record<string, unknown> };
+      const card = document.querySelector(`#${cardType}-card`) as HTMLElement & {
+        hass: unknown;
+        updateComplete: Promise<unknown>;
+      };
+      card.hass = { ...fixture.mockHass, states: {} };
+      await card.updateComplete;
+    }, type);
+    await expect(card.locator("button:disabled")).toHaveCount(count);
+  });
+}
+
+test("parity and disk-spin controls keep existing mocked service payloads", async ({
+  page,
+}) => {
+  await page.evaluate(async () => {
+    const fixture = window as unknown as {
+      mockHass: { states: Record<string, unknown> };
+    };
+    for (const [id, state] of [
+      ["switch.cube_parity_check", "off"],
+      ["switch.cube_disk_cache_spin", "on"],
+    ])
+      fixture.mockHass.states[id!] = { entity_id: id, state, attributes: {} };
+    const card = document.querySelector("#storage-card") as HTMLElement & {
+      hass: unknown;
+      updateComplete: Promise<unknown>;
+    };
+    card.hass = { ...fixture.mockHass };
+    await card.updateComplete;
+  });
+  const card = page.locator("#storage-card");
+  for (const name of ["Check parity now", "Spin down Cache"]) {
+    const button = card.getByRole("button", { name, exact: true });
+    await button.focus();
+    await page.keyboard.press("Space");
+  }
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __serviceCalls: unknown[] }).__serviceCalls
+    )
+  ).toEqual([
+    ["switch", "toggle", { entity_id: "switch.cube_parity_check" }],
+    ["switch", "toggle", { entity_id: "switch.cube_disk_cache_spin" }],
+  ]);
+});
