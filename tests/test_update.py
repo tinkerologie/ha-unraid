@@ -681,6 +681,9 @@ async def test_cached_release_notes_follow_new_container_data() -> None:
         "https://[",
         "not-a-url",
         "http://",
+        "https://:443/path",
+        "https://example.com:notaport",
+        "https://example.com:65536",
         " ",
     ],
 )

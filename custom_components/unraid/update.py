@@ -103,9 +103,10 @@ def _release_note_url(value: str | None) -> str | None:
     value = value.strip()
     try:
         parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return None
+        _ = parsed.port  # Access validates numeric range and syntax.
     except ValueError:
-        return None
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
     return quote(value, safe=":/?#[]@!$&'*+,;=%")
 
