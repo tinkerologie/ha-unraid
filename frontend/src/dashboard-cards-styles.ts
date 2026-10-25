@@ -383,6 +383,9 @@ export const dashboardCardStyles = [
     .status-dot.online {
       background: var(--unraid-online);
     }
+    .status-dot.paused {
+      background: var(--warning-color, var(--unraid-warning, var(--unraid-standby)));
+    }
     .status-dot.offline {
       background: var(--unraid-standby);
       border-radius: 2px;

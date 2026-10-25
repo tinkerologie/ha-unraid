@@ -182,6 +182,8 @@ ZFS ARC used memory and percentage require an upstream API extension ([Unraid AP
 | Docker Containers | Start/stop containers |
 | Virtual Machines  | Start/stop VMs        |
 
+Docker switches remain **on** while containers are paused. Turning a paused container off first unpauses it, then stops it. Pause and Unpause buttons are configuration entities, disabled by default; enable them under **Settings > Devices & services > Unraid > Entities** to show Pause/Resume controls in the Docker card. Pause and Stop require confirmation; Resume does not. Restart is disabled in the card while paused.
+
 ### Buttons
 
 | Entity                  | Description               |
@@ -189,6 +191,7 @@ ZFS ARC used memory and percentage require an upstream API extension ([Unraid AP
 | Array Start/Stop        | Control array state       |
 | Parity Check Start/Stop | Control parity operations |
 | Disk Spin Up/Down       | Control disk spin state   |
+| Docker Pause/Unpause    | Pause or resume containers (disabled by default) |
 
 ## UPS Power Sensor for Energy Dashboard
 
@@ -222,7 +225,7 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 | **Storage & Disks** | `custom:unraid-storage-card` | Storage matrix showing array status, parity sync status and history, capacity progress rings, and individual disk health (temperatures, spin states, and read/write I/O). |
 | **User Shares** | `custom:unraid-shares-card` | User shares with disk usage progress bars, used/free/total capacity, and share protection states (`Protected` vs. `Unprotected`). |
 | **Network Interfaces** | `custom:unraid-network-card` | Physical NICs, bonds, and bridges with real-time throughput metrics (rates and totals), link speed badges, active link state chips, MTU, MAC addresses, and clickable WebGUI links. |
-| **Docker Containers** | `custom:unraid-docker-card` | Container manager displaying active containers, status badges, CPU/memory footprints, autostart toggles, and start/stop/restart controls. |
+| **Docker Containers** | `custom:unraid-docker-card` | Container manager displaying active containers, status badges, CPU/memory footprints, autostart toggles, and start/stop/restart/pause/resume controls. |
 | **Power & UPS** | `custom:unraid-ups-card` | Power & UPS monitor with battery charge rings, electrical load, AC voltages, estimated runtime, and adaptive status coloring. |
 | **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine status, running/stopped filters, custom labels, and lifecycle controls. |
 | **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
@@ -251,7 +254,7 @@ vm_labels:
 default_filter: running
 ```
 
-`default_filter` supports `all` (the default), `running`, or `stopped`; Docker also supports `updates`. Choose **Default Filter** in the visual editor to persist the initial tab. Runtime tabs can still change the current view. Label maps are configured in YAML and preserved by the editor. Full workload names remain available in tooltips, and cards using older entities fall back to their friendly names.
+`default_filter` supports `all` (the default), `running`, or `stopped`; Docker also supports `paused` and `updates`. Choose **Default Filter** in the visual editor to persist the initial tab. Runtime tabs can still change the current view. Label maps are configured in YAML and preserved by the editor. Full workload names remain available in tooltips, and cards using older entities fall back to their friendly names.
 
 ### Card appearance and accessibility
 
@@ -264,7 +267,7 @@ The unified dashboard uses accessible tabs: Left/Right moves focus (following RT
 | `server`, `title` | All | Automatic server, default title |
 | `show_system_info` | Server, unified dashboard | `true` |
 | `view_mode` | Docker, unified dashboard | `grid` |
-| `default_filter` | Docker, VM, unified dashboard | `all`; `updates` applies to Docker only |
+| `default_filter` | Docker, VM, unified dashboard | `all`, `running`, `stopped`; `paused` and `updates` apply to Docker only |
 | `container_labels`, `vm_labels` | Corresponding card, unified dashboard | YAML only; preserved by the editor |
 
 The frontend uses **TypeScript 7.0.2**, pinned in both its package manifest and lockfile. CI installs with `npm ci` and runs `tsc --noEmit`, unit tests, the bundle build and Chromium regression tests. The design follows Home Assistant's [custom-card guidance](https://contributors.home-assistant.io/frontend/custom-ui/card/) and [accessibility foundations](https://contributors.home-assistant.io/design/foundations/accessibility/) with fallbacks for the supported HA 2026.9 baseline.

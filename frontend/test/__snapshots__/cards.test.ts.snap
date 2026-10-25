@@ -15,6 +15,10 @@ exports[`dashboard accessibility and action safeguards > renders the shared 20-c
     "pressed": "false",
   },
   {
+    "name": "Paused (0)",
+    "pressed": "false",
+  },
+  {
     "name": "Stopped (8)",
     "pressed": "false",
   },

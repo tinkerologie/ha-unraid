@@ -446,8 +446,8 @@ async def test_setup_entry_creates_container_restart_buttons(hass):
 
     await async_setup_entry(hass, mock_entry, capture_entities)
 
-    # 3 parity + 3 notification + 2 container restart + 2 docker update = 10
-    assert len(entities) == 10
+    # 3 parity + 3 notification + 6 container actions + 2 Docker update = 14
+    assert len(entities) == 14
     entity_types = [type(e).__name__ for e in entities]
     assert entity_types.count("DockerContainerRestartButton") == 2
     assert entity_types.count("CheckContainerUpdatesButton") == 1
@@ -890,9 +890,9 @@ async def test_setup_entry_creates_container_and_vm_buttons(hass):
 
     await async_setup_entry(hass, mock_entry, capture_entities)
 
-    # 3 parity + 3 notification + 1 container restart + 2 docker update
-    # + 1 VM * 5 buttons = 14
-    assert len(entities) == 14
+    # 3 parity + 3 notification + 3 container actions + 2 Docker update
+    # + 1 VM * 5 buttons = 16
+    assert len(entities) == 16
     entity_types = [type(e).__name__ for e in entities]
     assert entity_types.count("DockerContainerRestartButton") == 1
     assert entity_types.count("CheckContainerUpdatesButton") == 1
@@ -1218,3 +1218,154 @@ async def test_clear_disk_statistics_button_error(mock_coordinator, mock_server_
     with pytest.raises(HomeAssistantError) as exc_info:
         await button.async_press()
     assert exc_info.value.translation_key == "clear_disk_stats_failed"
+
+
+@pytest.mark.parametrize("action", ["pause", "unpause"])
+@pytest.mark.parametrize(
+    ("state", "data_present", "container_present", "query_ok", "last_ok"),
+    [
+        ("RUNNING", True, True, True, True),
+        ("paused", True, True, True, True),
+        ("EXITED", True, True, True, True),
+        (None, True, True, True, True),
+        ("RUNNING", False, True, True, True),
+        ("PAUSED", True, False, True, True),
+        ("RUNNING", True, True, False, True),
+        ("PAUSED", True, True, True, False),
+    ],
+)
+async def test_container_pause_availability_and_invalid_press(
+    mock_coordinator,
+    action,
+    state,
+    data_present,
+    container_present,
+    query_ok,
+    last_ok,
+):
+    """Only current valid state can authorize a pause/unpause mutation."""
+    from unraid_api.models import DockerContainer
+
+    from custom_components.unraid import button as platform
+    from tests.conftest import make_system_data
+
+    container = DockerContainer(id="ct:old", name="/plex", state=state)
+    mock_coordinator.data = (
+        make_system_data(containers=[container] if container_present else [])
+        if data_present
+        else None
+    )
+    mock_coordinator.optional_query_status = {"containers": query_ok}
+    mock_coordinator.last_update_success = last_ok
+    mock_coordinator.async_pause_container = AsyncMock()
+    mock_coordinator.async_unpause_container = AsyncMock()
+    cls = getattr(
+        platform,
+        "DockerContainerPauseButton"
+        if action == "pause"
+        else "DockerContainerUnpauseButton",
+    )
+    button = cls(mock_coordinator, "test-uuid", "Test Server", container)
+    expected = bool(
+        data_present
+        and container_present
+        and query_ok
+        and last_ok
+        and (state or "").upper() == ("RUNNING" if action == "pause" else "PAUSED")
+    )
+    assert button.available is expected
+    assert button.unique_id == f"test-uuid_container_{action}_plex"
+    assert button.translation_key == f"docker_container_{action}"
+    assert button.entity_registry_enabled_default is False
+    assert button.translation_placeholders == {"name": "plex"}
+    assert button.extra_state_attributes == {"container_name": "plex"}
+    assert button.device_info is not None
+    if not expected:
+        with pytest.raises(HomeAssistantError) as error:
+            await button.async_press()
+        assert error.value.translation_key == "container_action_unavailable"
+        mock_coordinator.async_pause_container.assert_not_awaited()
+        mock_coordinator.async_unpause_container.assert_not_awaited()
+        mock_coordinator.async_request_docker_refresh.assert_not_awaited()
+
+
+@pytest.mark.parametrize("action", ["pause", "unpause"])
+@pytest.mark.parametrize("api_error", [False, True])
+async def test_container_pause_current_id_and_api_errors(
+    mock_coordinator, action, api_error
+):
+    """Recreation retains identity and dispatches only the current container ID."""
+    from unraid_api.models import DockerContainer
+
+    from custom_components.unraid import button as platform
+    from tests.conftest import make_system_data
+
+    state = "RUNNING" if action == "pause" else "PAUSED"
+    old = DockerContainer(id="ct:old", name="/plex", state=state)
+    current = DockerContainer(id="ct:new", name="/plex", state=state)
+    mock_coordinator.data = make_system_data(containers=[current])
+    mock_coordinator.optional_query_status = {"containers": True}
+    method = AsyncMock(
+        side_effect=UnraidAPIError("test failure") if api_error else None
+    )
+    setattr(mock_coordinator, f"async_{action}_container", method)
+    cls = getattr(
+        platform,
+        "DockerContainerPauseButton"
+        if action == "pause"
+        else "DockerContainerUnpauseButton",
+    )
+    button = cls(mock_coordinator, "test-uuid", "Test Server", old)
+    if api_error:
+        with pytest.raises(HomeAssistantError) as error:
+            await button.async_press()
+        assert error.value.translation_key == f"container_{action}_failed"
+        assert error.value.translation_placeholders == {
+            "name": "plex",
+            "error": "test failure",
+        }
+        assert isinstance(error.value.__cause__, UnraidAPIError)
+        mock_coordinator.async_request_docker_refresh.assert_not_awaited()
+    else:
+        await button.async_press()
+        mock_coordinator.async_request_docker_refresh.assert_awaited_once()
+    method.assert_awaited_once_with("ct:new")
+    assert button.unique_id == f"test-uuid_container_{action}_plex"
+
+
+async def test_pause_buttons_discovered_after_setup(hass) -> None:
+    """Containers arriving later get all controls exactly once with stable IDs."""
+    from unraid_api.models import DockerContainer
+
+    from tests.conftest import make_storage_data, make_system_data
+
+    coordinator = MagicMock()
+    coordinator.data = make_system_data()
+    coordinator.last_update_success = True
+    coordinator.optional_query_status = {"containers": True}
+    listeners = []
+    coordinator.async_add_listener.side_effect = lambda callback: (
+        listeners.append(callback) or MagicMock()
+    )
+    entry = MagicMock()
+    entry.data = {"host": "tower"}
+    entry.runtime_data.system_coordinator = coordinator
+    entry.runtime_data.storage_coordinator.data = make_storage_data()
+    entry.runtime_data.server_info = {"uuid": "test-uuid", "name": "tower"}
+    entities = []
+    await async_setup_entry(hass, entry, entities.extend)
+    assert not any(type(e).__name__.startswith("DockerContainer") for e in entities)
+    coordinator.data = make_system_data(
+        containers=[DockerContainer(id="new", name="/plex", state="RUNNING")]
+    )
+    for listener in listeners:
+        listener()
+    for action in ("restart", "pause", "unpause"):
+        matches = [
+            e for e in entities if e.unique_id == f"test-uuid_container_{action}_plex"
+        ]
+        assert len(matches) == 1
+    count = len(entities)
+    for listener in listeners:
+        listener()
+    assert len(entities) == count

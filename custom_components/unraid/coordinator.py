@@ -734,6 +734,14 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         """Restart a Docker container."""
         await self.api_client.restart_container(container_id)
 
+    async def async_pause_container(self, container_id: str) -> None:
+        """Pause a running Docker container."""
+        await self.api_client.pause_container(container_id)
+
+    async def async_unpause_container(self, container_id: str) -> None:
+        """Unpause a paused Docker container."""
+        await self.api_client.unpause_container(container_id)
+
     async def async_update_container(self, container_id: str) -> None:
         """Update a Docker container to its latest image."""
         await self.api_client.update_container(container_id)

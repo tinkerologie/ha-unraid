@@ -183,7 +183,21 @@
           "switch.cube_docker_container_plex": {
             entity_id: "switch.cube_docker_container_plex",
             state: "on",
-            attributes: { friendly_name: "Cube Container plex", container_name: "plex" },
+            attributes: { friendly_name: "Cube Container plex", container_name: "plex", status: "RUNNING" },
+          },
+          "switch.cube_docker_container_sleeping": {
+            entity_id: "switch.cube_docker_container_sleeping",
+            state: "on",
+            attributes: { friendly_name: "Cube Container sleeping", container_name: "sleeping", status: "PAUSED" },
+          },
+          "button.cube_docker_container_pause_plex": {
+            entity_id: "button.cube_docker_container_pause_plex", state: "unknown", attributes: { container_name: "plex" },
+          },
+          "button.cube_docker_container_unpause_sleeping": {
+            entity_id: "button.cube_docker_container_unpause_sleeping", state: "unknown", attributes: { container_name: "sleeping" },
+          },
+          "button.cube_docker_container_restart_sleeping": {
+            entity_id: "button.cube_docker_container_restart_sleeping", state: "unknown", attributes: {},
           },
           "sensor.cube_ups_battery": {
             entity_id: "sensor.cube_ups_battery",

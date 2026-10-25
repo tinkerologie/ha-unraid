@@ -2171,6 +2171,8 @@ def _storage_coordinator(
         ("async_start_container", "start_container", ("c1",)),
         ("async_stop_container", "stop_container", ("c1",)),
         ("async_restart_container", "restart_container", ("c1",)),
+        ("async_pause_container", "pause_container", ("c1",)),
+        ("async_unpause_container", "unpause_container", ("c1",)),
         ("async_update_container", "update_container", ("c1",)),
         ("async_update_all_containers", "update_all_containers", ()),
         ("async_refresh_docker_digests", "refresh_docker_digests", ()),

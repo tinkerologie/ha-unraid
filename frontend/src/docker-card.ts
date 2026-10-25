@@ -6,11 +6,14 @@ import {
   iconTemplate,
   mdiAlertCircle,
   mdiDocker,
+  mdiPause,
+  mdiPlay,
   mdiPower,
   mdiRestart,
   mdiViewGrid,
   mdiViewList,
 } from "./icons";
+import type { HassEntity } from "./ha-types";
 import { registerDashboardCard } from "./register-dashboard-card";
 
 interface ContainerItem {
@@ -18,6 +21,9 @@ interface ContainerItem {
   name: string;
   rawName: string;
   isRunning: boolean;
+  isPaused: boolean;
+  pause?: HassEntity;
+  unpause?: HassEntity;
   isStopped: boolean;
   isAvailable: boolean;
   status: string;
@@ -63,7 +69,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
     _viewMode: { state: true },
   };
 
-  declare _filter: "all" | "running" | "stopped" | "updates";
+  declare _filter: "all" | "running" | "paused" | "stopped" | "updates";
   declare _viewMode: "grid" | "list";
 
   constructor() {
@@ -87,7 +93,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
       if (previous?.default_filter !== this.config.default_filter) {
         const filter = this.config.default_filter;
         this._filter =
-          filter && ["all", "running", "stopped", "updates"].includes(filter)
+          filter && ["all", "running", "paused", "stopped", "updates"].includes(filter)
             ? filter
             : "all";
       }
@@ -103,6 +109,30 @@ export class UnraidDockerCard extends BaseUnraidCard {
     this.toggleEntity(entityId);
   }
 
+  private renderPauseControl(c: ContainerItem, mode: "grid" | "list") {
+    const action = c.isPaused ? c.unpause : c.isRunning ? c.pause : undefined;
+    if (!action) return nothing;
+    const resume = c.isPaused;
+    const label = `${resume ? "Resume" : "Pause"} ${c.name}`;
+    return html`
+      <button
+        type="button"
+        class=${mode === "grid" ? "btn-icon" : "btn"}
+        title=${label}
+        aria-label=${label}
+        ?disabled=${!c.isAvailable || action.state === "unavailable"}
+        @click=${async (event: Event) => {
+          event.stopPropagation();
+          if (!resume && !confirm(`Are you sure you want to pause container "${c.name}"?`)) return;
+          await this.pressButton(action.entity_id);
+        }}
+      >
+        ${iconTemplate(resume ? mdiPlay : mdiPause, mode === "grid" ? 20 : 13)}
+        ${mode === "list" ? html`<span>${resume ? "Resume" : "Pause"}</span>` : nothing}
+      </button>
+    `;
+  }
+
   private getContainers(): ContainerItem[] {
     const autostarts = this.getEntities("docker_container_autostart", "switch");
     const autostartIds = new Set(autostarts.map((a) => a.entity_id));
@@ -110,6 +140,8 @@ export class UnraidDockerCard extends BaseUnraidCard {
       (s) => !autostartIds.has(s.entity_id)
     );
     const restarts = this.getEntities("docker_container_restart", "button");
+    const pauses = this.getEntities("docker_container_pause", "button");
+    const unpauses = this.getEntities("docker_container_unpause", "button");
     const cpus = this.getEntities("container_cpu");
     const mems = this.getEntities("container_memory_usage");
     const updates = this.getEntities("docker_container_update", "update");
@@ -124,8 +156,11 @@ export class UnraidDockerCard extends BaseUnraidCard {
         slug,
         this.config.container_labels
       );
-      const isRunning = sw.state === "on";
-      const isStopped = sw.state === "off";
+      const isAvailable = sw.state === "on" || sw.state === "off";
+      const reported = sw.attributes.status;
+      const isPaused = isAvailable && typeof reported === "string" && reported.toLowerCase() === "paused";
+      const isRunning = !isPaused && sw.state === "on";
+      const isStopped = !isPaused && sw.state === "off";
 
       const restart = restarts.find(
         (r) => extractEntityContainerSlug(r.entity_id) === slug
@@ -143,9 +178,12 @@ export class UnraidDockerCard extends BaseUnraidCard {
         id: slug,
         ...label,
         isRunning,
+        isPaused,
         isStopped,
-        isAvailable: isRunning || isStopped,
-        status: isRunning ? "Running" : isStopped ? "Stopped" : this.formatState(sw),
+        isAvailable,
+        pause: pauses.find((entity) => entity.attributes.container_name === sw.attributes.container_name && typeof sw.attributes.container_name === "string"),
+        unpause: unpauses.find((entity) => entity.attributes.container_name === sw.attributes.container_name && typeof sw.attributes.container_name === "string"),
+        status: isPaused ? "Paused" : isRunning ? "Running" : isStopped ? "Stopped" : this.formatState(sw),
         switchEntityId: sw.entity_id,
         restartEntityId: restart?.entity_id,
         autostartEntityId: autostart?.entity_id,
@@ -170,6 +208,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
     return list.sort((a, b) => {
       if (a.isRunning && !b.isRunning) return -1;
       if (!a.isRunning && b.isRunning) return 1;
+      if (a.isPaused !== b.isPaused) return a.isPaused ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
   }
@@ -178,6 +217,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
     const containers = this.getContainers();
     const runningCount = containers.filter((c) => c.isRunning).length;
     const stoppedCount = containers.filter((c) => c.isStopped).length;
+    const pausedCount = containers.filter((c) => c.isPaused).length;
     const updateCount = containers.filter((c) => c.hasUpdate).length;
 
     const checkUpdatesBtn = this.getEntity("check_container_updates", "button");
@@ -185,6 +225,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
     const filtered = containers.filter((c) => {
       if (this._filter === "running") return c.isRunning;
       if (this._filter === "stopped") return c.isStopped;
+      if (this._filter === "paused") return c.isPaused;
       if (this._filter === "updates") return c.hasUpdate;
       return true;
     });
@@ -209,7 +250,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
       <ha-card>
         ${this.renderHeader(
           this.config.title || "Docker Containers",
-          `${runningCount} running • ${stoppedCount} stopped`,
+          `${runningCount} running • ${pausedCount} paused • ${stoppedCount} stopped`,
           mdiDocker,
           badge
         )}
@@ -232,6 +273,14 @@ export class UnraidDockerCard extends BaseUnraidCard {
               @click=${() => (this._filter = "running")}
             >
               Running (${runningCount})
+            </button>
+            <button
+              type="button"
+              class="tab-btn ${this._filter === "paused" ? "active" : ""}"
+              aria-pressed=${this._filter === "paused"}
+              @click=${() => (this._filter = "paused")}
+            >
+              Paused (${pausedCount})
             </button>
             <button
               type="button"
@@ -313,7 +362,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                         >
                           <span
                             aria-hidden="true"
-                            class="status-dot ${c.isRunning ? "online" : "offline"}"
+                            class="status-dot ${c.isRunning ? "online" : c.isPaused ? "paused" : "offline"}"
                           ></span>
                           <span class="workload-label">
                             <span class="tile-name" title="${c.rawName}"
@@ -330,6 +379,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                                 >`
                               : nothing
                           }
+                          ${this.renderPauseControl(c, "grid")}
                           ${
                             c.restartEntityId
                               ? html`
@@ -339,7 +389,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                                     style="padding: 2px;"
                                     title="Restart ${c.name}"
                                     aria-label="Restart ${c.name}"
-                                    ?disabled=${!c.isAvailable}
+                                    ?disabled=${!c.isAvailable || c.isPaused}
                                     @click=${(e: Event) => {
                                       e.stopPropagation();
                                       this.pressButton(c.restartEntityId!);
@@ -354,12 +404,12 @@ export class UnraidDockerCard extends BaseUnraidCard {
                             type="button"
                             class="btn-icon"
                             style="padding: 4px;"
-                            title="${c.isRunning ? "Stop" : "Start"} ${c.name}"
-                            aria-label="${c.isRunning ? "Stop" : "Start"} ${c.name}"
+                            title="${c.isRunning || c.isPaused ? "Stop" : "Start"} ${c.name}"
+                            aria-label="${c.isRunning || c.isPaused ? "Stop" : "Start"} ${c.name}"
                             ?disabled=${!c.isAvailable}
                             @click=${(e: Event) => {
                               e.stopPropagation();
-                              this.handleToggle(c.switchEntityId, c.isRunning, c.name);
+                              this.handleToggle(c.switchEntityId, c.isRunning || c.isPaused, c.name);
                             }}
                           >
                             ${iconTemplate(mdiPower, 20)}
@@ -385,7 +435,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                           >
                             <span
                               aria-hidden="true"
-                              class="status-dot ${c.isRunning ? "online" : "offline"}"
+                              class="status-dot ${c.isRunning ? "online" : c.isPaused ? "paused" : "offline"}"
                             ></span>
                             <span class="workload-label">
                               <span class="tile-name" title="${c.rawName}"
@@ -421,6 +471,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                                 `
                               : nothing
                           }
+                          ${this.renderPauseControl(c, "list")}
                           ${
                             c.restartEntityId
                               ? html`
@@ -429,7 +480,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                                     class="btn"
                                     style="padding: 3px 8px;"
                                     aria-label="Restart ${c.name}"
-                                    ?disabled=${!c.isAvailable}
+                                    ?disabled=${!c.isAvailable || c.isPaused}
                                     @click=${() => this.pressButton(c.restartEntityId!)}
                                   >
                                     ${iconTemplate(mdiRestart, 13)}
@@ -440,14 +491,14 @@ export class UnraidDockerCard extends BaseUnraidCard {
                           }
                           <button
                             type="button"
-                            class="btn ${c.isRunning ? "btn" : "btn-primary"}"
+                            class="btn ${c.isRunning || c.isPaused ? "btn" : "btn-primary"}"
                             style="padding: 3px 8px;"
-                            aria-label="${c.isRunning ? "Stop" : "Start"} ${c.name}"
+                            aria-label="${c.isRunning || c.isPaused ? "Stop" : "Start"} ${c.name}"
                             ?disabled=${!c.isAvailable}
-                            @click=${() => this.handleToggle(c.switchEntityId, c.isRunning, c.name)}
+                            @click=${() => this.handleToggle(c.switchEntityId, c.isRunning || c.isPaused, c.name)}
                           >
                             ${iconTemplate(mdiPower, 13)}
-                            <span>${c.isRunning ? "Stop" : "Start"}</span>
+                            <span>${c.isRunning || c.isPaused ? "Stop" : "Start"}</span>
                           </button>
                         </div>
                       </div>
@@ -468,5 +519,5 @@ registerDashboardCard({
   editor: UnraidDockerCardEditor,
   name: "Unraid Docker Containers Card",
   description:
-    "Monitor, start, stop, restart, and update Docker containers in grid or list view.",
+    "Monitor, start, pause, resume, stop, restart, and update Docker containers in grid or list view.",
 });

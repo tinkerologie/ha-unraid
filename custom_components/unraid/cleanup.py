@@ -79,6 +79,8 @@ _DYNAMIC_RESOURCE_ID_PREFIXES: Final[tuple[str, ...]] = (
     "container_switch_",  # per-container switch
     "container_autostart_",  # per-container autostart switch
     "container_restart_",  # per-container restart button
+    "container_pause_",  # per-container pause button
+    "container_unpause_",  # per-container unpause button
     "container_update_",  # per-container update entity (update platform)
     "vm_switch_",  # per-VM switch
     "vm_status_",  # per-VM status sensor
@@ -180,6 +182,8 @@ def _build_system_dynamic_unique_ids(
                 f"{pfx}container_switch_{name}",
                 f"{pfx}container_autostart_{name}",
                 f"{pfx}container_restart_{name}",
+                f"{pfx}container_pause_{name}",
+                f"{pfx}container_unpause_{name}",
                 f"{pfx}container_{name}_cpu",
                 f"{pfx}container_{name}_memory",
                 f"{pfx}container_{name}_memory_pct",

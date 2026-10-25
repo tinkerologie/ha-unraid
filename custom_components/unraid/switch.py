@@ -19,6 +19,8 @@ from unraid_api.models import ArrayDisk, DockerContainer, VmDomain
 
 from .const import (
     ARRAY_STATE_STARTED,
+    CONTAINER_STATE_PAUSED,
+    CONTAINER_STATE_RUNNING,
     DOMAIN,
 )
 from .coordinator import (
@@ -151,7 +153,10 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
         container = self._get_container()
         if container is None:
             return False
-        return container.is_running
+        return (container.state or "").upper() in {
+            CONTAINER_STATE_RUNNING.upper(),
+            CONTAINER_STATE_PAUSED.upper(),
+        }
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -186,6 +191,8 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Start container."""
+        # Resolve the latest container ID after recreation before dispatching.
+        self._get_container()
         try:
             await self.coordinator.async_start_container(self._container_id)
             _LOGGER.debug("Started Docker container: %s", self._container_id)
@@ -208,8 +215,20 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
         await self.coordinator.async_request_docker_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Stop container."""
+        """Stop a started container, unpausing first when required."""
+        container = self._get_container()
+        unpaused = False
         try:
+            if (
+                container
+                and (container.state or "").upper() == CONTAINER_STATE_PAUSED.upper()
+            ):
+                try:
+                    await self.coordinator.async_unpause_container(self._container_id)
+                except UnraidAPIError as err:
+                    if not _is_already_state_error(err):
+                        raise
+                unpaused = True
             await self.coordinator.async_stop_container(self._container_id)
             _LOGGER.debug("Stopped Docker container: %s", self._container_id)
         except UnraidAPIError as err:
@@ -220,6 +239,9 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
                 )
             else:
                 _LOGGER.error("Failed to stop Docker container: %s", err)
+                if unpaused:
+                    # Unpause changed state even though the subsequent stop failed.
+                    await self.coordinator.async_request_docker_refresh()
                 raise HomeAssistantError(
                     translation_domain=DOMAIN,
                     translation_key="container_stop_failed",

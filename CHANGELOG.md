@@ -15,6 +15,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ### Added
 
 - Show cached Docker image, installed tag, update status and available project/registry/support links in Home Assistant's release-notes panel. Avoid referring to a missing link in update summaries. Actual target versions and changelogs remain dependent on upstream metadata ([#258](https://github.com/tinkerologie/ha-unraid/issues/258), [client #132](https://github.com/tinkerologie/unraid-api/issues/132)).
+- Optional Docker Pause and Unpause buttons, disabled by default, with state-aware Pause/Resume dashboard controls and a Paused filter in Docker and unified card editors ([#380](https://github.com/tinkerologie/ha-unraid/issues/380)).
 
 - Align all eight dashboard cards and editors with Home Assistant theme and design tokens, readable light/dark/custom-theme colours, keyboard and screen-reader semantics, 40px/48px touch targets, reduced motion, and responsive RTL layouts. Keep Sections heights content-driven and show only relevant editor fields ([#370](https://github.com/tinkerologie/ha-unraid/issues/370)).
 
@@ -22,6 +23,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - Docker and VM cards show actual workload names, support optional YAML label overrides, and retain full-name tooltips. VM cards now offer running/stopped filters; both card types support a persisted default filter through the visual editor ([#370](https://github.com/tinkerologie/ha-unraid/issues/370)).
 
 ### Fixed
+
+- Show paused Docker containers separately from running and stopped containers, including counts, sorting and status labels. Refresh state when unpausing succeeds but Stop fails ([#380](https://github.com/tinkerologie/ha-unraid/issues/380)).
 
 - Correct dashboard RAM subtitles to use native used-memory readings, populate array capacities from current attributes, and join suffixed disk metrics into one row per physical or boot device. Exclude aggregate parity rows and network interfaces owned by other integrations or servers, and respect Home Assistant traffic display units and formatting ([#378](https://github.com/tinkerologie/ha-unraid/issues/378)).
 
@@ -31,6 +34,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - Restore hardware temperature metrics on Unraid API 4.37.6 and later using standby-aware collection, while keeping older or unknown API versions on polling that omits temperature queries to avoid waking disks ([#369](https://github.com/tinkerologie/ha-unraid/issues/369), [#203](https://github.com/tinkerologie/ha-unraid/issues/203), [#211](https://github.com/tinkerologie/ha-unraid/issues/211)). Polling intervals are unchanged. Reload the integration after upgrading the server API to discover temperature entities.
 
 ### Changed
+
+- Keep Docker container switches on while paused; Stop unpauses before stopping. Disable dashboard Restart while paused ([#380](https://github.com/tinkerologie/ha-unraid/issues/380)).
 
 - Require unraid-api 1.14.0, including native Docker restart support with an older-API fallback. Expose optional VM UUID attributes and include redacted VM UUIDs in diagnostics without changing entity identities.
 - Update the development lockfile to Pillow 13.0.0 to clear the dependency audit's decoder security advisories.

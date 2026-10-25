@@ -992,7 +992,7 @@ describe("VM status filters", () => {
     document.body.appendChild(card);
     await card.updateComplete;
     expect(vmNames(card)).toEqual(["Home Assistant"]);
-    card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")[2]!.click();
+    [...card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")].find(button => button.textContent!.includes("Stopped"))!.click();
     await card.updateComplete;
     card.hass = mixedVmHass();
     card.setConfig({
@@ -1061,7 +1061,7 @@ describe("workload filter editors", () => {
     expect(select.value).toBe("stopped");
     expect([...select.options].map((o) => o.value)).toEqual(
       spec.updates
-        ? ["all", "running", "stopped", "updates"]
+        ? ["all", "running", "paused", "stopped", "updates"]
         : ["all", "running", "stopped"]
     );
     let saved: Record<string, unknown> = {};
@@ -1160,7 +1160,7 @@ describe("removing workload filter defaults", () => {
     card.setConfig({ type: spec.type, view_mode: "list" });
     await card.updateComplete;
     expect(card.shadowRoot!.querySelectorAll(spec.selector)).toHaveLength(2);
-    card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")[2]!.click();
+    [...card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")].find(button => button.textContent!.includes("Stopped"))!.click();
     await card.updateComplete;
     card.setConfig({ type: spec.type, view_mode: "list", title: "Renamed" });
     await card.updateComplete;
@@ -1260,6 +1260,7 @@ describe("dashboard accessibility and action safeguards", () => {
     ).toEqual([
       ["All (20)", "true"],
       ["Running (12)", "false"],
+      ["Paused (0)", "false"],
       ["Stopped (8)", "false"],
       ["Updates (1)", "false"],
     ]);
@@ -1991,4 +1992,147 @@ describe("storage name suffixes and fallback parity metadata", () => {
     expect(rows).toHaveLength(6);
     expect(rows.filter((row) => /Parity/.test(row.textContent!))).toHaveLength(2);
   });
+});
+
+function dockerPauseHass(): HomeAssistant {
+  const hass = createMockHass();
+  hass.states["switch.cube_docker_container_plex"]!.attributes.container_name = "Web";
+  const state = (entity_id: string, value: string, attributes = {}) => ({ entity_id, state: value, attributes, last_changed: "", last_updated: "" });
+  hass.states["switch.cube_docker_container_sleeping"] = state("switch.cube_docker_container_sleeping", "on", { status: "PAUSED", container_name: "Paused app" });
+  hass.states["switch.cube_docker_container_backup"] = state("switch.cube_docker_container_backup", "off", { status: "EXITED", container_name: "Backup" });
+  for (const [action, slug] of [["pause", "plex"], ["unpause", "sleeping"], ["restart", "sleeping"]]) {
+    const id = `button.cube_docker_container_${action}_${slug}`;
+    hass.states[id] = state(id, "unknown", { container_name: slug === "plex" ? "Web" : "Paused app" });
+  }
+  const id = "update.cube_docker_container_update_sleeping";
+  hass.states[id] = state(id, "on");
+  return hass;
+}
+
+async function renderDockerPause(mode: "grid" | "list", hass = dockerPauseHass(), filter: "all" | "paused" | "updates" = "all") {
+  const card = new UnraidDockerCard();
+  card.setConfig({ type: "custom:unraid-docker-card", view_mode: mode, default_filter: filter });
+  card.hass = hass;
+  document.body.append(card);
+  await card.updateComplete;
+  return card;
+}
+
+describe("Docker paused lifecycle and controls", () => {
+  afterEach(() => { document.body.replaceChildren(); vi.restoreAllMocks(); });
+  it.each([
+    ["on", "RUNNING", "Running"], ["off", "EXITED", "Stopped"],
+    ["on", "PAUSED", "Paused"], ["off", "paused", "Paused"],
+    ["unknown", "PAUSED", "Unknown"], ["unavailable", "PAUSED", "Unavailable"],
+  ])("renders %s / %s as %s", async (state, status, expected) => {
+    const hass = dockerPauseHass();
+    hass.states["switch.cube_docker_container_sleeping"]!.state = state;
+    hass.states["switch.cube_docker_container_sleeping"]!.attributes.status = status;
+    const card = await renderDockerPause("list", hass);
+    const row = [...card.shadowRoot!.querySelectorAll(".list-row")].find(row => row.textContent!.includes("Paused app"))!;
+    expect(row.querySelector(".workload-status")!.textContent!.trim()).toBe(expected);
+    if (["unknown", "unavailable"].includes(state)) {
+      expect(row.querySelector<HTMLButtonElement>('[aria-label="Start Paused app"]')!.disabled).toBe(true);
+      expect(row.querySelector('[aria-label="Resume Paused app"]')).toBeNull();
+    }
+  });
+  it("counts paused separately, sorts correctly, and retains overlap with Updates", async () => {
+    const card = await renderDockerPause("list");
+    expect([...card.shadowRoot!.querySelectorAll(".tab-btn")].map(button => button.textContent!.trim())).toEqual(["All (3)", "Running (1)", "Paused (1)", "Stopped (1)", "Updates (1)"]);
+    expect([...card.shadowRoot!.querySelectorAll(".workload-status")].map(el => el.textContent!.trim())).toEqual(["Running", "Paused", "Stopped"]);
+    const filter = [...card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")].find(button => button.textContent!.includes("Paused"))!;
+    filter.click(); await card.updateComplete;
+    expect(card.shadowRoot!.querySelectorAll(".list-row")).toHaveLength(1);
+    expect(card.shadowRoot!.querySelector(".list-row")!.textContent).toContain("Paused app");
+    card.setConfig({ ...card.config, default_filter: "updates" }); await card.updateComplete;
+    expect(card.shadowRoot!.querySelectorAll(".list-row")).toHaveLength(1);
+    expect(card.shadowRoot!.querySelector(".list-row")!.textContent).toContain("Paused app");
+  });
+  it("applies paused defaults and omits removed entities", async () => {
+    const hass = dockerPauseHass();
+    const card = await renderDockerPause("grid", hass, "paused");
+    expect(card.shadowRoot!.querySelectorAll(".container-tile")).toHaveLength(1);
+    expect(card.shadowRoot!.querySelector(".tab-btn.active")!.textContent).toContain("Paused (1)");
+    delete hass.states["switch.cube_docker_container_sleeping"];
+    card.hass = { ...hass }; await card.updateComplete;
+    expect(card.shadowRoot!.querySelectorAll(".container-tile")).toHaveLength(0);
+    expect(card.shadowRoot!.textContent).toContain("No paused containers");
+  });
+  it.each(["grid", "list"] as const)("confirms Pause and awaits the exact mocked action in %s", async mode => {
+    const hass = dockerPauseHass();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const card = await renderDockerPause(mode, hass);
+    const button = card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Pause Web"]')!;
+    expect(button.disabled).toBe(false); // HA button unknown means never pressed.
+    button.click();
+    expect(confirm).toHaveBeenCalledWith('Are you sure you want to pause container "Web"?');
+    expect(hass.callService).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true); button.click(); await card.updateComplete;
+    expect(hass.callService).toHaveBeenCalledExactlyOnceWith("button", "press", { entity_id: "button.cube_docker_container_pause_plex" });
+    expect(card.shadowRoot!.textContent).toContain("Running");
+  });
+  it.each(["grid", "list"] as const)("resumes without confirmation and offers only Stop for paused items in %s", async mode => {
+    const hass = dockerPauseHass();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const card = await renderDockerPause(mode, hass);
+    card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Resume Paused app"]')!.click();
+    await card.updateComplete;
+    expect(confirm).not.toHaveBeenCalled();
+    expect(hass.callService).toHaveBeenCalledExactlyOnceWith("button", "press", { entity_id: "button.cube_docker_container_unpause_sleeping" });
+    expect(card.shadowRoot!.querySelector('[aria-label="Start Paused app"]')).toBeNull();
+    expect(card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Restart Paused app"]')!.disabled).toBe(true);
+    card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Stop Paused app"]')!.click();
+    expect(confirm).toHaveBeenCalledWith('Are you sure you want to stop container "Paused app"?');
+    expect(hass.callService).toHaveBeenLastCalledWith("switch", "toggle", { entity_id: "switch.cube_docker_container_sleeping" });
+  });
+  it.each(["pause", "unpause"] as const)("disables unavailable %s buttons and hides absent ones", async action => {
+    const hass = dockerPauseHass();
+    const id = `button.cube_docker_container_${action}_${action === "pause" ? "plex" : "sleeping"}`;
+    hass.states[id]!.state = "unavailable";
+    const card = await renderDockerPause("list", hass);
+    const label = action === "pause" ? "Pause Web" : "Resume Paused app";
+    const button = card.shadowRoot!.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+    expect(button.disabled).toBe(true); button.click(); expect(hass.callService).not.toHaveBeenCalled();
+    delete hass.states[id]; card.hass = { ...hass }; await card.updateComplete;
+    expect(card.shadowRoot!.querySelector(`[aria-label="${label}"]`)).toBeNull();
+  });
+  it.each(["button.cube_container_unpause_sleeping", "button.cube_unpause_container_sleeping", "button.cube_docker_container_unpause_sleeping", "button.completely_renamed_control"])("associates %s with its container", async id => {
+    const hass = dockerPauseHass();
+    const old = "button.cube_docker_container_unpause_sleeping";
+    const entity = { ...hass.states[old]!, entity_id: id };
+    delete hass.states[old]; hass.states[id] = entity;
+    hass.entities![id] = { entity_id: id, device_id: "dev_1", platform: "unraid", translation_key: "docker_container_unpause" };
+    const card = await renderDockerPause("list", hass);
+    card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Resume Paused app"]')!.click();
+    expect(hass.callService).toHaveBeenCalledWith("button", "press", { entity_id: id });
+  });
+  it.each([UnraidDockerCardEditor, customElements.get("unraid-dashboard-card-editor")!])("offers paused filters in Docker-capable editors", async Editor => {
+    const editor = new Editor() as UnraidDockerCardEditor;
+    editor.setConfig({ type: Editor === UnraidDockerCardEditor ? "custom:unraid-docker-card" : "custom:unraid-dashboard-card", default_filter: "paused" });
+    document.body.append(editor); await editor.updateComplete;
+    expect(editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value).toBe("paused");
+  });
+});
+
+it.each(["docker_container_pause", "pause_container"])("keeps pause-prefixed container names distinct with %s buttons", async prefix => {
+  const hass = dockerPauseHass();
+  for (const id of Object.keys(hass.states)) if (id.startsWith("switch.") || id.startsWith("button.")) delete hass.states[id];
+  hass.entities = {};
+  for (const name of ["media", "pause_media", "pause_container_media"]) {
+    const sw = `switch.cube_docker_container_${name}`;
+    hass.states[sw] = { entity_id: sw, state: "on", attributes: { container_name: name, status: "RUNNING" }, last_changed: "", last_updated: "" };
+    const button = `button.cube_${prefix}_${name}`;
+    hass.states[button] = { entity_id: button, state: "unknown", attributes: { container_name: name }, last_changed: "", last_updated: "" };
+    hass.entities[button] = { entity_id: button, device_id: "dev_1", platform: "unraid", translation_key: "docker_container_pause" };
+  }
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const card = await renderDockerPause("list", hass);
+  card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Pause pause_media"]')!.click();
+  await card.updateComplete;
+  expect(hass.callService).toHaveBeenCalledWith("button", "press", { entity_id: `button.cube_${prefix}_pause_media` });
+  card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Pause pause_container_media"]')!.click();
+  await card.updateComplete;
+  expect(hass.callService).toHaveBeenLastCalledWith("button", "press", { entity_id: `button.cube_${prefix}_pause_container_media` });
+  card.remove();
+  vi.restoreAllMocks();
 });
