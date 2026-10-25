@@ -116,6 +116,13 @@ async def test_temperature_discovery_after_setup_and_recovery(
             registry.async_get_entity_id("sensor", DOMAIN, f"{uuid}_{r}") is None
             for r in resources
         )
+        # Both discovery listeners tolerate a refresh with no coordinator data.
+        coordinator.async_set_updated_data(None)
+        await hass.async_block_till_done()
+        assert all(
+            registry.async_get_entity_id("sensor", DOMAIN, f"{uuid}_{r}") is None
+            for r in resources
+        )
         mock_unraid_client.get_system_metrics.return_value = full
         await coordinator.async_refresh()
         await hass.async_block_till_done()
