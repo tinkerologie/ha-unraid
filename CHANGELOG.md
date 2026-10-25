@@ -21,6 +21,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Fixed
 
+- Correct dashboard RAM subtitles to use native used-memory readings, populate array capacities from current attributes, and join suffixed disk metrics into one row per physical or boot device. Exclude aggregate parity rows and network interfaces owned by other integrations or servers, and respect Home Assistant traffic display units and formatting ([#378](https://github.com/tinkerologie/ha-unraid/issues/378)).
+
 - Normalize Docker aggregate CPU and memory percentages to 0–100% of host capacity: use logical CPU threads for CPU and actual container bytes divided by host RAM for memory. Require complete readings, preserve zero, and keep entity IDs unchanged. Automations using the previous aggregate percentage scales may need threshold adjustments ([#202](https://github.com/tinkerologie/ha-unraid/issues/202)).
 - Compute Docker total memory used from actual running-container byte readings instead of percentages multiplied by host RAM; exclude stopped or stale containers and retain unknown when readings are missing. Document the five existing host/Docker summary sensors. ZFS ARC metrics remain dependent on upstream API support ([#202](https://github.com/tinkerologie/ha-unraid/issues/202)).
 

@@ -1,0 +1,349 @@
+{
+  "states": {
+    "sensor.cube_ram_usage_2": {
+      "entity_id": "sensor.cube_ram_usage_2",
+      "state": "25",
+      "attributes": {
+        "used": "30 GB",
+        "total": "32 GB"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_ram_used": {
+      "entity_id": "sensor.cube_ram_used",
+      "state": "8",
+      "attributes": {
+        "unit_of_measurement": "GiB"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_array_usage_2": {
+      "entity_id": "sensor.cube_array_usage_2",
+      "state": "25",
+      "attributes": {
+        "used": "10 TB",
+        "total": "40 TB",
+        "free": "30 TB",
+        "capacity_used": "old used",
+        "capacity_total": "old total",
+        "capacity_free": "old free"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_disk1_usage_2": {
+      "entity_id": "sensor.cube_disk_disk1_usage_2",
+      "state": "10",
+      "attributes": {
+        "device": "sdc",
+        "friendly_name": "Cube Disk disk1 usage",
+        "status": "DISK_OK",
+        "total": "10 TB",
+        "free": 0,
+        "num_errors": 0
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_disk_disk1_health": {
+      "entity_id": "binary_sensor.cube_disk_disk1_health",
+      "state": "off",
+      "attributes": {
+        "device": "sdc",
+        "friendly_name": "Cube Disk disk1 health",
+        "spinning": true,
+        "status": "DISK_OK"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_cache_pool_2_usage_2": {
+      "entity_id": "sensor.cube_disk_cache_pool_2_usage_2",
+      "state": "50",
+      "attributes": {
+        "device": "nvme0n1",
+        "friendly_name": "Cube Disk cache_pool_2 usage",
+        "status": "DISK_OK",
+        "total": "10 TB",
+        "free": 0,
+        "num_errors": 0
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_disk_cache_pool_2_health": {
+      "entity_id": "binary_sensor.cube_disk_cache_pool_2_health",
+      "state": "off",
+      "attributes": {
+        "device": "nvme0n1",
+        "friendly_name": "Cube Disk cache_pool_2 health",
+        "spinning": true,
+        "status": "DISK_OK"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_flash_usage_2": {
+      "entity_id": "sensor.cube_disk_flash_usage_2",
+      "state": "9",
+      "attributes": {
+        "device": "sda",
+        "friendly_name": "Cube Disk flash usage",
+        "status": "DISK_OK",
+        "total": "10 TB",
+        "free": 0,
+        "num_errors": 0
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_disk_flash_health": {
+      "entity_id": "binary_sensor.cube_disk_flash_health",
+      "state": "off",
+      "attributes": {
+        "device": "sda",
+        "friendly_name": "Cube Disk flash health",
+        "spinning": true,
+        "status": "DISK_OK"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_disk2_usage_2": {
+      "entity_id": "sensor.cube_disk_disk2_usage_2",
+      "state": "20",
+      "attributes": {
+        "device": "   ",
+        "friendly_name": "Cube Disk disk2 usage",
+        "status": "DISK_OK",
+        "total": "10 TB",
+        "free": 0,
+        "num_errors": 0
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_disk_disk2_health": {
+      "entity_id": "binary_sensor.cube_disk_disk2_health",
+      "state": "off",
+      "attributes": {
+        "device": "   ",
+        "friendly_name": "Cube Disk disk2 health",
+        "spinning": true,
+        "status": "DISK_OK"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_disk1_usage": {
+      "entity_id": "sensor.cube_disk_disk1_usage",
+      "state": "unknown",
+      "attributes": {
+        "device": "sdc",
+        "friendly_name": "Cube Disk disk1 usage"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_disk1_temp_2": {
+      "entity_id": "sensor.cube_disk_disk1_temp_2",
+      "state": "0",
+      "attributes": {
+        "device": " SDC ",
+        "unit_of_measurement": "\u00b0C"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_cache_pool_2_temperature_2": {
+      "entity_id": "sensor.cube_disk_cache_pool_2_temperature_2",
+      "state": "0",
+      "attributes": {
+        "device": "nvme0n1",
+        "unit_of_measurement": "\u00b0C"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "sensor.cube_disk_disk1_errors_2": {
+      "entity_id": "sensor.cube_disk_disk1_errors_2",
+      "state": "0",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_disk_disk1_spin_2": {
+      "entity_id": "switch.cube_disk_disk1_spin_2",
+      "state": "on",
+      "attributes": {
+        "device": "sdc"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_disk_parity_health_3": {
+      "entity_id": "binary_sensor.cube_disk_parity_health_3",
+      "state": "off",
+      "attributes": {
+        "device": "sdb",
+        "friendly_name": "Cube Disk parity health",
+        "spinning": false,
+        "status": "DISK_OK"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_disk_parity2_health_3": {
+      "entity_id": "binary_sensor.cube_disk_parity2_health_3",
+      "state": "off",
+      "attributes": {
+        "device": "sdf",
+        "friendly_name": "Cube Disk parity2 health",
+        "spinning": false,
+        "status": "DISK_OK"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_parity_health": {
+      "entity_id": "binary_sensor.cube_parity_health",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Cube Parity health"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "binary_sensor.cube_parity_valid": {
+      "entity_id": "binary_sensor.cube_parity_valid",
+      "state": "on",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    }
+  },
+  "entities": {
+    "sensor.cube_ram_usage_2": {
+      "entity_id": "sensor.cube_ram_usage_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "ram_usage"
+    },
+    "sensor.cube_ram_used": {
+      "entity_id": "sensor.cube_ram_used",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "ram_used"
+    },
+    "sensor.cube_array_usage_2": {
+      "entity_id": "sensor.cube_array_usage_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "array_usage"
+    },
+    "sensor.cube_disk_disk1_usage_2": {
+      "entity_id": "sensor.cube_disk_disk1_usage_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_usage"
+    },
+    "binary_sensor.cube_disk_disk1_health": {
+      "entity_id": "binary_sensor.cube_disk_disk1_health",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_health"
+    },
+    "sensor.cube_disk_cache_pool_2_usage_2": {
+      "entity_id": "sensor.cube_disk_cache_pool_2_usage_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_usage"
+    },
+    "binary_sensor.cube_disk_cache_pool_2_health": {
+      "entity_id": "binary_sensor.cube_disk_cache_pool_2_health",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_health"
+    },
+    "sensor.cube_disk_flash_usage_2": {
+      "entity_id": "sensor.cube_disk_flash_usage_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_usage"
+    },
+    "binary_sensor.cube_disk_flash_health": {
+      "entity_id": "binary_sensor.cube_disk_flash_health",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_health"
+    },
+    "sensor.cube_disk_disk2_usage_2": {
+      "entity_id": "sensor.cube_disk_disk2_usage_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_usage"
+    },
+    "binary_sensor.cube_disk_disk2_health": {
+      "entity_id": "binary_sensor.cube_disk_disk2_health",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_health"
+    },
+    "sensor.cube_disk_disk1_usage": {
+      "entity_id": "sensor.cube_disk_disk1_usage",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_usage"
+    },
+    "sensor.cube_disk_disk1_temp_2": {
+      "entity_id": "sensor.cube_disk_disk1_temp_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_temperature"
+    },
+    "sensor.cube_disk_cache_pool_2_temperature_2": {
+      "entity_id": "sensor.cube_disk_cache_pool_2_temperature_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_temperature"
+    },
+    "sensor.cube_disk_disk1_errors_2": {
+      "entity_id": "sensor.cube_disk_disk1_errors_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_error_count"
+    },
+    "switch.cube_disk_disk1_spin_2": {
+      "entity_id": "switch.cube_disk_disk1_spin_2",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_spin"
+    },
+    "binary_sensor.cube_disk_parity_health_3": {
+      "entity_id": "binary_sensor.cube_disk_parity_health_3",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_health"
+    },
+    "binary_sensor.cube_disk_parity2_health_3": {
+      "entity_id": "binary_sensor.cube_disk_parity2_health_3",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "disk_health"
+    },
+    "binary_sensor.cube_parity_health": {
+      "entity_id": "binary_sensor.cube_parity_health",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "parity_status"
+    },
+    "binary_sensor.cube_parity_valid": {
+      "entity_id": "binary_sensor.cube_parity_valid",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "parity_valid"
+    }
+  }
+}

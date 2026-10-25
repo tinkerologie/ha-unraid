@@ -62,10 +62,14 @@ export class UnraidServerCard extends BaseUnraidCard {
     const cpuModel =
       (cpuState?.attributes?.cpu_model as string) ||
       (device?.model ?? "Multi-Core CPU");
-    const ramUsedStr = (ramState?.attributes?.used as string) || "";
-    const ramTotalStr = (ramState?.attributes?.total as string) || "";
-    const arrayUsedStr = (arrayUsage?.attributes?.capacity_used as string) || "";
-    const arrayTotalStr = (arrayUsage?.attributes?.capacity_total as string) || "";
+    const ramUsed = this.getEntity("ram_used");
+    const ramUsedStr =
+      ramUsed && Number(ramUsed.state) >= 0
+        ? this.numericStateText(ramUsed)
+        : undefined;
+    // Legacy totals use ambiguous GB labels; keep the native HA unit on used RAM.
+    const arrayUsedStr = this.attributeText(arrayUsage, ["used", "capacity_used"]);
+    const arrayTotalStr = this.attributeText(arrayUsage, ["total", "capacity_total"]);
 
     // Network interfaces and primary interface
     const ifaces = this.getNetworkInterfaces();
@@ -80,18 +84,8 @@ export class UnraidServerCard extends BaseUnraidCard {
         : `${netSpeedNum} Mbps`
       : "";
 
-    const rxVal = primaryIface?.rx?.state ? parseFloat(primaryIface.rx.state) : NaN;
-    const txVal = primaryIface?.tx?.state ? parseFloat(primaryIface.tx.state) : NaN;
-    const rxText = !isNaN(rxVal)
-      ? rxVal < 0.1
-        ? `${(rxVal * 1000).toFixed(1)} kB/s`
-        : `${rxVal.toFixed(2)} MB/s`
-      : "";
-    const txText = !isNaN(txVal)
-      ? txVal < 0.1
-        ? `${(txVal * 1000).toFixed(1)} kB/s`
-        : `${txVal.toFixed(2)} MB/s`
-      : "";
+    const rxText = this.rateText(primaryIface?.rx);
+    const txText = this.rateText(primaryIface?.tx);
     const netTrafficText =
       rxText && txText ? `↓ ${rxText} • ↑ ${txText}` : netSpeedText || "Active";
 
@@ -172,7 +166,7 @@ export class UnraidServerCard extends BaseUnraidCard {
             </span>
             <span class="ring-label">Memory</span>
             <span class="ring-subtext"
-              >${ramUsedStr && ramTotalStr ? `${ramUsedStr} / ${ramTotalStr}` : ramPct !== null ? `${ramPct}% used` : "No data"}</span
+              >${ramUsedStr !== undefined ? `${ramUsedStr} used` : ramPct !== null ? `${ramPct}% used` : "No data"}</span
             >
           </button>
           <button

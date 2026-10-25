@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { STORAGE_CARD_TAG, STORAGE_EDITOR_TAG } from "./config";
+import type { HassEntity } from "./ha-types";
 import { BaseUnraidCard } from "./dashboard-cards-base";
 import { UnraidStorageCardEditor } from "./dashboard-cards-editor";
 import {
@@ -23,7 +24,7 @@ export interface DiskItem {
   isParity: boolean;
   isCache: boolean;
   isBoot: boolean;
-  usagePct: number;
+  usagePct: number | null;
   temp: string;
   tempNum?: number;
   errors: number;
@@ -36,7 +37,9 @@ export interface DiskItem {
 }
 
 export function formatDiskName(rawName: string, id: string): string {
-  const name = rawName.trim();
+  const name = rawName
+    .trim()
+    .replace(/_(usage|temperature|temp|errors|health|spin)(?:_\d+)?$/i, "");
   const match = name.match(
     /^(?:.*?\s+)?(?:Disk\s+)?([a-zA-Z0-9_-]+)(?:\s+(?:usage|health|temperature|temp|spin|errors))?$/i
   );
@@ -62,7 +65,7 @@ function extractDiskToken(entityId: string): string {
   const objectId = entityId.split(".")[1] || "";
   const token = objectId
     .replace(/^.*?_disk_/, "")
-    .replace(/_usage$|_temperature$|_temp$|_errors$|_health$|_spin$/, "")
+    .replace(/_(usage|temperature|temp|errors|health|spin)(?:_\d+)?$/i, "")
     .toLowerCase()
     .replace(/_/g, "");
   const numMatch = token.match(/^(?:disk)?(\d+)$/);
@@ -75,19 +78,101 @@ export class UnraidStorageCard extends BaseUnraidCard {
 
   private getDisks(): DiskItem[] {
     const usageEntities = this.getEntities("disk_usage");
-    const healthEntities = this.getEntities("disk_health", "binary_sensor");
+    const healthEntities = this.getEntities("disk_health", "binary_sensor").filter(
+      (entity) => {
+        const key = this.hass?.entities?.[entity.entity_id]?.translation_key;
+        if (key === "parity_status" || key === "parity_valid") return false;
+        if (key === "disk_health") return true;
+        const objectId = entity.entity_id.split(".")[1] ?? "";
+        const physical = [
+          "device",
+          "smart_status",
+          "filesystem",
+          "spinning",
+          "standby",
+        ].some((attribute) => {
+          const value = entity.attributes[attribute];
+          return (
+            value !== undefined &&
+            value !== null &&
+            (typeof value !== "string" || Boolean(value.trim()))
+          );
+        });
+        return (
+          objectId.includes("_disk_") ||
+          !/(?:^|_)parity_health(?:_\d+)?$/.test(objectId) ||
+          physical
+        );
+      }
+    );
     const tempEntities = this.getEntities("disk_temperature");
     const errorEntities = this.getEntities("disk_error_count");
     const spinEntities = this.getEntities("disk_spin", "switch");
 
     const diskMap = new Map<string, DiskItem>();
+    const deviceName = (entity: HassEntity): string | undefined => {
+      const value = entity.attributes.device;
+      return typeof value === "string" && value.trim()
+        ? value.trim().toLowerCase()
+        : undefined;
+    };
+    const deviceRows = new Map<string, string>();
+    const ambiguousDevices = new Set<string>();
+    for (const family of [usageEntities, healthEntities]) {
+      const familyTokens = new Map<string, string>();
+      for (const entity of family) {
+        const device = deviceName(entity);
+        if (!device) continue;
+        const token = extractDiskToken(entity.entity_id);
+        const previous = familyTokens.get(device);
+        if (previous !== undefined && previous !== token) ambiguousDevices.add(device);
+        familyTokens.set(device, token);
+        if (!deviceRows.has(device)) deviceRows.set(device, token);
+      }
+    }
+    // Device identities distinguish physical disks even when their ID tokens collide.
+    const deviceKey = (entity: HassEntity): string | undefined => {
+      const device = deviceName(entity);
+      return device && deviceRows.has(device) && !ambiguousDevices.has(device)
+        ? `device:${device}`
+        : undefined;
+    };
+    const tokenRows = new Map<string, Set<string>>();
+    for (const entity of [...usageEntities, ...healthEntities]) {
+      const key = deviceKey(entity);
+      if (!key) continue;
+      const token = extractDiskToken(entity.entity_id);
+      const keys = tokenRows.get(token) ?? new Set<string>();
+      keys.add(key);
+      tokenRows.set(token, keys);
+    }
+    const rowKey = (entity: HassEntity): string => {
+      const owned = deviceKey(entity);
+      if (owned) return owned;
+      const token = extractDiskToken(entity.entity_id);
+      // A shared device or alias must never attach data to an arbitrary disk.
+      const device = deviceName(entity);
+      const aliases = tokenRows.get(token);
+      if (!device && aliases?.size === 1) return aliases.values().next().value!;
+      return `token:${token}`;
+    };
+    const selectedUsage = new Map<string, HassEntity>();
+    for (const entity of usageEntities) {
+      const key = rowKey(entity);
+      const previous = selectedUsage.get(key);
+      if (
+        !previous ||
+        (this.percentValue(previous) === null && this.percentValue(entity) !== null)
+      )
+        selectedUsage.set(key, entity);
+    }
 
     // 1. Process usage entities (Data and Cache disks)
-    for (const u of usageEntities) {
-      const diskKey = extractDiskToken(u.entity_id);
+    for (const u of selectedUsage.values()) {
+      const diskKey = rowKey(u);
       const cleanName = formatDiskName(
-        (u.attributes.friendly_name as string) || diskKey,
-        diskKey
+        (u.attributes.friendly_name as string) || extractDiskToken(u.entity_id),
+        extractDiskToken(u.entity_id)
       );
       const isParity = cleanName.toLowerCase().includes("parity");
       const isCache =
@@ -109,32 +194,34 @@ export class UnraidStorageCard extends BaseUnraidCard {
         isParity,
         isCache,
         isBoot,
-        usagePct: Math.round(Number(u.state) || 0),
+        usagePct: this.percentValue(u),
         temp: attrTemp !== undefined && attrTemp !== null ? `${attrTemp}°C` : "*",
         tempNum: typeof attrTemp === "number" ? attrTemp : undefined,
         errors: attrErrors,
         health: "healthy",
         statusText: attrStatus,
         isSpinning: attrSpin,
-        freeSpace: u.attributes.free as string | undefined,
-        totalSpace: u.attributes.total as string | undefined,
+        freeSpace: this.attributeText(u, ["free"]),
+        totalSpace: this.attributeText(u, ["total"]),
       });
     }
 
     // 2. Add any disks from healthEntities not yet in diskMap (e.g. Parity disk)
     for (const h of healthEntities) {
-      const diskKey = extractDiskToken(h.entity_id);
+      const diskKey = rowKey(h);
       if (diskMap.has(diskKey)) continue;
+      const token = extractDiskToken(h.entity_id);
       if (
-        diskKey.includes("disabled") ||
-        diskKey.includes("missing") ||
-        diskKey.includes("invalid")
+        token.includes("disabled") ||
+        token.includes("missing") ||
+        token.includes("invalid") ||
+        (!deviceKey(h) && (tokenRows.get(token)?.size ?? 0) > 1)
       )
         continue;
 
       const cleanName = formatDiskName(
-        (h.attributes.friendly_name as string) || diskKey,
-        diskKey
+        (h.attributes.friendly_name as string) || extractDiskToken(h.entity_id),
+        extractDiskToken(h.entity_id)
       );
       const isParity = cleanName.toLowerCase().includes("parity");
       const isCache = cleanName.toLowerCase().includes("cache");
@@ -151,7 +238,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
         isParity,
         isCache,
         isBoot,
-        usagePct: 0,
+        usagePct: null,
         temp: attrTemp !== undefined && attrTemp !== null ? `${attrTemp}°C` : "*",
         tempNum: typeof attrTemp === "number" ? attrTemp : undefined,
         errors: 0,
@@ -163,7 +250,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
 
     // 3. Match dedicated temperature entities
     for (const t of tempEntities) {
-      const key = extractDiskToken(t.entity_id);
+      const key = rowKey(t);
       const disk = diskMap.get(key);
       if (disk && t.state !== "unavailable" && t.state !== "unknown") {
         disk.temp = `${t.state}°C`;
@@ -173,7 +260,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
 
     // 4. Match error sensors
     for (const e of errorEntities) {
-      const key = extractDiskToken(e.entity_id);
+      const key = rowKey(e);
       const disk = diskMap.get(key);
       if (disk) {
         const val = Number(e.state);
@@ -183,7 +270,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
 
     // 5. Match spin switches
     for (const s of spinEntities) {
-      const key = extractDiskToken(s.entity_id);
+      const key = rowKey(s);
       const disk = diskMap.get(key);
       if (disk) {
         disk.isSpinning = s.state === "on";
@@ -193,7 +280,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
 
     // 6. Match health binary sensors & resolve health level
     for (const h of healthEntities) {
-      const key = extractDiskToken(h.entity_id);
+      const key = rowKey(h);
       const disk = diskMap.get(key);
       if (disk) {
         if (h.attributes.status) {
@@ -331,10 +418,10 @@ export class UnraidStorageCard extends BaseUnraidCard {
     const lastCheckDate = this.getEntity("last_parity_check_date");
     const lastCheckErrors = this.getEntity("last_parity_check_errors");
 
-    const arrayPct = Math.round(Number(arrayUsage?.state) || 0);
-    const usedStr = (arrayUsage?.attributes?.capacity_used as string) || "";
-    const totalStr = (arrayUsage?.attributes?.capacity_total as string) || "";
-    const freeStr = (arrayUsage?.attributes?.capacity_free as string) || "";
+    const arrayPct = this.percentValue(arrayUsage);
+    const usedStr = this.attributeText(arrayUsage, ["used", "capacity_used"]);
+    const totalStr = this.attributeText(arrayUsage, ["total", "capacity_total"]);
+    const freeStr = this.attributeText(arrayUsage, ["free", "capacity_free"]);
 
     const { validity, activity, progressPct } = this.getParityViewState();
     const isChecking = activity === "running" || activity === "paused";
@@ -399,7 +486,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
       <ha-card>
         ${this.renderHeader(
           this.config.title || "Storage Array & Disks",
-          `${usedStr || `${arrayPct}%`} used of ${totalStr || "Array"}${freeStr ? ` (${freeStr} Free)` : ""}`,
+          `${usedStr ?? (arrayPct !== null ? `${arrayPct}%` : "—")} used of ${totalStr ?? "Array"}${freeStr ? ` (${freeStr} Free)` : ""}`,
           mdiHarddisk,
           badge
         )}
@@ -408,10 +495,10 @@ export class UnraidStorageCard extends BaseUnraidCard {
             style="display: flex; justify-content: space-between; font-size: var(--ha-font-size-s, 12px); font-weight: var(--ha-font-weight-medium, 500);"
           >
             <span>Array Capacity</span>
-            <span>${arrayPct}%</span>
+            <span>${arrayPct !== null ? `${arrayPct}%` : "—"}</span>
           </div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: ${arrayPct}%;"></div>
+            <div class="progress-fill" style="width: ${arrayPct ?? 0}%;"></div>
           </div>
         </div>
         <div
@@ -591,13 +678,13 @@ export class UnraidStorageCard extends BaseUnraidCard {
                                   >
                                     <div
                                       class="progress-fill"
-                                      style="width: ${disk.usagePct}%; background: ${disk.isBoot ? "var(--unraid-warning)" : disk.isCache ? "var(--unraid-info)" : "var(--unraid-accent)"};"
+                                      style="width: ${disk.usagePct ?? 0}%; background: ${disk.isBoot ? "var(--unraid-warning)" : disk.isCache ? "var(--unraid-info)" : "var(--unraid-accent)"};"
                                     ></div>
                                   </div>
                                   <span
                                     style="font-size: var(--ha-font-size-s, 12px); font-family: var(--ha-font-family-code, monospace); color: var(--unraid-subtext);"
                                   >
-                                    ${disk.usagePct}%
+                                    ${disk.usagePct !== null ? `${disk.usagePct}%` : "—"}
                                   </span>
                                 `
                           }

@@ -227,6 +227,8 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 
 Previously discovered hardware temperature entities are retained when readings are absent; they show unknown until telemetry returns. Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
 
+Server memory subtitles use the native RAM-used sensor, matching the percentage gauge without counting cached memory as used. Storage capacities use the current entity attributes and keep unknown readings distinct from zero. Disk rows combine metrics by device identity when unambiguous, including entity IDs with Home Assistant collision suffixes. Network discovery excludes explicitly foreign registry ownership, and traffic labels respect Home Assistant display units and locale.
+
 ### Docker and VM labels and filters
 
 Docker and VM cards display actual workload names. Use `title` to customize the card header and optional label maps to shorten individual names. Map keys are the exact, case-sensitive Unraid workload names (without a leading `/` for Docker containers). Older entities without `container_name` or `vm_name` attributes use the entity slug as their map key (for example, `ha` for `switch.cube_virtual_machine_ha`), rather than the displayed friendly name:
