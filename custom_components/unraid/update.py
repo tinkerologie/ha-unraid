@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any, Final
+from urllib.parse import quote, urlsplit
 
 from homeassistant.components.update import UpdateEntity, UpdateEntityFeature
 from homeassistant.exceptions import HomeAssistantError
@@ -14,6 +16,13 @@ from unraid_api.models import DockerContainer
 from .const import (
     CONF_ENABLE_CONTAINER_UPDATES,
     DEFAULT_ENABLE_CONTAINER_UPDATES,
+    DOCKER_UPDATE_NO_UPDATE,
+    DOCKER_UPDATE_NOTE_LINKS,
+    DOCKER_UPDATE_NOTES,
+    DOCKER_UPDATE_SUMMARY,
+    DOCKER_UPDATE_SUMMARY_NO_LINK,
+    DOCKER_UPDATE_UNAVAILABLE,
+    DOCKER_UPDATE_UNKNOWN,
     DOMAIN,
 )
 from .coordinator import (
@@ -78,13 +87,38 @@ def _parse_image_tag(image: str | None) -> str | None:
     return _DEFAULT_IMAGE_TAG
 
 
+def _markdown_code(value: str) -> str:
+    """Keep API strings inside a single Markdown code span."""
+    value = value.replace("\r", " ").replace("\n", " ")
+    delimiter = "`" * (
+        max((len(m[0]) for m in re.finditer(r"`+", value)), default=0) + 1
+    )
+    return f"{delimiter} {value} {delimiter}"
+
+
+def _release_note_url(value: str | None) -> str | None:
+    """Accept web links and encode Markdown delimiters from template metadata."""
+    if not value:
+        return None
+    value = value.strip()
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return quote(value, safe=":/?#[]@!$&'*+,;=%")
+
+
 class DockerContainerUpdateEntity(
     UnraidBaseEntity[UnraidSystemCoordinator], UpdateEntity
 ):
     """Represents a Docker container update entity."""
 
     _attr_translation_key = "docker_container_update"
-    _attr_supported_features = UpdateEntityFeature.INSTALL
+    _attr_supported_features = (
+        UpdateEntityFeature.INSTALL | UpdateEntityFeature.RELEASE_NOTES
+    )
 
     def __init__(
         self,
@@ -206,10 +240,35 @@ class DockerContainerUpdateEntity(
         if container is None or not container.isUpdateAvailable:
             return None
         return (
-            "A new image is available for this container. The Unraid API does "
-            "not provide detailed release notes; use the link to view "
-            "the project's changes."
+            DOCKER_UPDATE_SUMMARY if self.release_url else DOCKER_UPDATE_SUMMARY_NO_LINK
         )
+
+    async def async_release_notes(self) -> str | None:
+        """Return honest update information from the cached container only."""
+        container = self._get_container()
+        if container is None:
+            return None
+        status = (
+            _VERSION_UPDATE_AVAILABLE
+            if container.isUpdateAvailable
+            else DOCKER_UPDATE_NO_UPDATE
+            if container.isUpdateAvailable is False
+            else DOCKER_UPDATE_UNKNOWN
+        )
+        notes = [
+            DOCKER_UPDATE_NOTES.format(
+                image=_markdown_code(container.image or DOCKER_UPDATE_UNAVAILABLE),
+                tag=_markdown_code(
+                    _parse_image_tag(container.image) or DOCKER_UPDATE_UNAVAILABLE
+                ),
+                status=status,
+            )
+        ]
+        for attribute, label in DOCKER_UPDATE_NOTE_LINKS:
+            url = _release_note_url(getattr(container, attribute))
+            if url:
+                notes.append(f"- [{label}](<{url}>)")
+        return "\n".join(notes).rstrip()
 
     @property
     def entity_picture(self) -> str | None:

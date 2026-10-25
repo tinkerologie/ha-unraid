@@ -210,6 +210,8 @@ The integration only creates entities for available services:
 
 Entities are automatically created when services become available.
 
+Docker update entities provide a release-notes panel with cached image details, installed tag, update status and available project, registry and support links. Actual target versions and changelogs require future [upstream API/client metadata](https://github.com/tinkerologie/unraid-api/issues/132); generic links are not release-specific notes.
+
 ## Custom Dashboard Cards
 
 The integration includes a suite of 8 modern custom Lovelace cards bundled directly with zero extra setup needed:
