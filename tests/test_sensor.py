@@ -7725,9 +7725,10 @@ def test_vm_status_sensor_states(raw_state: str, expected_state: str) -> None:
     assert sensor.native_value == expected_state
 
 
-def test_vm_status_sensor_attributes() -> None:
+@pytest.mark.parametrize("uuid", [None, "", "vm-uuid-123"])
+def test_vm_status_sensor_attributes(uuid) -> None:
     """Test VirtualMachineStatusSensor extra state attributes."""
-    vm = VmDomain(id="vm:1", name="Ubuntu", state="RUNNING")
+    vm = VmDomain(id="vm:1", name="Ubuntu", state="RUNNING", uuid=uuid)
 
     coordinator = MagicMock(spec=UnraidSystemCoordinator)
     coordinator.data = make_system_data(vms=[vm])
@@ -7743,6 +7744,9 @@ def test_vm_status_sensor_attributes() -> None:
     attrs = sensor.extra_state_attributes
     assert attrs["vm_id"] == "vm:1"
     assert attrs["raw_state"] == "RUNNING"
+    assert ("uuid" in attrs) is bool(uuid)
+    assert attrs.get("uuid") == (uuid or None)
+    assert sensor.unique_id == "test-uuid_vm_status_Ubuntu"
 
 
 def test_vm_status_sensor_none_state_or_missing_vm() -> None:

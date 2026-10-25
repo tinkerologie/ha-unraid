@@ -28,11 +28,14 @@ from unraid_api.models import (
     PluginInstallOperation,
     Registration,
     RemoteAccess,
+    SensorType,
     ServerInfo,
     Service,
     Share,
     SystemMetrics,
     TemperatureMetrics,
+    TemperatureReading,
+    TemperatureSensor,
     UnraidArray,
     UPSDevice,
     Vars,
@@ -338,13 +341,33 @@ def create_mock_unraid_client(
         memory_total=17179869184,
         memory_used=8589934592,
         uptime=86400,
+        temperature=TemperatureMetrics(
+            sensors=[
+                TemperatureSensor(
+                    id="board",
+                    name="Motherboard",
+                    type=SensorType.MOTHERBOARD,
+                    current=TemperatureReading(value=35.0, unit="CELSIUS"),
+                ),
+                TemperatureSensor(
+                    id="chipset",
+                    name="Chipset",
+                    type=SensorType.CHIPSET,
+                    current=TemperatureReading(value=45.0, unit="CELSIUS"),
+                ),
+            ]
+        ),
     )
     client.get_system_metrics = AsyncMock(
         return_value=system_metrics or default_metrics
     )
     client.get_system_metrics_safe = AsyncMock(
-        return_value=system_metrics or default_metrics
+        return_value=(system_metrics or default_metrics).model_copy(
+            update={"temperature": None}
+        )
     )
+
+    client.typed_get_notifications = AsyncMock(return_value=[])
 
     # Notifications (returns NotificationOverview model)
     default_notifications = NotificationOverview(
@@ -356,12 +379,16 @@ def create_mock_unraid_client(
 
     # Docker containers (returns list of DockerContainer models)
     client.get_docker_containers = AsyncMock(return_value=containers or [])
+    client.typed_get_containers_safe = client.get_docker_containers
+    client.get_network_metrics = AsyncMock(return_value=[])
 
     # VMs (returns list of VmDomain models)
     client.get_vms = AsyncMock(return_value=vms or [])
+    client.typed_get_vms = client.get_vms
 
     # UPS devices (returns list of UPSDevice models)
     client.get_ups_info = AsyncMock(return_value=ups_devices or [])
+    client.typed_get_ups_devices = client.get_ups_info
 
     # Array data (returns UnraidArray model)
     default_array = UnraidArray(
@@ -376,9 +403,12 @@ def create_mock_unraid_client(
         boot=None,
     )
     client.get_array = AsyncMock(return_value=array or default_array)
+    client.typed_get_array = client.get_array
+    client.get_parity_history = AsyncMock(return_value=[])
 
     # Shares (returns list of Share models)
     client.get_shares = AsyncMock(return_value=shares or [])
+    client.typed_get_shares = client.get_shares
 
     # Infrastructure data (infra coordinator methods)
     # Services (returns list of Service models)

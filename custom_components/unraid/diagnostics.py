@@ -66,6 +66,16 @@ async def async_get_config_entry_diagnostics(
         "system_coordinator": {
             "last_update_success": system_coordinator.last_update_success,
             "last_update_time": str(system_coordinator.last_update_success_time),
+            "vms": [
+                {
+                    "name": vm.name,
+                    "state": vm.state,
+                    **({"uuid": vm.uuid} if vm.uuid else {}),
+                }
+                for vm in system_data.vms
+            ]
+            if system_data
+            else [],
         },
         "storage_coordinator": {
             "last_update_success": storage_coordinator.last_update_success,

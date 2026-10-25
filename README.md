@@ -196,7 +196,7 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 
 | Card | Tag | Description |
 | :--- | :--- | :--- |
-| **Server Overview** | `custom:unraid-server-card` | System uptime, OS version, registration badge, CPU/RAM utilization progress rings, motherboard temperatures, primary network info, live traffic, and boot device. |
+| **Server Overview** | `custom:unraid-server-card` | System uptime, OS version, registration badge, CPU/RAM utilization progress rings, motherboard temperatures (Unraid API 4.37.6+), primary network info, live traffic, and boot device. |
 | **Storage & Disks** | `custom:unraid-storage-card` | Storage matrix showing array status, parity sync status and history, capacity progress rings, and individual disk health (temperatures, spin states, and read/write I/O). |
 | **User Shares** | `custom:unraid-shares-card` | User shares with disk usage progress bars, used/free/total capacity, and share protection states (`Protected` vs. `Unprotected`). |
 | **Network Interfaces** | `custom:unraid-network-card` | Physical NICs, bonds, and bridges with real-time throughput metrics (rates and totals), link speed badges, active link state chips, MTU, MAC addresses, and clickable WebGUI links. |
@@ -204,6 +204,8 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 | **Power & UPS** | `custom:unraid-ups-card` | Power & UPS monitor with battery charge rings, electrical load, AC voltages, estimated runtime, and adaptive status coloring. |
 | **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine manager with state pills, memory allocation, CPU assignments, and lifecycle controls. |
 | **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
+
+Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. Temperature entities are discovered during setup; reload the integration after upgrading the server API.
 
 ### Interactive More-Info Dialogs
 

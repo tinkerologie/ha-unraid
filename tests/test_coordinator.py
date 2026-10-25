@@ -166,6 +166,7 @@ def mock_api_client():
     # All methods that the coordinator uses are async
     client.get_server_info = AsyncMock(return_value=make_server_info())
     client.get_system_metrics_safe = AsyncMock(return_value=make_system_metrics())
+    client.get_system_metrics = AsyncMock(return_value=make_system_metrics())
     client.get_notification_overview = AsyncMock(
         return_value=make_notification_overview()
     )
@@ -2903,3 +2904,89 @@ async def test_system_coordinator_query_optional_plugin_operations(
     )
     fallback = await coordinator._query_optional_plugin_operations()
     assert fallback is None
+
+
+@pytest.mark.parametrize(
+    ("api_version", "full"),
+    [
+        ("4.37.6", True),
+        ("4.38.0", True),
+        ("4.37.6+local", True),
+        ("4.37.5", False),
+        ("4.31.1", False),
+        (None, False),
+        ("", False),
+        ("invalid", False),
+        ("4.37.6rc1", False),
+    ],
+)
+async def test_temperature_metrics_selection(
+    hass, mock_api_client, mock_config_entry, api_version, full
+):
+    """Select the metrics query once from cached setup info without extra I/O."""
+    coordinator = UnraidSystemCoordinator(
+        hass,
+        mock_api_client,
+        "tower",
+        mock_config_entry,
+        make_server_info(api_version=api_version),
+    )
+    data = await coordinator._async_update_data()
+    selected = (
+        mock_api_client.get_system_metrics
+        if full
+        else mock_api_client.get_system_metrics_safe
+    )
+    unused = (
+        mock_api_client.get_system_metrics_safe
+        if full
+        else mock_api_client.get_system_metrics
+    )
+    selected.assert_awaited_once_with()
+    unused.assert_not_awaited()
+    mock_api_client.get_server_info.assert_not_awaited()
+    mock_api_client.get_version.assert_not_called()
+    mock_api_client.supports_standby_safe_temperature_metrics.assert_not_called()
+    assert data.metrics is selected.return_value
+    assert coordinator.update_interval == timedelta(seconds=30)
+
+
+@pytest.mark.parametrize("api_version", ["4.37.6", "4.31.1"])
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (UnraidAuthenticationError("auth"), ConfigEntryAuthFailed),
+        (UnraidConnectionError("connection"), UpdateFailed),
+        (UnraidTimeoutError("timeout"), UpdateFailed),
+        (UnraidAPIError("api"), UpdateFailed),
+        (RuntimeError("runtime"), UpdateFailed),
+    ],
+)
+async def test_temperature_metrics_errors(
+    hass, mock_api_client, mock_config_entry, api_version, error, expected
+):
+    """Both query modes preserve required-call errors without retrying another mode."""
+    coordinator = UnraidSystemCoordinator(
+        hass,
+        mock_api_client,
+        "tower",
+        mock_config_entry,
+        make_server_info(api_version=api_version),
+    )
+    full = api_version == "4.37.6"
+    selected = (
+        mock_api_client.get_system_metrics
+        if full
+        else mock_api_client.get_system_metrics_safe
+    )
+    unused = (
+        mock_api_client.get_system_metrics_safe
+        if full
+        else mock_api_client.get_system_metrics
+    )
+    selected.side_effect = error
+    with pytest.raises(expected):
+        await coordinator._async_update_data()
+    selected.assert_awaited_once_with()
+    unused.assert_not_awaited()
+    mock_api_client.typed_get_vms.assert_not_awaited()
