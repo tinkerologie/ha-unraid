@@ -38,13 +38,7 @@ interface ContainerItem {
 }
 
 function extractEntityContainerSlug(entityId: string): string {
-  const [domain, objectId = ""] = entityId.split(".");
-  if (domain === "button") {
-    // Strip the action only from controls; it may be part of a container name.
-    const action = objectId.match(/^.*?_(?:unpause|pause)_container_(.+)$/)
-      ?? objectId.match(/^.*?_(?:docker_)?container_(?:unpause|pause)_(.+)$/);
-    if (action?.[1]) return action[1];
-  }
+  const objectId = entityId.split(".")[1] || "";
   return (
     objectId
       .replace(/^.*?_container_restart_/, "")
@@ -187,8 +181,8 @@ export class UnraidDockerCard extends BaseUnraidCard {
         isPaused,
         isStopped,
         isAvailable,
-        pause: pauses.find((entity) => extractEntityContainerSlug(entity.entity_id) === slug),
-        unpause: unpauses.find((entity) => extractEntityContainerSlug(entity.entity_id) === slug),
+        pause: pauses.find((entity) => entity.attributes.container_name === sw.attributes.container_name && typeof sw.attributes.container_name === "string"),
+        unpause: unpauses.find((entity) => entity.attributes.container_name === sw.attributes.container_name && typeof sw.attributes.container_name === "string"),
         status: isPaused ? "Paused" : isRunning ? "Running" : isStopped ? "Stopped" : this.formatState(sw),
         switchEntityId: sw.entity_id,
         restartEntityId: restart?.entity_id,

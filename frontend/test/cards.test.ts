@@ -2002,7 +2002,7 @@ function dockerPauseHass(): HomeAssistant {
   hass.states["switch.cube_docker_container_backup"] = state("switch.cube_docker_container_backup", "off", { status: "EXITED", container_name: "Backup" });
   for (const [action, slug] of [["pause", "plex"], ["unpause", "sleeping"], ["restart", "sleeping"]]) {
     const id = `button.cube_docker_container_${action}_${slug}`;
-    hass.states[id] = state(id, "unknown");
+    hass.states[id] = state(id, "unknown", { container_name: slug === "plex" ? "Web" : "Paused app" });
   }
   const id = "update.cube_docker_container_update_sleeping";
   hass.states[id] = state(id, "on");
@@ -2096,7 +2096,7 @@ describe("Docker paused lifecycle and controls", () => {
     delete hass.states[id]; card.hass = { ...hass }; await card.updateComplete;
     expect(card.shadowRoot!.querySelector(`[aria-label="${label}"]`)).toBeNull();
   });
-  it.each(["button.cube_container_unpause_sleeping", "button.cube_unpause_container_sleeping", "button.cube_docker_container_unpause_sleeping"])("associates %s with its container", async id => {
+  it.each(["button.cube_container_unpause_sleeping", "button.cube_unpause_container_sleeping", "button.cube_docker_container_unpause_sleeping", "button.completely_renamed_control"])("associates %s with its container", async id => {
     const hass = dockerPauseHass();
     const old = "button.cube_docker_container_unpause_sleeping";
     const entity = { ...hass.states[old]!, entity_id: id };
@@ -2118,11 +2118,11 @@ it.each(["docker_container_pause", "pause_container"])("keeps pause-prefixed con
   const hass = dockerPauseHass();
   for (const id of Object.keys(hass.states)) if (id.startsWith("switch.") || id.startsWith("button.")) delete hass.states[id];
   hass.entities = {};
-  for (const name of ["media", "pause_media"]) {
+  for (const name of ["media", "pause_media", "pause_container_media"]) {
     const sw = `switch.cube_docker_container_${name}`;
     hass.states[sw] = { entity_id: sw, state: "on", attributes: { container_name: name, status: "RUNNING" }, last_changed: "", last_updated: "" };
     const button = `button.cube_${prefix}_${name}`;
-    hass.states[button] = { entity_id: button, state: "unknown", attributes: {}, last_changed: "", last_updated: "" };
+    hass.states[button] = { entity_id: button, state: "unknown", attributes: { container_name: name }, last_changed: "", last_updated: "" };
     hass.entities[button] = { entity_id: button, device_id: "dev_1", platform: "unraid", translation_key: "docker_container_pause" };
   }
   vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -2130,6 +2130,9 @@ it.each(["docker_container_pause", "pause_container"])("keeps pause-prefixed con
   card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Pause pause_media"]')!.click();
   await card.updateComplete;
   expect(hass.callService).toHaveBeenCalledWith("button", "press", { entity_id: `button.cube_${prefix}_pause_media` });
+  card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Pause pause_container_media"]')!.click();
+  await card.updateComplete;
+  expect(hass.callService).toHaveBeenLastCalledWith("button", "press", { entity_id: `button.cube_${prefix}_pause_container_media` });
   card.remove();
   vi.restoreAllMocks();
 });

@@ -338,6 +338,11 @@ class _DockerContainerPauseControlButton(UnraidButtonEntity[UnraidSystemCoordina
         """Expose only actions valid for the currently reported lifecycle state."""
         return self._get_available_container() is not None
 
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Identify the workload independently of translated or renamed entity IDs."""
+        return {"container_name": self._container_name}
+
     async def async_press(self) -> None:
         """Control the current container and refresh after a successful action."""
         container = self._get_available_container()

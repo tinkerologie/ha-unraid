@@ -1278,6 +1278,7 @@ async def test_container_pause_availability_and_invalid_press(
     assert button.translation_key == f"docker_container_{action}"
     assert button.entity_registry_enabled_default is False
     assert button.translation_placeholders == {"name": "plex"}
+    assert button.extra_state_attributes == {"container_name": "plex"}
     assert button.device_info is not None
     if not expected:
         with pytest.raises(HomeAssistantError) as error:
