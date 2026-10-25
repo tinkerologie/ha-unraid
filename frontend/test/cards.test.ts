@@ -955,3 +955,31 @@ describe("VM editor filter compatibility", () => {
     expect(editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value).toBe("all");
   });
 });
+
+describe("removing workload filter defaults", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each([
+    { Card: UnraidDockerCard, type: "custom:unraid-docker-card", key: "switch.cube_docker_container_backup", attribute: "container_name", selector: ".row-left span[title]" },
+    { Card: UnraidVmCard, type: "custom:unraid-vm-card", key: "switch.cube_virtual_machine_backup", attribute: "vm_name", selector: ".vm-name" },
+  ])("restores all workloads in $type when the default is removed", async (spec) => {
+    const card = new spec.Card();
+    card.setConfig({ type: spec.type, view_mode: "list", default_filter: "running" });
+    const hass = createMockHass();
+    hass.states[spec.key] = {
+      entity_id: spec.key, state: "off", attributes: { [spec.attribute]: "Backup" }, last_changed: "", last_updated: "",
+    };
+    card.hass = hass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+    expect(card.shadowRoot!.querySelectorAll(spec.selector)).toHaveLength(1);
+    card.setConfig({ type: spec.type, view_mode: "list" });
+    await card.updateComplete;
+    expect(card.shadowRoot!.querySelectorAll(spec.selector)).toHaveLength(2);
+    card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")[2]!.click();
+    await card.updateComplete;
+    card.setConfig({ type: spec.type, view_mode: "list", title: "Renamed" });
+    await card.updateComplete;
+    expect(card.shadowRoot!.querySelectorAll(spec.selector)).toHaveLength(1);
+    expect(card.shadowRoot!.querySelector(spec.selector)!.textContent?.trim()).toBe("Backup");
+  });
+});

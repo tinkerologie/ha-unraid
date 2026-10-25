@@ -55,7 +55,7 @@ export class UnraidVmCard extends BaseUnraidCard {
 
   override willUpdate(changedProperties: PropertyValues<this>): void {
     super.willUpdate(changedProperties);
-    if (changedProperties.has("config") && this.config.default_filter) {
+    if (changedProperties.has("config")) {
       const previous = changedProperties.get("config") as
         | { default_filter?: string }
         | undefined;

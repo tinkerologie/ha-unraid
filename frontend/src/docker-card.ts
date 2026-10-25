@@ -81,14 +81,15 @@ export class UnraidDockerCard extends BaseUnraidCard {
         this._viewMode = this.config.view_mode;
       }
     }
-    if (changedProperties.has("config") && this.config.default_filter) {
+    if (changedProperties.has("config")) {
       const previous = changedProperties.get("config") as
         | { default_filter?: string }
         | undefined;
       if (previous?.default_filter !== this.config.default_filter) {
-        this._filter = ["all", "running", "stopped", "updates"].includes(
-          this.config.default_filter
-        ) ? this.config.default_filter : "all";
+        const filter = this.config.default_filter;
+        this._filter = filter && ["all", "running", "stopped", "updates"].includes(
+          filter
+        ) ? filter : "all";
       }
     }
   }
