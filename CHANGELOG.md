@@ -7,6 +7,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Security
+
+- Update the development lockfile to filelock 4.2.4, fixing [GHSA-v4x8-3wr5-3wq8](https://github.com/advisories/GHSA-v4x8-3wr5-3wq8), [GHSA-567q-5qvw-pf92](https://github.com/advisories/GHSA-567q-5qvw-pf92), and [GHSA-9vhv-jxww-xfm5](https://github.com/advisories/GHSA-9vhv-jxww-xfm5) in the pre-commit/virtualenv dependency chain ([#374](https://github.com/tinkerologie/ha-unraid/issues/374)).
+- Audit all Python extras, including test and development dependencies, in the existing pre-commit vulnerability check.
+
 ### Fixed
 
 - Restore hardware temperature metrics on Unraid API 4.37.6 and later using standby-aware collection, while keeping older or unknown API versions on polling that omits temperature queries to avoid waking disks ([#369](https://github.com/tinkerologie/ha-unraid/issues/369), [#203](https://github.com/tinkerologie/ha-unraid/issues/203), [#211](https://github.com/tinkerologie/ha-unraid/issues/211)). Polling intervals are unchanged. Reload the integration after upgrading the server API to discover temperature entities.
