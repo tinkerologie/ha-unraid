@@ -16,6 +16,8 @@ Design principles
 * **Empty-category guard** — an empty resource list caused by a failed
   optional query or initial startup window must not trigger a whole-category
   prune when registered entities exist.
+* **Telemetry retention** — missing hardware temperature samples do not prove
+  removal of a hardware sensor; its entity is retained through these gaps.
 * **Device cleanup** — after entity removal, any HA device that has lost all
   its entities is also removed from the device registry.
 """
@@ -72,7 +74,7 @@ _missing_streaks: dict[str, int] = {}
 # "disk_" covers all disk entities (disk_id_temp, disk_health_id, disk_spin_id).
 # "share_" covers all share usage sensors.
 # "ups_" covers all UPS sensor/binary_sensor entities.
-# "temp_" covers per-hardware-temperature-sensor entities (not "temperature_average").
+# Hardware temperature entities are retained: telemetry is not hardware inventory.
 _DYNAMIC_RESOURCE_ID_PREFIXES: Final[tuple[str, ...]] = (
     "container_switch_",  # per-container switch
     "container_autostart_",  # per-container autostart switch
@@ -88,7 +90,6 @@ _DYNAMIC_RESOURCE_ID_PREFIXES: Final[tuple[str, ...]] = (
     "disk_",  # all disk entities (all disk types and metrics)
     "share_",  # per-share usage sensor
     "ups_",  # all UPS sensor / binary_sensor entities
-    "temp_",  # per-hardware-temperature-sensor entity
 )
 
 # Static resource ids that start with "container_" (and must not be cleaned up)
@@ -216,13 +217,6 @@ def _build_system_dynamic_unique_ids(
             "connected",
         ):
             expected.add(f"{pfx}ups_{ups.id}_{suffix}")
-
-    for sensor in (
-        sys_data.metrics.temperature.sensors
-        if (sys_data.metrics and sys_data.metrics.temperature is not None)
-        else []
-    ):
-        expected.add(f"{pfx}temp_{sensor.id}")
 
     for iface in sys_data.network_metrics or []:
         if iface.name is not None:

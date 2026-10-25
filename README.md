@@ -143,6 +143,26 @@ After setup, you can adjust UPS settings (only shown if UPS is detected):
 | UPS Power       | Power consumption W | power        |
 | Notifications   | Unread count        | -            |
 
+### Summary sensors
+
+These host and Docker aggregates are enabled by default; group helpers are unnecessary:
+
+| Requested metric | Entity name | Translation key |
+| --- | --- | --- |
+| Docker total CPU usage | Docker Total CPU | `docker_total_cpu` |
+| System used memory | RAM Used | `ram_used` |
+| System memory usage | RAM Usage | `ram_usage` |
+| Docker used memory | Docker Total Memory Used | `docker_total_memory_bytes` |
+| Docker memory usage | Docker Total Memory % | `docker_total_memory_percent` |
+
+RAM Used is whole-host total memory minus available memory. RAM Usage uses the API-reported percentage. Docker memory bytes sum the reported usage of running containers, including containers with different memory limits. A missing or invalid reading from any running container keeps the total unknown; a reported zero remains zero. Byte sensors can display MB or MiB through Home Assistant's entity unit setting.
+
+Docker Total CPU is the sum of running-container CPU readings divided by the host's logical CPU count, so it represents 0–100% of total host capacity. For example, Docker's raw 225.5% on a 12-thread host becomes 18.79%. Docker Total Memory % uses the same actual-byte total as Docker Total Memory Used, divided by total host RAM; it does not sum percentages based on different container limits. Both aggregate percentages are bounded to 0–100% for transiently inconsistent snapshots. Missing host denominators or incomplete readings stay unknown. Individual container sensors retain Docker's per-core CPU and per-limit memory percentages. Automations using the old aggregate scales may need threshold adjustments. Unraid's separate Docker vdisk/folder bar measures storage; the Docker segment of its RAM chart measures memory.
+
+Docker totals require the container-statistics subscription. If the API stream stops publishing, these sensors can show `Unknown` while container inventory remains available. A stalled collector in Unraid API 4.37.7 is tracked in [Unraid API #2120](https://github.com/unraid/api/issues/2120); restarting only the Unraid API service restored the stream in live testing.
+
+ZFS ARC used memory and percentage require an upstream API extension ([Unraid API #2119](https://github.com/unraid/api/issues/2119), [Python client #131](https://github.com/tinkerologie/unraid-api/issues/131)). Generic free/buffer/cache metrics cannot identify ARC usage, so this integration does not estimate it.
+
 ### Binary Sensors
 
 | Entity               | Description                         |
@@ -205,7 +225,7 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 | **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine manager with state pills, memory allocation, CPU assignments, and lifecycle controls. |
 | **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
 
-Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. Temperature entities are discovered during setup; reload the integration after upgrading the server API.
+Previously discovered hardware temperature entities are retained when readings are absent; they show unknown until telemetry returns. Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
 
 ### Interactive More-Info Dialogs
 
