@@ -816,6 +816,8 @@ for (const spec of [
       { description: "explicit override", attributes, labels: { [spec.raw]: "Short label" }, expected: "Short label", tooltip: spec.raw },
       { description: "friendly fallback", attributes: { friendly_name: "Friendly label" }, expected: "Friendly label", tooltip: "Friendly label" },
       { description: "slug fallback", attributes: { friendly_name: "" }, expected: spec.slug, tooltip: spec.slug },
+      { description: "blank raw name friendly fallback", attributes: { friendly_name: "Friendly label", [spec.attribute]: "   " }, expected: "Friendly label", tooltip: "Friendly label" },
+      { description: "blank raw name slug fallback", attributes: { [spec.attribute]: "   " }, expected: spec.slug, tooltip: spec.slug },
       { description: "legacy slug override", attributes: { friendly_name: "Long name" }, labels: { [spec.slug]: "Legacy label" }, expected: "Legacy label", tooltip: "Long name" },
       ...["", "   ", 42, null].map((value) => ({ description: `invalid override ${String(value)}`, attributes, labels: { [spec.raw]: value }, expected: spec.raw, tooltip: spec.raw })),
     ];
@@ -1019,4 +1021,26 @@ describe("empty Docker update filters", () => {
     expect(card.shadowRoot!.textContent).not.toContain("No container updates available");
     expect(card.shadowRoot!.querySelectorAll(".container-tile, .list-row")).toHaveLength(1);
   });
+});
+
+
+describe("empty Docker inventory and status filters", () => {
+  afterEach(() => document.body.replaceChildren());
+  for (const view_mode of ["grid", "list"] as const) {
+    it.each([
+      { filter: "all", state: null, message: "No Docker containers configured" },
+      { filter: "running", state: "off", message: "No running containers" },
+      { filter: "stopped", state: "on", message: "No stopped containers" },
+    ] as const)(`renders $message in ${view_mode} mode`, async ({ filter, state, message }) => {
+      const card = new UnraidDockerCard();
+      card.setConfig({ type: "custom:unraid-docker-card", view_mode, default_filter: filter });
+      const hass = createMockHass();
+      if (state === null) delete hass.states["switch.cube_docker_container_plex"];
+      else hass.states["switch.cube_docker_container_plex"]!.state = state;
+      card.hass = hass;
+      document.body.appendChild(card);
+      await card.updateComplete;
+      expect(card.shadowRoot!.textContent).toContain(message);
+    });
+  }
 });
