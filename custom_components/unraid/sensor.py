@@ -2762,13 +2762,18 @@ class DockerTotalMemoryBytesSensor(
         if data is None:
             return None
         valid_ids = {c.id for c in data.containers if c.is_running}
-        used_values = [
-            used
-            for cid, s in all_stats.items()
-            if cid in valid_ids
-            if (used := parse_docker_mem_usage(s.memUsage)[0]) is not None
-        ]
-        return sum(used_values) if used_values else None
+        if not valid_ids:
+            return None
+        total_used = 0
+        for cid in valid_ids:
+            stats = all_stats.get(cid)
+            if stats is None:
+                return None
+            used, _limit = parse_docker_mem_usage(stats.memUsage)
+            if used is None:
+                return None
+            total_used += used
+        return total_used
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

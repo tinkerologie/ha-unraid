@@ -155,9 +155,11 @@ These host and Docker aggregates are enabled by default; group helpers are unnec
 | Docker used memory | Docker Total Memory Used | `docker_total_memory_bytes` |
 | Docker memory usage | Docker Total Memory % | `docker_total_memory_percent` |
 
-RAM Used is whole-host total memory minus available memory. RAM Usage uses the API-reported percentage. Docker memory bytes sum the reported usage of running containers, including containers with different memory limits. Missing usage stays unknown; a reported zero remains zero. Byte sensors can display MB or MiB through Home Assistant's entity unit setting.
+RAM Used is whole-host total memory minus available memory. RAM Usage uses the API-reported percentage. Docker memory bytes sum the reported usage of running containers, including containers with different memory limits. A missing or invalid reading from any running container keeps the total unknown; a reported zero remains zero. Byte sensors can display MB or MiB through Home Assistant's entity unit setting.
 
 Docker Total CPU sums API values and can exceed 100% on multi-core hosts. Docker Total Memory % sums API percentages, whose denominators can be different container memory limits. Unraid's separate Docker vdisk/folder bar measures storage; the Docker segment of its RAM chart measures memory.
+
+Docker totals require the container-statistics subscription. If the API stream stops publishing, these sensors can show `Unknown` while container inventory remains available. A stalled collector in Unraid API 4.37.7 is tracked in [Unraid API #2120](https://github.com/unraid/api/issues/2120); restarting only the Unraid API service restored the stream in live testing.
 
 ZFS ARC used memory and percentage require an upstream API extension ([Unraid API #2119](https://github.com/unraid/api/issues/2119), [Python client #131](https://github.com/tinkerologie/unraid-api/issues/131)). Generic free/buffer/cache metrics cannot identify ARC usage, so this integration does not estimate it.
 

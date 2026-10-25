@@ -7072,6 +7072,24 @@ def test_docker_total_memory_bytes_missing_usage(usage) -> None:
     assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
 
 
+@pytest.mark.parametrize("usage", [None, "invalid", "absent"])
+def test_docker_total_memory_bytes_rejects_partial_usage(usage) -> None:
+    """A total must include every running container, rather than a partial sum."""
+    from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
+
+    coordinator = _stats_coordinator(
+        [
+            _make_docker_container("plex", "live"),
+            _make_docker_container("media", "second"),
+        ]
+    )
+    stats = {"live": {"id": "live", "memUsage": "128MiB / 1GiB"}}
+    if usage != "absent":
+        stats["second"] = {"id": "second", "memUsage": usage}
+    ws = _make_ws_manager(stats=stats)
+    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
+
+
 def test_docker_total_memory_bytes_all_stopped() -> None:
     """Lingering stats of stopped containers do not contribute to either total."""
     from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
