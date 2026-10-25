@@ -1444,6 +1444,19 @@ describe("dashboard accessibility and action safeguards", () => {
   });
 });
 
+// Remove presentation-only nodes on a clone; snapshot formatting is not HTML sanitization.
+function snapshotMarkup(element: Element, hideIcons = false): string {
+  const clone = element.cloneNode(true) as Element;
+  const comments = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
+  const nodes: Node[] = [];
+  while (comments.nextNode()) nodes.push(comments.currentNode);
+  for (const node of nodes) node.parentNode!.removeChild(node);
+  if (hideIcons)
+    for (const icon of clone.querySelectorAll("svg"))
+      icon.replaceWith(document.createTextNode("[icon]"));
+  return clone.outerHTML.replace(/\s+/g, " ").trim();
+}
+
 describe("accessible filter and tab markup", () => {
   afterEach(() => document.body.replaceChildren());
   it("keeps VM filter labels and pressed states together", async () => {
@@ -1453,12 +1466,7 @@ describe("accessible filter and tab markup", () => {
     document.body.append(card);
     await card.updateComplete;
     const group = card.shadowRoot!.querySelector('[role="group"]')!;
-    expect(
-      group.outerHTML
-        .replace(/<!--.*?-->/gs, "")
-        .replace(/\s+/g, " ")
-        .trim()
-    ).toMatchSnapshot();
+    expect(snapshotMarkup(group)).toMatchSnapshot();
   });
   it("links every dashboard tab to its panel with one selected tab", async () => {
     const card = new UnraidDashboardCard();
@@ -1467,13 +1475,7 @@ describe("accessible filter and tab markup", () => {
     document.body.append(card);
     await card.updateComplete;
     const tabs = card.shadowRoot!.querySelector('[role="tablist"]')!;
-    expect(
-      tabs.outerHTML
-        .replace(/<!--.*?-->/gs, "")
-        .replace(/<svg[\s\S]*?<\/svg>/g, "[icon]")
-        .replace(/\s+/g, " ")
-        .trim()
-    ).toMatchSnapshot();
+    expect(snapshotMarkup(tabs, true)).toMatchSnapshot();
     expect(tabs.querySelectorAll('[aria-selected="true"]')).toHaveLength(1);
     for (const tab of tabs.querySelectorAll('[role="tab"]')) {
       const panel = card.shadowRoot!.getElementById(
@@ -1504,4 +1506,33 @@ describe("missing array storage readings", () => {
       expect(ring.querySelector(".ring-subtext")!.textContent!.trim()).toBe("No data");
     }
   );
+});
+
+describe("system health status", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each([
+    ["0", "Normal • Healthy"],
+    ["3", "3 Active Alerts"],
+    ["unknown", "Unknown"],
+    ["unavailable", "Unavailable"],
+  ])("renders %s without inventing healthy telemetry", async (state, expected) => {
+    const card = new UnraidServerCard();
+    const hass = createMockHass();
+    hass.states["sensor.cube_notifications_unread_alert"] = {
+      entity_id: "sensor.cube_notifications_unread_alert",
+      state: state!,
+      attributes: {},
+      last_changed: "",
+      last_updated: "",
+    };
+    card.setConfig({ type: "custom:unraid-server-card" });
+    card.hass = hass;
+    document.body.append(card);
+    await card.updateComplete;
+    const row = [...card.shadowRoot!.querySelectorAll(".detail-item")].find((el) =>
+      el.textContent!.includes("System Health")
+    )!;
+    expect(row.querySelector(".detail-val")!.textContent!.trim()).toBe(expected);
+    expect(row.querySelector(".detail-val")!.getAttribute("style")).toBeNull();
+  });
 });

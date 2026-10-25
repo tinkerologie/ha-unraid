@@ -181,7 +181,31 @@ for (const [theme, variables] of Object.entries({
     await page.evaluate((vars) => {
       for (const [key, value] of Object.entries(vars))
         document.documentElement.style.setProperty(key, value);
+      for (const [key, value] of Object.entries({
+        "--success-color": "#4caf50",
+        "--warning-color": "#ff9800",
+        "--error-color": "#db4437",
+      }))
+        document.documentElement.style.setProperty(key, value);
     }, variables);
+    await page.evaluate(async () => {
+      const fixture = window as unknown as {
+        mockHass: { states: Record<string, unknown> };
+      };
+      fixture.mockHass.states["sensor.cube_notifications_unread_alert"] = {
+        entity_id: "sensor.cube_notifications_unread_alert",
+        state: "3",
+        attributes: {},
+      };
+      for (const tag of ["#server-card", "#dashboard-card"]) {
+        const card = document.querySelector(tag) as HTMLElement & {
+          hass: unknown;
+          updateComplete: Promise<unknown>;
+        };
+        card.hass = { ...fixture.mockHass };
+        await card.updateComplete;
+      }
+    });
     const contrast = await page.locator("#container").evaluate((container) => {
       const canvas = document.createElement("canvas");
       canvas.width = canvas.height = 1;

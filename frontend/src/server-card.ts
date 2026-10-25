@@ -55,7 +55,9 @@ export class UnraidServerCard extends BaseUnraidCard {
 
     const isArrayStarted =
       arrayState?.state?.toLowerCase() === "started" || arrayState?.state === "Normal";
-    const alertCount = Number(alertsState?.state) || 0;
+    const rawAlertCount = alertsState?.state.trim() ? Number(alertsState.state) : NaN;
+    const alertCount =
+      Number.isFinite(rawAlertCount) && rawAlertCount >= 0 ? rawAlertCount : null;
 
     const cpuModel =
       (cpuState?.attributes?.cpu_model as string) ||
@@ -115,7 +117,7 @@ export class UnraidServerCard extends BaseUnraidCard {
         <span>Array ${this.formatState(arrayState)}</span>
       </span>
       ${
-        alertCount > 0
+        alertCount !== null && alertCount > 0
           ? html`
               <span class="badge badge-error">
                 ${iconTemplate(mdiAlertCircle, 13)}
@@ -273,11 +275,8 @@ export class UnraidServerCard extends BaseUnraidCard {
                     title="Click to view Notifications"
                   >
                     <span class="detail-label">System Health</span>
-                    <span
-                      class="detail-val"
-                      style="color: ${alertCount === 0 ? "var(--unraid-online)" : "var(--unraid-error)"}"
-                    >
-                      ${alertCount === 0 ? "Normal • Healthy" : `${alertCount} Active Alerts`}
+                    <span class="detail-val">
+                      ${alertCount === null ? this.formatState(alertsState, "No data") : alertCount === 0 ? "Normal • Healthy" : `${alertCount} Active Alerts`}
                     </span>
                   </button>
                 </div>
