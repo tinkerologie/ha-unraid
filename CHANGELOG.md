@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.5] - 2026-10-25
+
 ### Security
 
 - Update the development lockfile to filelock 4.2.4, fixing [GHSA-v4x8-3wr5-3wq8](https://github.com/advisories/GHSA-v4x8-3wr5-3wq8), [GHSA-567q-5qvw-pf92](https://github.com/advisories/GHSA-567q-5qvw-pf92), and [GHSA-9vhv-jxww-xfm5](https://github.com/advisories/GHSA-9vhv-jxww-xfm5) in the pre-commit/virtualenv dependency chain ([#374](https://github.com/tinkerologie/ha-unraid/issues/374)).
@@ -39,6 +41,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 - Require unraid-api 1.14.0, including native Docker restart support with an older-API fallback. Expose optional VM UUID attributes and include redacted VM UUIDs in diagnostics without changing entity identities.
 - Update the development lockfile to Pillow 13.0.0 to clear the dependency audit's decoder security advisories.
+
+### Known limitations
+
+- ZFS ARC metrics ([#202](https://github.com/tinkerologie/ha-unraid/issues/202)), host reboot/shutdown ([#176](https://github.com/tinkerologie/ha-unraid/issues/176)), and VM hibernation ([#284](https://github.com/tinkerologie/ha-unraid/issues/284)) require additional official Unraid GraphQL API support. These issues remain open.
+- Target image versions and genuine Docker release changelogs ([#258](https://github.com/tinkerologie/ha-unraid/issues/258)) also require upstream metadata. Cached image details and general project links are available in this release; the issue remains open.
 
 ## [2026.10.4] - 2026-10-18
 
