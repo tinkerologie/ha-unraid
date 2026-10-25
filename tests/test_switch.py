@@ -2055,3 +2055,34 @@ async def test_paused_stop_handles_unpause_failure(already_running) -> None:
         assert isinstance(error.value.__cause__, UnraidAPIError)
         coordinator.async_stop_container.assert_not_awaited()
         coordinator.async_request_docker_refresh.assert_not_awaited()
+
+
+@pytest.mark.parametrize("already_running", [True, False])
+async def test_paused_stop_refreshes_after_partial_success(already_running) -> None:
+    """A failed stop still publishes an unpause and preserves the stop error."""
+    container = DockerContainer(id="ct:1", name="/web", state="PAUSED")
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_unpause_container = AsyncMock(
+        side_effect=UnraidAPIError("container already running")
+        if already_running
+        else None
+    )
+    stop_error = UnraidAPIError("stop denied")
+    coordinator.async_stop_container = AsyncMock(side_effect=stop_error)
+
+    async def refresh() -> None:
+        coordinator.data = make_system_data(
+            containers=[DockerContainer(id="ct:1", name="/web", state="RUNNING")]
+        )
+
+    coordinator.async_request_docker_refresh = AsyncMock(side_effect=refresh)
+    switch = DockerContainerSwitch(coordinator, "uuid", "tower", container)
+    with pytest.raises(HomeAssistantError) as error:
+        await switch.async_turn_off()
+    assert error.value.translation_key == "container_stop_failed"
+    assert error.value.__cause__ is stop_error
+    coordinator.async_unpause_container.assert_awaited_once_with("ct:1")
+    coordinator.async_stop_container.assert_awaited_once_with("ct:1")
+    coordinator.async_request_docker_refresh.assert_awaited_once()
+    assert switch.extra_state_attributes["status"] == "RUNNING"

@@ -24,7 +24,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Fixed
 
-- Show paused Docker containers separately from running and stopped containers, including counts, sorting and status labels ([#380](https://github.com/tinkerologie/ha-unraid/issues/380)).
+- Show paused Docker containers separately from running and stopped containers, including counts, sorting and status labels. Refresh state when unpausing succeeds but Stop fails ([#380](https://github.com/tinkerologie/ha-unraid/issues/380)).
 
 - Correct dashboard RAM subtitles to use native used-memory readings, populate array capacities from current attributes, and join suffixed disk metrics into one row per physical or boot device. Exclude aggregate parity rows and network interfaces owned by other integrations or servers, and respect Home Assistant traffic display units and formatting ([#378](https://github.com/tinkerologie/ha-unraid/issues/378)).
 
