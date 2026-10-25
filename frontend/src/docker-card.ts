@@ -38,13 +38,15 @@ interface ContainerItem {
 }
 
 function extractEntityContainerSlug(entityId: string): string {
-  const objectId = entityId.split(".")[1] || "";
+  const [domain, objectId = ""] = entityId.split(".");
+  if (domain === "button") {
+    // Strip the action only from controls; it may be part of a container name.
+    const action = objectId.match(/^.*?_(?:unpause|pause)_container_(.+)$/)
+      ?? objectId.match(/^.*?_(?:docker_)?container_(?:unpause|pause)_(.+)$/);
+    if (action?.[1]) return action[1];
+  }
   return (
     objectId
-      .replace(/^.*?_docker_container_unpause_/, "")
-      .replace(/^.*?_container_unpause_/, "")
-      .replace(/^.*?_docker_container_pause_/, "")
-      .replace(/^.*?_container_pause_/, "")
       .replace(/^.*?_container_restart_/, "")
       .replace(/^.*?_docker_container_restart_/, "")
       .replace(/^.*?_container_autostart_/, "")

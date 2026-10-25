@@ -2113,3 +2113,23 @@ describe("Docker paused lifecycle and controls", () => {
     expect(editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value).toBe("paused");
   });
 });
+
+it.each(["docker_container_pause", "pause_container"])("keeps pause-prefixed container names distinct with %s buttons", async prefix => {
+  const hass = dockerPauseHass();
+  for (const id of Object.keys(hass.states)) if (id.startsWith("switch.") || id.startsWith("button.")) delete hass.states[id];
+  hass.entities = {};
+  for (const name of ["media", "pause_media"]) {
+    const sw = `switch.cube_docker_container_${name}`;
+    hass.states[sw] = { entity_id: sw, state: "on", attributes: { container_name: name, status: "RUNNING" }, last_changed: "", last_updated: "" };
+    const button = `button.cube_${prefix}_${name}`;
+    hass.states[button] = { entity_id: button, state: "unknown", attributes: {}, last_changed: "", last_updated: "" };
+    hass.entities[button] = { entity_id: button, device_id: "dev_1", platform: "unraid", translation_key: "docker_container_pause" };
+  }
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const card = await renderDockerPause("list", hass);
+  card.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Pause pause_media"]')!.click();
+  await card.updateComplete;
+  expect(hass.callService).toHaveBeenCalledWith("button", "press", { entity_id: `button.cube_${prefix}_pause_media` });
+  card.remove();
+  vi.restoreAllMocks();
+});
