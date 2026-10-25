@@ -130,11 +130,31 @@ export class UnraidStorageCard extends BaseUnraidCard {
         if (!deviceRows.has(device)) deviceRows.set(device, token);
       }
     }
-    const rowKey = (entity: HassEntity): string => {
+    // Device identities distinguish physical disks even when their ID tokens collide.
+    const deviceKey = (entity: HassEntity): string | undefined => {
       const device = deviceName(entity);
-      return device && !ambiguousDevices.has(device)
-        ? (deviceRows.get(device) ?? extractDiskToken(entity.entity_id))
-        : extractDiskToken(entity.entity_id);
+      return device && deviceRows.has(device) && !ambiguousDevices.has(device)
+        ? `device:${device}`
+        : undefined;
+    };
+    const tokenRows = new Map<string, Set<string>>();
+    for (const entity of [...usageEntities, ...healthEntities]) {
+      const key = deviceKey(entity);
+      if (!key) continue;
+      const token = extractDiskToken(entity.entity_id);
+      const keys = tokenRows.get(token) ?? new Set<string>();
+      keys.add(key);
+      tokenRows.set(token, keys);
+    }
+    const rowKey = (entity: HassEntity): string => {
+      const owned = deviceKey(entity);
+      if (owned) return owned;
+      const token = extractDiskToken(entity.entity_id);
+      // A shared device or alias must never attach data to an arbitrary disk.
+      const device = deviceName(entity);
+      const aliases = tokenRows.get(token);
+      if (!device && aliases?.size === 1) return aliases.values().next().value!;
+      return `token:${token}`;
     };
     const selectedUsage = new Map<string, HassEntity>();
     for (const entity of usageEntities) {
@@ -151,8 +171,8 @@ export class UnraidStorageCard extends BaseUnraidCard {
     for (const u of selectedUsage.values()) {
       const diskKey = rowKey(u);
       const cleanName = formatDiskName(
-        (u.attributes.friendly_name as string) || diskKey,
-        diskKey
+        (u.attributes.friendly_name as string) || extractDiskToken(u.entity_id),
+        extractDiskToken(u.entity_id)
       );
       const isParity = cleanName.toLowerCase().includes("parity");
       const isCache =
@@ -190,16 +210,18 @@ export class UnraidStorageCard extends BaseUnraidCard {
     for (const h of healthEntities) {
       const diskKey = rowKey(h);
       if (diskMap.has(diskKey)) continue;
+      const token = extractDiskToken(h.entity_id);
       if (
-        diskKey.includes("disabled") ||
-        diskKey.includes("missing") ||
-        diskKey.includes("invalid")
+        token.includes("disabled") ||
+        token.includes("missing") ||
+        token.includes("invalid") ||
+        (!deviceKey(h) && (tokenRows.get(token)?.size ?? 0) > 1)
       )
         continue;
 
       const cleanName = formatDiskName(
-        (h.attributes.friendly_name as string) || diskKey,
-        diskKey
+        (h.attributes.friendly_name as string) || extractDiskToken(h.entity_id),
+        extractDiskToken(h.entity_id)
       );
       const isParity = cleanName.toLowerCase().includes("parity");
       const isCache = cleanName.toLowerCase().includes("cache");
@@ -238,7 +260,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
 
     // 4. Match error sensors
     for (const e of errorEntities) {
-      const key = extractDiskToken(e.entity_id);
+      const key = rowKey(e);
       const disk = diskMap.get(key);
       if (disk) {
         const val = Number(e.state);

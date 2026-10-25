@@ -1695,6 +1695,51 @@ for (const registry of [true, false])
       const card = await renderMetricCard(UnraidStorageCard, hass);
       expect(card.shadowRoot!.querySelectorAll(".item-list .list-row")).toHaveLength(6);
     });
+    it("keeps distinct devices even when collision suffixes hide the same resource token", async () => {
+      const hass = storageFixture(registry);
+      const id = "sensor.cube_disk_disk1_usage";
+      hass.states[id]!.state = "25";
+      hass.states[id]!.attributes.device = "sdz";
+      const card = await renderMetricCard(UnraidStorageCard, hass);
+      const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+      expect(rows).toHaveLength(7);
+      const disks = rows.filter((row) => row.textContent!.includes("Disk 1"));
+      expect(disks).toHaveLength(2);
+      expect(disks.some((row) => row.textContent!.includes("25%"))).toBe(true);
+      expect(disks.some((row) => row.textContent!.includes("10%"))).toBe(true);
+    });
+    if (registry)
+      it("keeps errors associated through a uniquely renamed health token", async () => {
+        const hass = storageFixture(registry);
+        const old = "binary_sensor.cube_disk_disk1_health";
+        const next = "binary_sensor.cube_disk_renamed_health_2";
+        hass.states[next] = { ...hass.states[old]!, entity_id: next };
+        delete hass.states[old];
+        const error = "sensor.cube_disk_renamed_errors";
+        hass.states[error] = {
+          entity_id: error,
+          state: "12",
+          attributes: {},
+          last_changed: "",
+          last_updated: "",
+        };
+        if (registry) {
+          hass.entities![next] = { ...hass.entities![old]!, entity_id: next };
+          delete hass.entities![old];
+          hass.entities![error] = {
+            entity_id: error,
+            device_id: "dev_1",
+            platform: "unraid",
+            translation_key: "disk_error_count",
+          };
+        }
+        const card = await renderMetricCard(UnraidStorageCard, hass);
+        const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+        expect(rows).toHaveLength(6);
+        const disk = rows.find((row) => row.textContent!.includes("Disk 1"))!;
+        expect(disk.textContent).toContain("12");
+        expect(disk.textContent).not.toContain("Healthy");
+      });
     it("uses tokens for a shared or blank device rather than merging different disks", async () => {
       const hass = storageFixture(registry);
       for (const [id, entity] of Object.entries(hass.states))
