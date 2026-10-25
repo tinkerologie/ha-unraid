@@ -681,6 +681,7 @@ async def test_cached_release_notes_follow_new_container_data() -> None:
         "https://[",
         "not-a-url",
         "http://",
+        " ",
     ],
 )
 @pytest.mark.asyncio

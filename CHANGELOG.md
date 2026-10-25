@@ -14,7 +14,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Added
 
-- Show cached Docker image, installed tag, update status and available project/registry/support links in Home Assistant’s release-notes panel. Avoid referring to a missing link in update summaries. Actual target versions and changelogs remain dependent on upstream metadata ([#258](https://github.com/tinkerologie/ha-unraid/issues/258), [client #132](https://github.com/tinkerologie/unraid-api/issues/132)).
+- Show cached Docker image, installed tag, update status and available project/registry/support links in Home Assistant's release-notes panel. Avoid referring to a missing link in update summaries. Actual target versions and changelogs remain dependent on upstream metadata ([#258](https://github.com/tinkerologie/ha-unraid/issues/258), [client #132](https://github.com/tinkerologie/unraid-api/issues/132)).
 
 - Align all eight dashboard cards and editors with Home Assistant theme and design tokens, readable light/dark/custom-theme colours, keyboard and screen-reader semantics, 40px/48px touch targets, reduced motion, and responsive RTL layouts. Keep Sections heights content-driven and show only relevant editor fields ([#370](https://github.com/tinkerologie/ha-unraid/issues/370)).
 
