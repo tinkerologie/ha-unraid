@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.exceptions import HomeAssistantError
 from unraid_api.exceptions import UnraidAPIError
 from unraid_api.models import DockerContainer
@@ -562,3 +563,189 @@ async def test_setup_entry_no_data() -> None:
     # something to add, and registers a listener for later discoveries.
     async_add_entities.assert_not_called()
     system_coordinator.async_add_listener.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cached_release_notes_features_and_complete_metadata() -> None:
+    """Expose readable cached notes without refreshing or installing anything."""
+    container = DockerContainer(
+        id="ct:1",
+        name="/web",
+        image="registry:5000/nginx:1.25.0",
+        isUpdateAvailable=True,
+        projectUrl="https://example.com/project",
+        registryUrl="https://example.com/registry",
+        supportUrl="https://example.com/support",
+    )
+    entity = _make_update_entity(container)
+    assert entity.supported_features == (
+        UpdateEntityFeature.INSTALL | UpdateEntityFeature.RELEASE_NOTES
+    )
+    notes = await entity.async_release_notes()
+    assert notes is not None
+    assert "registry:5000/nginx:1.25.0" in notes
+    assert "1.25.0" in notes
+    assert "Update available" in notes
+    assert (
+        notes.index("[Project]") < notes.index("[Registry]") < notes.index("[Support]")
+    )
+    assert "does not supply a target version or a changelog" in notes
+    entity.coordinator.async_request_docker_refresh.assert_not_awaited()
+    entity.coordinator.async_request_refresh.assert_not_awaited()
+    entity.coordinator.async_update_container.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("flag", "expected"),
+    [(True, "Update available"), (False, "No update reported"), (None, "Unknown")],
+)
+@pytest.mark.asyncio
+async def test_cached_release_notes_update_status(
+    flag: bool | None, expected: str
+) -> None:
+    """Do not infer a known update status from missing metadata."""
+    entity = _make_update_entity(
+        DockerContainer(id="ct:1", name="/web", isUpdateAvailable=flag)
+    )
+    notes = await entity.async_release_notes()
+    assert notes is not None
+    assert expected in notes
+    assert "Unavailable" in notes
+    assert "[Project]" not in notes
+    assert "[Registry]" not in notes
+    assert "[Support]" not in notes
+
+
+@pytest.mark.parametrize("data_none", [True, False])
+@pytest.mark.asyncio
+async def test_cached_release_notes_missing_container(data_none: bool) -> None:
+    """Absent coordinator data and removed containers have no fabricated notes."""
+    entity = _make_update_entity(
+        DockerContainer(id="ct:1", name="/web"),
+        containers=[DockerContainer(id="ct:other", name="/other")],
+        coordinator_data_none=data_none,
+    )
+    assert await entity.async_release_notes() is None
+    assert entity.release_summary is None
+    assert entity.release_url is None
+
+
+@pytest.mark.parametrize(
+    ("url", "has_link"), [(None, False), ("", False), ("https://example.com", True)]
+)
+def test_release_summary_matches_available_links(
+    url: str | None, has_link: bool
+) -> None:
+    """Pending-update summaries never point to a nonexistent link."""
+    entity = _make_update_entity(
+        DockerContainer(
+            id="ct:1",
+            name="/web",
+            isUpdateAvailable=True,
+            supportUrl=url,
+        )
+    )
+    summary = entity.release_summary
+    assert summary is not None
+    assert len(summary) < 255
+    assert ("use the link" in summary) is has_link
+    assert entity.release_url == (url or None)
+
+
+@pytest.mark.asyncio
+async def test_cached_release_notes_follow_new_container_data() -> None:
+    """Notes use the current name-matched container after recreation."""
+    entity = _make_update_entity(
+        DockerContainer(id="old", name="/web", image="nginx:1")
+    )
+    assert "nginx:1" in (await entity.async_release_notes())
+    entity.coordinator.data = make_system_data(
+        containers=[
+            DockerContainer(
+                id="new", name="/web", image="nginx:2", isUpdateAvailable=True
+            )
+        ]
+    )
+    notes = await entity.async_release_notes()
+    assert notes is not None
+    assert "nginx:2" in notes
+    assert "nginx:1" not in notes
+    assert entity.unique_id == "test-uuid_container_update_web"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "javascript:alert(1)",
+        "data:text/html,hello",
+        "https://[",
+        "not-a-url",
+        "http://",
+        "https://:443/path",
+        "https://example.com:notaport",
+        "https://example.com:65536",
+        " ",
+    ],
+)
+@pytest.mark.asyncio
+async def test_cached_notes_omit_invalid_links(url: str) -> None:
+    """Untrusted template URLs cannot introduce non-web links."""
+    entity = _make_update_entity(
+        DockerContainer(id="ct:1", name="/web", projectUrl=url, isUpdateAvailable=True)
+    )
+    notes = await entity.async_release_notes()
+    assert notes is not None
+    assert "[Project]" not in notes
+    assert entity.release_url is None
+    assert "use the link" not in entity.release_summary
+
+
+@pytest.mark.asyncio
+async def test_cached_notes_escape_metadata_markup() -> None:
+    """API strings cannot escape the notes' code or link markup."""
+    entity = _make_update_entity(
+        DockerContainer(
+            id="ct:1",
+            name="/web",
+            image="image:tag`[text]",
+            projectUrl="https://example.com/a(b)>\n",
+        )
+    )
+    notes = await entity.async_release_notes()
+    assert "`` image:tag`[text] ``" in notes
+    assert "https://example.com/a%28b%29%3E" in notes
+
+
+@pytest.mark.parametrize(
+    ("registry", "support", "expected"),
+    [
+        (
+            "https://example.com/registry",
+            "https://example.com/support",
+            "https://example.com/registry",
+        ),
+        (None, "https://example.com/support", "https://example.com/support"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_release_url_skips_invalid_preferred_link(
+    registry: str | None,
+    support: str,
+    expected: str,
+) -> None:
+    """Both summary and notes use safe fallback links from cached metadata."""
+    entity = _make_update_entity(
+        DockerContainer(
+            id="ct:1",
+            name="/web",
+            projectUrl="javascript:alert(1)",
+            registryUrl=registry,
+            supportUrl=support,
+            isUpdateAvailable=True,
+        )
+    )
+    assert entity.release_url == expected
+    assert "use the link" in entity.release_summary
+    notes = await entity.async_release_notes()
+    assert "[Project]" not in notes
+    assert expected in notes

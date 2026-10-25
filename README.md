@@ -52,6 +52,8 @@ A Home Assistant custom integration for monitoring and controlling Unraid server
 - **State Sync**: Real-time container state updates
 - **Attributes**: Container image, status, and port information
 
+Docker update entities provide a release-notes panel with cached image details, installed tag, update status and available project, registry and support links. Actual target versions and changelogs require future [upstream API/client metadata](https://github.com/tinkerologie/unraid-api/issues/132); generic links are not release-specific notes.
+
 ### Virtual Machine Control
 
 - **VM Switches**: Start/stop virtual machines
