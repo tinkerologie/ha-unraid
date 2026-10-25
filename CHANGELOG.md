@@ -14,7 +14,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Added
 
-- Discover hardware temperature entities when valid readings first arrive after setup, preserving entity identities through missing and restored readings ([#203](https://github.com/tinkerologie/ha-unraid/issues/203)).
+- Discover hardware temperature entities when valid readings first arrive after setup, retaining entity identities through missing and restored readings, including prolonged telemetry gaps ([#203](https://github.com/tinkerologie/ha-unraid/issues/203)).
 
 ### Fixed
 

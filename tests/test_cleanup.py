@@ -117,8 +117,9 @@ class TestIsDynamicResourceId:
     def test_ups_connected(self) -> None:
         assert _is_dynamic_resource_id("ups_ups1_connected") is True
 
-    def test_temperature_sensor(self) -> None:
-        assert _is_dynamic_resource_id("temp_coretemp_core_0") is True
+    def test_temperature_sensor_is_retained(self) -> None:
+        """A missing temperature sample is not evidence of hardware removal."""
+        assert _is_dynamic_resource_id("temp_coretemp_core_0") is False
 
     def test_network_rx(self) -> None:
         assert _is_dynamic_resource_id("network_eth0_rx") is True

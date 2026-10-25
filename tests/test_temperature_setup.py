@@ -79,8 +79,9 @@ async def test_temperature_entities_from_adaptive_polling(
         assert await hass.config_entries.async_unload(entry.entry_id)
 
 
+@pytest.mark.parametrize("gap_kind", ["all", "one"])
 async def test_temperature_discovery_after_setup_and_recovery(
-    hass, mock_unraid_client, caplog
+    hass, mock_unraid_client, caplog, gap_kind
 ):
     """Discover late readings once and keep identities across missing/restored data."""
     mock_unraid_client.get_server_info.return_value = make_server_info(
@@ -131,9 +132,27 @@ async def test_temperature_discovery_after_setup_and_recovery(
             for r in resources
         ]
         assert all(entity_ids)
+        gap = absent
+        gap_states = ["unknown"] * 3
+        if gap_kind == "one":
+            gap = full.model_copy(
+                update={
+                    "temperature": full.temperature.model_copy(
+                        update={
+                            "sensors": [
+                                sensor
+                                for sensor in full.temperature.sensors
+                                if sensor.id == "chipset"
+                            ]
+                        }
+                    )
+                }
+            )
+            gap_states = ["unknown", "45.0", "45.0"]
+        # Exceed cleanup's three-pass grace period before restoring readings.
         for metrics, values in [
             (full, ["35.0", "45.0", "40.0"]),
-            (absent, ["unknown"] * 3),
+            *[(gap, gap_states)] * 4,
             (full, ["35.0", "45.0", "40.0"]),
         ]:
             mock_unraid_client.get_system_metrics.return_value = metrics
