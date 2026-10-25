@@ -1,4 +1,4 @@
-import { LitElement, css, html, type TemplateResult } from "lit";
+import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { type CardConfig } from "./config";
 import { fireEvent, type HomeAssistant } from "./ha-types";
 import { themeTokens } from "./styles";
@@ -102,7 +102,7 @@ export class UnraidCardEditor extends LitElement {
     const defaultFilter =
       filter === "running" ||
       filter === "stopped" ||
-      (fields.updates && filter === "updates")
+      (fields.updates && (filter === "updates" || filter === "paused"))
         ? filter
         : "all";
 
@@ -200,6 +200,7 @@ export class UnraidCardEditor extends LitElement {
                     <option value="running" ?selected=${defaultFilter === "running"}>
                       Running
                     </option>
+                    ${fields.updates ? html`<option value="paused" ?selected=${defaultFilter === "paused"}>Paused</option>` : nothing}
                     <option value="stopped" ?selected=${defaultFilter === "stopped"}>
                       Stopped
                     </option>

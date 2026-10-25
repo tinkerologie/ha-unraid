@@ -1970,3 +1970,88 @@ async def test_container_autostart_switch_error_handling() -> None:
         await switch.async_turn_on()
     assert exc_info.value.translation_key == "container_not_found"
     coordinator.async_update_container_autostart.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("PAUSED", True),
+        ("paused", True),
+        ("running", True),
+        ("EXITED", False),
+        (None, False),
+    ],
+)
+def test_paused_container_switch_represents_started_state(state, expected) -> None:
+    """A paused container stays on so existing Stop/toggle remains meaningful."""
+    container = DockerContainer(id="old", name="/web", state=state)
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    switch = DockerContainerSwitch(coordinator, "uuid", "tower", container)
+    assert switch.is_on is expected
+    assert switch.extra_state_attributes["status"] == state
+
+
+@pytest.mark.parametrize("turn_off", [True, False])
+async def test_container_dispatch_resolves_recreated_id_without_state_read(
+    turn_off,
+) -> None:
+    """Start and paused-stop actions use current IDs without a prior HA render."""
+    from unittest.mock import call
+
+    old = DockerContainer(id="old", name="/web", state="RUNNING")
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(
+        containers=[
+            DockerContainer(
+                id="new", name="/web", state="PAUSED" if turn_off else "RUNNING"
+            )
+        ]
+    )
+    coordinator.async_start_container = AsyncMock()
+    coordinator.async_stop_container = AsyncMock()
+    coordinator.async_unpause_container = AsyncMock()
+    coordinator.async_request_docker_refresh = AsyncMock()
+    ordered = MagicMock()
+    ordered.attach_mock(coordinator.async_unpause_container, "unpause")
+    ordered.attach_mock(coordinator.async_stop_container, "stop")
+    ordered.attach_mock(coordinator.async_start_container, "start")
+    ordered.attach_mock(coordinator.async_request_docker_refresh, "refresh")
+    switch = DockerContainerSwitch(coordinator, "uuid", "tower", old)
+    if turn_off:
+        await switch.async_turn_off()
+        assert ordered.mock_calls == [
+            call.unpause("new"),
+            call.stop("new"),
+            call.refresh(),
+        ]
+    else:
+        await switch.async_turn_on()
+        assert ordered.mock_calls == [call.start("new"), call.refresh()]
+
+
+@pytest.mark.parametrize("already_running", [True, False])
+async def test_paused_stop_handles_unpause_failure(already_running) -> None:
+    """An already-running race still stops; other failures stop no workload."""
+    container = DockerContainer(id="ct:1", name="/web", state="paused")
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_unpause_container = AsyncMock(
+        side_effect=UnraidAPIError(
+            "container already running" if already_running else "unpause failed"
+        )
+    )
+    coordinator.async_stop_container = AsyncMock()
+    coordinator.async_request_docker_refresh = AsyncMock()
+    switch = DockerContainerSwitch(coordinator, "uuid", "tower", container)
+    if already_running:
+        await switch.async_turn_off()
+        coordinator.async_stop_container.assert_awaited_once_with("ct:1")
+        coordinator.async_request_docker_refresh.assert_awaited_once()
+    else:
+        with pytest.raises(HomeAssistantError) as error:
+            await switch.async_turn_off()
+        assert error.value.translation_key == "container_stop_failed"
+        assert isinstance(error.value.__cause__, UnraidAPIError)
+        coordinator.async_stop_container.assert_not_awaited()
+        coordinator.async_request_docker_refresh.assert_not_awaited()

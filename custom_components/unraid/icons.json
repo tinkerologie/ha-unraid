@@ -336,6 +336,12 @@
       },
       "recalculate_notifications": {
         "default": "mdi:bell-badge-outline"
+      },
+      "docker_container_pause": {
+        "default": "mdi:pause"
+      },
+      "docker_container_unpause": {
+        "default": "mdi:play"
       }
     },
     "update": {

@@ -121,15 +121,15 @@ test.describe("Unraid Lovelace Dashboard Cards Browser Tests", () => {
       await card.updateComplete;
     });
     const card = page.locator("#docker-card");
-    await expect(card.locator(".tile-name")).toHaveText("Media");
-    await expect(card.locator(".tile-name")).toHaveAttribute("title", "plex");
+    await expect(card.locator(".tile-name[title=plex]")).toHaveText("Media");
+    await expect(card.locator(".tile-name[title=plex]")).toHaveAttribute("title", "plex");
     await page.evaluate(async () => {
       const card = document.querySelector<UnraidDockerCard>("#docker-card")!;
       card.setConfig({ ...card.config, view_mode: "list" });
       await card.updateComplete;
     });
-    await expect(card.locator(".row-left span[title]")).toHaveText("Media");
-    await expect(card.locator(".row-left span[title]")).toHaveAttribute("title", "plex");
+    await expect(card.locator(".row-left span[title=plex]")).toHaveText("Media");
+    await expect(card.locator(".row-left span[title=plex]")).toHaveAttribute("title", "plex");
   });
 
   test("persists the VM running default and allows stopped VM filtering", async ({ page }, testInfo) => {

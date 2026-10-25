@@ -401,6 +401,9 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
     .status-dot.online {
       background: var(--unraid-online);
     }
+    .status-dot.paused {
+      background: var(--warning-color, var(--unraid-warning, var(--unraid-standby)));
+    }
     .status-dot.offline {
       background: var(--unraid-standby);
       border-radius: 2px;
@@ -621,7 +624,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
         height: 20px;
         accent-color: var(--unraid-primary);
       }
-    `];setConfig(e){this._config={...e}}_valueChanged(e,t){this._config&&(this._config={...this._config,[e]:t},K(this,`config-changed`,{config:this._config}))}render(){if(!this._config)return z``;let e=this.hass?.devices?Object.values(this.hass.devices).filter(e=>e.identifiers?.some(([e])=>e===`unraid`)):[],t=it[this._config.type]??{},n=this._config.default_filter,r=n===`running`||n===`stopped`||t.updates&&n===`updates`?n:`all`;return z`
+    `];setConfig(e){this._config={...e}}_valueChanged(e,t){this._config&&(this._config={...this._config,[e]:t},K(this,`config-changed`,{config:this._config}))}render(){if(!this._config)return z``;let e=this.hass?.devices?Object.values(this.hass.devices).filter(e=>e.identifiers?.some(([e])=>e===`unraid`)):[],t=it[this._config.type]??{},n=this._config.default_filter,r=n===`running`||n===`stopped`||t.updates&&(n===`updates`||n===`paused`)?n:`all`;return z`
       <div class="card-config">
         <div class="form-row">
           <label for="server">Unraid Server</label>
@@ -683,6 +686,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                     <option value="running" ?selected=${r===`running`}>
                       Running
                     </option>
+                    ${t.updates?z`<option value="paused" ?selected=${r===`paused`}>Paused</option>`:V}
                     <option value="stopped" ?selected=${r===`stopped`}>
                       Stopped
                     </option>
@@ -1282,19 +1286,31 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                 </div>
               `:V}
       </ha-card>
-    `}},editor:ct,name:`Unraid Network Card`,description:`Network interfaces, link speeds, live throughput, and IP addresses.`});function $(e){let t=e.split(`.`)[1]||``;return t.replace(/^.*?_container_restart_/,``).replace(/^.*?_docker_container_restart_/,``).replace(/^.*?_container_autostart_/,``).replace(/^.*?_docker_container_autostart_/,``).replace(/^.*?_container_update_/,``).replace(/^.*?_docker_container_update_/,``).replace(/^.*?_docker_container_/,``).replace(/^.*?_container_switch_/,``).replace(/^docker_container_/,``).replace(/^container_switch_/,``).replace(/_cpu$/,``).replace(/_memory_usage$/,``).replace(/_memory$/,``).replace(/_docker_container$/,``).replace(/_container_switch$/,``).replace(/^.*?_container_/,``)||t}Z({tag:we,editorTag:Te,card:class extends Y{static editorTag=Te;static properties={...Y.properties,_filter:{state:!0},_viewMode:{state:!0}};constructor(){super(),this._filter=`all`,this._viewMode=`grid`}willUpdate(e){if(super.willUpdate(e),e.has(`config`)&&this.config.view_mode&&e.get(`config`)?.view_mode!==this.config.view_mode&&(this._viewMode=this.config.view_mode),e.has(`config`)&&e.get(`config`)?.default_filter!==this.config.default_filter){let e=this.config.default_filter;this._filter=e&&[`all`,`running`,`stopped`,`updates`].includes(e)?e:`all`}}handleToggle(e,t,n){(!t||confirm(`Are you sure you want to stop container "${n}"?`))&&this.toggleEntity(e)}getContainers(){let e=this.getEntities(`docker_container_autostart`,`switch`),t=new Set(e.map(e=>e.entity_id)),n=this.getEntities(`docker_container`,`switch`).filter(e=>!t.has(e.entity_id)),r=this.getEntities(`docker_container_restart`,`button`),i=this.getEntities(`container_cpu`),a=this.getEntities(`container_memory_usage`),o=this.getEntities(`docker_container_update`,`update`),s=[];for(let t of n){let n=$(t.entity_id),c=this.getWorkloadLabel(t,`container_name`,n,this.config.container_labels),l=t.state===`on`,u=t.state===`off`,d=r.find(e=>$(e.entity_id)===n),f=e.find(e=>$(e.entity_id)===n),p=i.find(e=>$(e.entity_id)===n),m=a.find(e=>$(e.entity_id)===n),h=o.find(e=>$(e.entity_id)===n);s.push({id:n,...c,isRunning:l,isStopped:u,isAvailable:l||u,status:l?`Running`:u?`Stopped`:this.formatState(t),switchEntityId:t.entity_id,restartEntityId:d?.entity_id,autostartEntityId:f?.entity_id,cpuPct:p?.state&&Number.isFinite(parseFloat(p.state))?parseFloat(p.state):void 0,cpuText:p&&Number.isFinite(Number(p.state))?this.hass?.formatEntityState?.(p)??`${p.state}%`:void 0,memoryUsage:m&&![`unknown`,`unavailable`].includes(m.state)?this.hass?.formatEntityState?.(m)??`${m.state}${m.attributes.unit_of_measurement?` ${m.attributes.unit_of_measurement}`:``}`:void 0,hasUpdate:h?.state===`on`,updateEntityId:h?.entity_id})}return s.sort((e,t)=>e.isRunning&&!t.isRunning?-1:!e.isRunning&&t.isRunning?1:e.name.localeCompare(t.name))}render(){let e=this.getContainers(),t=e.filter(e=>e.isRunning).length,n=e.filter(e=>e.isStopped).length,r=e.filter(e=>e.hasUpdate).length,i=this.getEntity(`check_container_updates`,`button`),a=e.filter(e=>this._filter===`running`?e.isRunning:this._filter===`stopped`?e.isStopped:this._filter!==`updates`||e.hasUpdate),o=z`
+    `}},editor:ct,name:`Unraid Network Card`,description:`Network interfaces, link speeds, live throughput, and IP addresses.`});function $(e){let t=e.split(`.`)[1]||``;return t.replace(/^.*?_docker_container_unpause_/,``).replace(/^.*?_container_unpause_/,``).replace(/^.*?_docker_container_pause_/,``).replace(/^.*?_container_pause_/,``).replace(/^.*?_container_restart_/,``).replace(/^.*?_docker_container_restart_/,``).replace(/^.*?_container_autostart_/,``).replace(/^.*?_docker_container_autostart_/,``).replace(/^.*?_container_update_/,``).replace(/^.*?_docker_container_update_/,``).replace(/^.*?_docker_container_/,``).replace(/^.*?_container_switch_/,``).replace(/^docker_container_/,``).replace(/^container_switch_/,``).replace(/_cpu$/,``).replace(/_memory_usage$/,``).replace(/_memory$/,``).replace(/_docker_container$/,``).replace(/_container_switch$/,``).replace(/^.*?_container_/,``)||t}Z({tag:we,editorTag:Te,card:class extends Y{static editorTag=Te;static properties={...Y.properties,_filter:{state:!0},_viewMode:{state:!0}};constructor(){super(),this._filter=`all`,this._viewMode=`grid`}willUpdate(e){if(super.willUpdate(e),e.has(`config`)&&this.config.view_mode&&e.get(`config`)?.view_mode!==this.config.view_mode&&(this._viewMode=this.config.view_mode),e.has(`config`)&&e.get(`config`)?.default_filter!==this.config.default_filter){let e=this.config.default_filter;this._filter=e&&[`all`,`running`,`paused`,`stopped`,`updates`].includes(e)?e:`all`}}handleToggle(e,t,n){(!t||confirm(`Are you sure you want to stop container "${n}"?`))&&this.toggleEntity(e)}renderPauseControl(e,t){let n=e.isPaused?e.unpause:e.isRunning?e.pause:void 0;if(!n)return V;let r=e.isPaused,i=`${r?`Resume`:`Pause`} ${e.name}`;return z`
+      <button
+        type="button"
+        class=${t===`grid`?`btn-icon`:`btn`}
+        title=${i}
+        aria-label=${i}
+        ?disabled=${!e.isAvailable||n.state===`unavailable`}
+        @click=${async t=>{t.stopPropagation(),(r||confirm(`Are you sure you want to pause container "${e.name}"?`))&&await this.pressButton(n.entity_id)}}
+      >
+        ${J(r?Je:qe,t===`grid`?20:13)}
+        ${t===`list`?z`<span>${r?`Resume`:`Pause`}</span>`:V}
+      </button>
+    `}getContainers(){let e=this.getEntities(`docker_container_autostart`,`switch`),t=new Set(e.map(e=>e.entity_id)),n=this.getEntities(`docker_container`,`switch`).filter(e=>!t.has(e.entity_id)),r=this.getEntities(`docker_container_restart`,`button`),i=this.getEntities(`docker_container_pause`,`button`),a=this.getEntities(`docker_container_unpause`,`button`),o=this.getEntities(`container_cpu`),s=this.getEntities(`container_memory_usage`),c=this.getEntities(`docker_container_update`,`update`),l=[];for(let t of n){let n=$(t.entity_id),u=this.getWorkloadLabel(t,`container_name`,n,this.config.container_labels),d=t.state===`on`||t.state===`off`,f=t.attributes.status,p=d&&typeof f==`string`&&f.toLowerCase()===`paused`,m=!p&&t.state===`on`,h=!p&&t.state===`off`,g=r.find(e=>$(e.entity_id)===n),_=e.find(e=>$(e.entity_id)===n),v=o.find(e=>$(e.entity_id)===n),y=s.find(e=>$(e.entity_id)===n),b=c.find(e=>$(e.entity_id)===n);l.push({id:n,...u,isRunning:m,isPaused:p,isStopped:h,isAvailable:d,pause:i.find(e=>$(e.entity_id)===n),unpause:a.find(e=>$(e.entity_id)===n),status:p?`Paused`:m?`Running`:h?`Stopped`:this.formatState(t),switchEntityId:t.entity_id,restartEntityId:g?.entity_id,autostartEntityId:_?.entity_id,cpuPct:v?.state&&Number.isFinite(parseFloat(v.state))?parseFloat(v.state):void 0,cpuText:v&&Number.isFinite(Number(v.state))?this.hass?.formatEntityState?.(v)??`${v.state}%`:void 0,memoryUsage:y&&![`unknown`,`unavailable`].includes(y.state)?this.hass?.formatEntityState?.(y)??`${y.state}${y.attributes.unit_of_measurement?` ${y.attributes.unit_of_measurement}`:``}`:void 0,hasUpdate:b?.state===`on`,updateEntityId:b?.entity_id})}return l.sort((e,t)=>e.isRunning&&!t.isRunning?-1:!e.isRunning&&t.isRunning?1:e.isPaused===t.isPaused?e.name.localeCompare(t.name):e.isPaused?-1:1)}render(){let e=this.getContainers(),t=e.filter(e=>e.isRunning).length,n=e.filter(e=>e.isStopped).length,r=e.filter(e=>e.isPaused).length,i=e.filter(e=>e.hasUpdate).length,a=this.getEntity(`check_container_updates`,`button`),o=e.filter(e=>this._filter===`running`?e.isRunning:this._filter===`stopped`?e.isStopped:this._filter===`paused`?e.isPaused:this._filter!==`updates`||e.hasUpdate),s=z`
       <span class="badge ${t>0?`badge-online`:`badge-standby`}">
         ${t} Running
       </span>
-      ${r>0?z`
+      ${i>0?z`
               <span class="badge badge-warning">
                 ${J(q,12)}
-                <span>${r} Updates</span>
+                <span>${i} Updates</span>
               </span>
             `:V}
     `;return z`
       <ha-card>
-        ${this.renderHeader(this.config.title||`Docker Containers`,`${t} running • ${n} stopped`,ze,o)}
+        ${this.renderHeader(this.config.title||`Docker Containers`,`${t} running • ${r} paused • ${n} stopped`,ze,s)}
         <div
           style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;"
         >
@@ -1317,31 +1333,39 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
             </button>
             <button
               type="button"
+              class="tab-btn ${this._filter===`paused`?`active`:``}"
+              aria-pressed=${this._filter===`paused`}
+              @click=${()=>this._filter=`paused`}
+            >
+              Paused (${r})
+            </button>
+            <button
+              type="button"
               class="tab-btn ${this._filter===`stopped`?`active`:``}"
               aria-pressed=${this._filter===`stopped`}
               @click=${()=>this._filter=`stopped`}
             >
               Stopped (${n})
             </button>
-            ${r>0||this._filter===`updates`?z`
+            ${i>0||this._filter===`updates`?z`
                     <button
                       type="button"
                       class="tab-btn ${this._filter===`updates`?`active`:``}"
                       aria-pressed=${this._filter===`updates`}
                       @click=${()=>this._filter=`updates`}
                     >
-                      Updates (${r})
+                      Updates (${i})
                     </button>
                   `:V}
           </div>
 
           <div style="display: flex; align-items: center; gap: 6px;">
-            ${i?z`
+            ${a?z`
                     <button
                       type="button"
                       class="btn"
                       title="Check for updates"
-                      @click=${()=>this.pressButton(i.entity_id)}
+                      @click=${()=>this.pressButton(a.entity_id)}
                     >
                       Check Updates
                     </button>
@@ -1357,12 +1381,12 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
             </button>
           </div>
         </div>
-        ${a.length===0?z`<div class="empty-state" role="status">
+        ${o.length===0?z`<div class="empty-state" role="status">
                 ${e.length===0?`No Docker containers configured`:this._filter===`updates`?`No container updates available`:`No ${this._filter} containers`}
               </div>`:V}
         ${this._viewMode===`grid`?z`
                 <div class="container-grid">
-                  ${a.map(e=>z`
+                  ${o.map(e=>z`
                       <div class="container-tile">
                         <button
                           type="button"
@@ -1373,7 +1397,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                         >
                           <span
                             aria-hidden="true"
-                            class="status-dot ${e.isRunning?`online`:`offline`}"
+                            class="status-dot ${e.isRunning?`online`:e.isPaused?`paused`:`offline`}"
                           ></span>
                           <span class="workload-label">
                             <span class="tile-name" title="${e.rawName}"
@@ -1386,6 +1410,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                           ${e.hasUpdate?z`<span style="color: var(--unraid-warning);"
                                   >${J(q,20)}</span
                                 >`:V}
+                          ${this.renderPauseControl(e,`grid`)}
                           ${e.restartEntityId?z`
                                   <button
                                     type="button"
@@ -1393,7 +1418,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                                     style="padding: 2px;"
                                     title="Restart ${e.name}"
                                     aria-label="Restart ${e.name}"
-                                    ?disabled=${!e.isAvailable}
+                                    ?disabled=${!e.isAvailable||e.isPaused}
                                     @click=${t=>{t.stopPropagation(),this.pressButton(e.restartEntityId)}}
                                   >
                                     ${J(Xe,20)}
@@ -1403,10 +1428,10 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                             type="button"
                             class="btn-icon"
                             style="padding: 4px;"
-                            title="${e.isRunning?`Stop`:`Start`} ${e.name}"
-                            aria-label="${e.isRunning?`Stop`:`Start`} ${e.name}"
+                            title="${e.isRunning||e.isPaused?`Stop`:`Start`} ${e.name}"
+                            aria-label="${e.isRunning||e.isPaused?`Stop`:`Start`} ${e.name}"
                             ?disabled=${!e.isAvailable}
-                            @click=${t=>{t.stopPropagation(),this.handleToggle(e.switchEntityId,e.isRunning,e.name)}}
+                            @click=${t=>{t.stopPropagation(),this.handleToggle(e.switchEntityId,e.isRunning||e.isPaused,e.name)}}
                           >
                             ${J(Ye,20)}
                           </button>
@@ -1416,7 +1441,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                 </div>
               `:z`
                 <div class="item-list">
-                  ${a.map(e=>z`
+                  ${o.map(e=>z`
                       <div class="list-row">
                         <div class="row-left">
                           <button
@@ -1428,7 +1453,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                           >
                             <span
                               aria-hidden="true"
-                              class="status-dot ${e.isRunning?`online`:`offline`}"
+                              class="status-dot ${e.isRunning?`online`:e.isPaused?`paused`:`offline`}"
                             ></span>
                             <span class="workload-label">
                               <span class="tile-name" title="${e.rawName}"
@@ -1452,13 +1477,14 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                                     >Update Available</span
                                   >
                                 `:V}
+                          ${this.renderPauseControl(e,`list`)}
                           ${e.restartEntityId?z`
                                   <button
                                     type="button"
                                     class="btn"
                                     style="padding: 3px 8px;"
                                     aria-label="Restart ${e.name}"
-                                    ?disabled=${!e.isAvailable}
+                                    ?disabled=${!e.isAvailable||e.isPaused}
                                     @click=${()=>this.pressButton(e.restartEntityId)}
                                   >
                                     ${J(Xe,13)}
@@ -1467,14 +1493,14 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                                 `:V}
                           <button
                             type="button"
-                            class="btn ${e.isRunning?`btn`:`btn-primary`}"
+                            class="btn ${e.isRunning||e.isPaused?`btn`:`btn-primary`}"
                             style="padding: 3px 8px;"
-                            aria-label="${e.isRunning?`Stop`:`Start`} ${e.name}"
+                            aria-label="${e.isRunning||e.isPaused?`Stop`:`Start`} ${e.name}"
                             ?disabled=${!e.isAvailable}
-                            @click=${()=>this.handleToggle(e.switchEntityId,e.isRunning,e.name)}
+                            @click=${()=>this.handleToggle(e.switchEntityId,e.isRunning||e.isPaused,e.name)}
                           >
                             ${J(Ye,13)}
-                            <span>${e.isRunning?`Stop`:`Start`}</span>
+                            <span>${e.isRunning||e.isPaused?`Stop`:`Start`}</span>
                           </button>
                         </div>
                       </div>
@@ -1482,7 +1508,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                 </div>
               `}
       </ha-card>
-    `}},editor:lt,name:`Unraid Docker Containers Card`,description:`Monitor, start, stop, restart, and update Docker containers in grid or list view.`});function gt(e,t){if(!e||e===`unavailable`||e===`unknown`)return null;let n=e.trim();if(!n)return null;if(/[a-zA-Z]/.test(n))return n.replace(/(\b(?:minute|minutes|hour|hours|sec|second|seconds|min|mins)\b.*)\s+min$/i,`$1`);let r=Number(n);if(Number.isFinite(r)){let e=typeof t?.unit_of_measurement==`string`?t.unit_of_measurement.toLowerCase():``,n=r;n=Math.round(e===`s`||e===`sec`||e===`seconds`?r/60:r);let i=Math.floor(n/60),a=n%60;return i>0?a>0?`${i} hour${i>1?`s`:``} ${a} minute${a>1?`s`:``}`:`${i} hour${i>1?`s`:``}`:`${a} minute${a===1?``:`s`}`}return n}Z({tag:Ee,editorTag:De,card:class extends Y{static editorTag=De;render(){let e=this.getEntity(`ups_status`),t=this.getEntity(`ups_battery`),n=this.getEntity(`ups_load`),r=this.getEntity(`ups_runtime`),i=this.getEntity(`ups_power`),a=this.getEntity(`ups_output_voltage`),o=this.getEntity(`ups_battery_health`),s=!!(e&&e.state!==`unavailable`&&e.state!==`unknown`),c=s&&e?e.state:e?.state||`Unavailable`,l=s&&c.toLowerCase().includes(`online`),u=s&&(c.toLowerCase().includes(`battery`)||c.toLowerCase().includes(`discharge`)),d=!s||c===`Unavailable`||c===`unavailable`,f=this.percentValue(t),p=this.percentValue(n),m=i&&i.state!==`unavailable`&&i.state!==`unknown`&&i?`${i.state} W`:null,h=gt(r?.state,r?.attributes),g=a&&a.state!==`unavailable`&&a.state!==`unknown`&&a?`${a.state} V`:null,_=o&&o.state!==`unavailable`&&o.state!==`unknown`&&o?o.state:null,v=z`
+    `}},editor:lt,name:`Unraid Docker Containers Card`,description:`Monitor, start, pause, resume, stop, restart, and update Docker containers in grid or list view.`});function gt(e,t){if(!e||e===`unavailable`||e===`unknown`)return null;let n=e.trim();if(!n)return null;if(/[a-zA-Z]/.test(n))return n.replace(/(\b(?:minute|minutes|hour|hours|sec|second|seconds|min|mins)\b.*)\s+min$/i,`$1`);let r=Number(n);if(Number.isFinite(r)){let e=typeof t?.unit_of_measurement==`string`?t.unit_of_measurement.toLowerCase():``,n=r;n=Math.round(e===`s`||e===`sec`||e===`seconds`?r/60:r);let i=Math.floor(n/60),a=n%60;return i>0?a>0?`${i} hour${i>1?`s`:``} ${a} minute${a>1?`s`:``}`:`${i} hour${i>1?`s`:``}`:`${a} minute${a===1?``:`s`}`}return n}Z({tag:Ee,editorTag:De,card:class extends Y{static editorTag=De;render(){let e=this.getEntity(`ups_status`),t=this.getEntity(`ups_battery`),n=this.getEntity(`ups_load`),r=this.getEntity(`ups_runtime`),i=this.getEntity(`ups_power`),a=this.getEntity(`ups_output_voltage`),o=this.getEntity(`ups_battery_health`),s=!!(e&&e.state!==`unavailable`&&e.state!==`unknown`),c=s&&e?e.state:e?.state||`Unavailable`,l=s&&c.toLowerCase().includes(`online`),u=s&&(c.toLowerCase().includes(`battery`)||c.toLowerCase().includes(`discharge`)),d=!s||c===`Unavailable`||c===`unavailable`,f=this.percentValue(t),p=this.percentValue(n),m=i&&i.state!==`unavailable`&&i.state!==`unknown`&&i?`${i.state} W`:null,h=gt(r?.state,r?.attributes),g=a&&a.state!==`unavailable`&&a.state!==`unknown`&&a?`${a.state} V`:null,_=o&&o.state!==`unavailable`&&o.state!==`unknown`&&o?o.state:null,v=z`
       <span
         class="badge ${d?`badge-standby`:l?`badge-online`:u?`badge-warning`:`badge-error`}"
       >

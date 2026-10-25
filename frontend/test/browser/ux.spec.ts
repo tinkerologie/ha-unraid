@@ -291,7 +291,7 @@ for (const [theme, variables] of Object.entries({
     expect(contrast.borderRows.filter((row) => row.ratio < 3)).toEqual([]);
     const control = page
       .locator("#docker-card")
-      .getByRole("button", { name: "All (1)" });
+      .getByRole("button", { name: "All (2)" });
     await control.focus();
     const colors = await control.evaluate((el) => {
       const style = getComputedStyle(el);
@@ -327,7 +327,7 @@ test("shared state snapshot renders all workloads without clipping or live actio
     card.setConfig({ type: "custom:unraid-docker-card", view_mode: "list" });
     card.hass = {
       ...fixture.mockHass,
-      states: { ...fixture.mockHass.states, ...fixture.workloadSnapshot.states },
+      states: fixture.workloadSnapshot.states,
       entities: fixture.workloadSnapshot.entities,
     };
     await card.updateComplete;
@@ -585,3 +585,33 @@ test("parity and disk-spin controls keep existing mocked service payloads", asyn
     ["switch", "toggle", { entity_id: "switch.cube_disk_cache_spin" }],
   ]);
 });
+
+for (const mode of ["grid", "list"]) {
+  test(`Docker ${mode} pause cancellation and resume work by keyboard at 300px`, async ({ page }) => {
+    await page.evaluate(async (view_mode) => {
+      const card = document.querySelector("#docker-card") as HTMLElement & {
+        setConfig: (config: unknown) => void; updateComplete: Promise<unknown>;
+      };
+      card.style.width = "300px";
+      card.setConfig({ type: "custom:unraid-docker-card", view_mode });
+      await card.updateComplete;
+    }, mode);
+    const card = page.locator("#docker-card");
+    let confirmations = 0;
+    page.on("dialog", async (dialog) => { confirmations++; await dialog.dismiss(); });
+    await card.getByRole("button", { name: "Pause plex", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    expect(confirmations).toBe(1);
+    expect(await page.evaluate(() => (window as unknown as { __serviceCalls: unknown[] }).__serviceCalls)).toEqual([]);
+    await expect(card.getByRole("button", { name: "Restart sleeping", exact: true })).toBeDisabled();
+    await expect(card.getByRole("button", { name: "Start sleeping", exact: true })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Stop sleeping", exact: true })).toBeEnabled();
+    await card.getByRole("button", { name: "Resume sleeping", exact: true }).focus();
+    await page.keyboard.press("Space");
+    expect(confirmations).toBe(1);
+    expect(await page.evaluate(() => (window as unknown as { __serviceCalls: unknown[] }).__serviceCalls)).toEqual([["button", "press", { entity_id: "button.cube_docker_container_unpause_sleeping" }]]);
+    expect(await card.locator("ha-card").evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await card.getByRole("button", { name: "Paused (1)" }).click();
+    await expect(card.getByRole("button", { name: /Show details for sleeping/ })).toBeVisible();
+  });
+}

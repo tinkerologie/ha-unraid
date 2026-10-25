@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.unraid import cleanup as cleanup_module
@@ -1212,3 +1213,24 @@ class TestAsyncRemoveConfigEntryDevice:
 
         result = await async_remove_config_entry_device(hass, entry, device)
         assert result is True
+
+
+@pytest.mark.parametrize("state", ["PAUSED", "EXITED"])
+def test_pause_controls_follow_reported_container_inventory(state: str) -> None:
+    """Cleanup retains reported pause controls and recognizes their namespaces."""
+    from unraid_api.models import DockerContainer
+
+    from custom_components.unraid.cleanup import _is_dynamic_resource_id
+
+    data = make_system_data(
+        containers=[DockerContainer(id="ct:1", name="/web", state=state)]
+    )
+    expected = build_expected_dynamic_unique_ids(_UUID, data, make_storage_data())
+    empty = build_expected_dynamic_unique_ids(
+        _UUID, make_system_data(), make_storage_data()
+    )
+    for action in ("pause", "unpause"):
+        resource = f"container_{action}_web"
+        assert _is_dynamic_resource_id(resource)
+        assert f"{_UUID}_{resource}" in expected
+        assert f"{_UUID}_{resource}" not in empty

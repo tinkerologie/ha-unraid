@@ -176,6 +176,15 @@
     },
     "check_container_updates_failed": {
       "message": "Failed to check for container updates: {error}"
+    },
+    "container_pause_failed": {
+      "message": "Failed to pause container {name}: {error}"
+    },
+    "container_unpause_failed": {
+      "message": "Failed to unpause container {name}: {error}"
+    },
+    "container_action_unavailable": {
+      "message": "Container {name} is unavailable for this action"
     }
   },
   "entity": {
@@ -515,6 +524,12 @@
       },
       "recalculate_notifications": {
         "name": "Recalculate notifications"
+      },
+      "docker_container_pause": {
+        "name": "Pause container {name}"
+      },
+      "docker_container_unpause": {
+        "name": "Unpause container {name}"
       }
     },
     "update": {

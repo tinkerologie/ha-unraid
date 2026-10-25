@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from unraid_api.exceptions import UnraidAPIError
 
-from .const import DOMAIN
+from .const import CONTAINER_STATE_PAUSED, CONTAINER_STATE_RUNNING, DOMAIN
 from .coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
@@ -53,7 +53,7 @@ class UnraidButtonEntity[CoordinatorT: DataUpdateCoordinator[Any] = UnraidCoordi
         server_uuid: str,
         server_name: str,
         resource_id: str,
-        name: str,
+        name: str | None,
         server_info: dict | None = None,
     ) -> None:
         """Initialize button entity."""
@@ -284,6 +284,98 @@ class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
                     "error": str(err),
                 },
             ) from err
+
+
+class _DockerContainerPauseControlButton(UnraidButtonEntity[UnraidSystemCoordinator]):
+    """Share name-based identity and state validation for Docker pause controls."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+    _action = "pause"
+    _required_state = CONTAINER_STATE_RUNNING
+
+    def __init__(
+        self,
+        coordinator: UnraidSystemCoordinator,
+        server_uuid: str,
+        server_name: str,
+        container: DockerContainer,
+        server_info: dict | None = None,
+    ) -> None:
+        """Initialize an optional, translated container action."""
+        self._container_name = container.name.lstrip("/")
+        super().__init__(
+            coordinator=coordinator,
+            server_uuid=server_uuid,
+            server_name=server_name,
+            resource_id=f"container_{self._action}_{self._container_name}",
+            name=None,
+            server_info=server_info,
+        )
+        self._attr_translation_placeholders = {"name": self._container_name}
+
+    def _get_available_container(self) -> DockerContainer | None:
+        """Resolve current identity only when fresh container data permits control."""
+        data = self.coordinator.data
+        if (
+            not super().available
+            or data is None
+            or not self.coordinator.optional_query_status.get("containers", False)
+        ):
+            return None
+        return next(
+            (
+                container
+                for container in data.containers
+                if container.name.lstrip("/") == self._container_name
+                and (container.state or "").upper() == self._required_state.upper()
+            ),
+            None,
+        )
+
+    @property
+    def available(self) -> bool:
+        """Expose only actions valid for the currently reported lifecycle state."""
+        return self._get_available_container() is not None
+
+    async def async_press(self) -> None:
+        """Control the current container and refresh after a successful action."""
+        container = self._get_available_container()
+        if container is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="container_action_unavailable",
+                translation_placeholders={"name": self._container_name},
+            )
+        try:
+            if self._action == "pause":
+                await self.coordinator.async_pause_container(container.id)
+            else:
+                await self.coordinator.async_unpause_container(container.id)
+        except UnraidAPIError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key=f"container_{self._action}_failed",
+                translation_placeholders={
+                    "name": self._container_name,
+                    "error": str(err),
+                },
+            ) from err
+        await self.coordinator.async_request_docker_refresh()
+
+
+class DockerContainerPauseButton(_DockerContainerPauseControlButton):
+    """Pause a running container without stopping it."""
+
+    _attr_translation_key = "docker_container_pause"
+
+
+class DockerContainerUnpauseButton(_DockerContainerPauseControlButton):
+    """Resume a paused container."""
+
+    _attr_translation_key = "docker_container_unpause"
+    _action = "unpause"
+    _required_state = CONTAINER_STATE_PAUSED
 
 
 class UpdateAllContainersButton(UnraidButtonEntity[UnraidSystemCoordinator]):
@@ -920,7 +1012,13 @@ async def async_setup_entry(
                     server_name,
                     container,
                     server_info,
-                )
+                ),
+                DockerContainerPauseButton(
+                    system_coordinator, server_uuid, server_name, container, server_info
+                ),
+                DockerContainerUnpauseButton(
+                    system_coordinator, server_uuid, server_name, container, server_info
+                ),
             ],
         )
     )
