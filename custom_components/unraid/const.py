@@ -88,8 +88,7 @@ DEFAULT_ENABLE_CONTAINER_UPDATES: Final = True  # create container update entiti
 # Docker update dialog text uses only cached, currently installed image metadata.
 DOCKER_UPDATE_SUMMARY: Final = (
     "A new image is available for this container. The Unraid API does "
-    "not provide detailed release notes; use the link to view "
-    "the project's changes."
+    "not provide detailed release notes; use the link for more information."
 )
 DOCKER_UPDATE_SUMMARY_NO_LINK: Final = (
     "A new image is available for this container. The Unraid API does "

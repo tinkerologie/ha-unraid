@@ -627,6 +627,7 @@ async def test_cached_release_notes_missing_container(data_none: bool) -> None:
     )
     assert await entity.async_release_notes() is None
     assert entity.release_summary is None
+    assert entity.release_url is None
 
 
 @pytest.mark.parametrize(
@@ -673,17 +674,26 @@ async def test_cached_release_notes_follow_new_container_data() -> None:
 
 
 @pytest.mark.parametrize(
-    "url", ["javascript:alert(1)", "data:text/html,hello", "https://[", "not-a-url"]
+    "url",
+    [
+        "javascript:alert(1)",
+        "data:text/html,hello",
+        "https://[",
+        "not-a-url",
+        "http://",
+    ],
 )
 @pytest.mark.asyncio
 async def test_cached_notes_omit_invalid_links(url: str) -> None:
     """Untrusted template URLs cannot introduce non-web links."""
     entity = _make_update_entity(
-        DockerContainer(id="ct:1", name="/web", projectUrl=url)
+        DockerContainer(id="ct:1", name="/web", projectUrl=url, isUpdateAvailable=True)
     )
     notes = await entity.async_release_notes()
     assert notes is not None
     assert "[Project]" not in notes
+    assert entity.release_url is None
+    assert "use the link" not in entity.release_summary
 
 
 @pytest.mark.asyncio
@@ -700,3 +710,38 @@ async def test_cached_notes_escape_metadata_markup() -> None:
     notes = await entity.async_release_notes()
     assert "`` image:tag`[text] ``" in notes
     assert "https://example.com/a%28b%29%3E" in notes
+
+
+@pytest.mark.parametrize(
+    ("registry", "support", "expected"),
+    [
+        (
+            "https://example.com/registry",
+            "https://example.com/support",
+            "https://example.com/registry",
+        ),
+        (None, "https://example.com/support", "https://example.com/support"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_release_url_skips_invalid_preferred_link(
+    registry: str | None,
+    support: str,
+    expected: str,
+) -> None:
+    """Both summary and notes use safe fallback links from cached metadata."""
+    entity = _make_update_entity(
+        DockerContainer(
+            id="ct:1",
+            name="/web",
+            projectUrl="javascript:alert(1)",
+            registryUrl=registry,
+            supportUrl=support,
+            isUpdateAvailable=True,
+        )
+    )
+    assert entity.release_url == expected
+    assert "use the link" in entity.release_summary
+    notes = await entity.async_release_notes()
+    assert "[Project]" not in notes
+    assert expected in notes

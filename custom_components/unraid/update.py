@@ -220,12 +220,11 @@ class DockerContainerUpdateEntity(
         container = self._get_container()
         if container is None:
             return None
-        return (
-            container.projectUrl
-            or container.registryUrl
-            or container.supportUrl
-            or None
-        )
+        for attribute, _label in DOCKER_UPDATE_NOTE_LINKS:
+            url = _release_note_url(getattr(container, attribute))
+            if url:
+                return url
+        return None
 
     @property
     def release_summary(self) -> str | None:
