@@ -341,6 +341,13 @@ export const dashboardCardStyles = [
       min-width: 0;
     }
 
+    .vm-name {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .status-dot {
       width: 8px;
       height: 8px;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import "../src/index";
 import { UnraidServerCard } from "../src/server-card";
 import { UnraidStorageCard, formatDiskName } from "../src/storage-card";
@@ -9,6 +9,8 @@ import { UnraidVmCard } from "../src/vm-card";
 import { UnraidDashboardCard } from "../src/dashboard-card";
 import { UnraidNetworkCard } from "../src/network-card";
 import {
+  UnraidDockerCardEditor,
+  UnraidVmCardEditor,
   UnraidNetworkCardEditor,
   UnraidServerCardEditor,
   UnraidSharesCardEditor,
@@ -143,7 +145,7 @@ function createMockHass(): HomeAssistant {
       "switch.cube_docker_container_plex": {
         entity_id: "switch.cube_docker_container_plex",
         state: "on",
-        attributes: { friendly_name: "plex" },
+        attributes: { friendly_name: "Unraid Container plex", container_name: "plex" },
         last_changed: "",
         last_updated: "",
       },
@@ -164,7 +166,7 @@ function createMockHass(): HomeAssistant {
       "switch.cube_virtual_machine_ha": {
         entity_id: "switch.cube_virtual_machine_ha",
         state: "on",
-        attributes: { friendly_name: "Home Assistant" },
+        attributes: { friendly_name: "Unraid VM Home Assistant", vm_name: "Home Assistant" },
         last_changed: "",
         last_updated: "",
       },
@@ -799,5 +801,157 @@ describe("Unraid Custom Cards", () => {
     expect(editor.shadowRoot?.innerHTML).toContain("Unraid Server");
     expect(editor.shadowRoot?.innerHTML).toContain("Custom Title");
     document.body.removeChild(editor);
+  });
+});
+
+for (const spec of [
+  { Card: UnraidDockerCard, type: "custom:unraid-docker-card", entity: "switch.cube_docker_container_plex", attribute: "container_name", labels: "container_labels", raw: "plex", slug: "plex", selector: ".row-left span[title]" },
+  { Card: UnraidVmCard, type: "custom:unraid-vm-card", entity: "switch.cube_virtual_machine_ha", attribute: "vm_name", labels: "vm_labels", raw: "Home Assistant", slug: "ha", selector: ".vm-name" },
+]) {
+  describe(`${spec.attribute} labels`, () => {
+    afterEach(() => document.body.replaceChildren());
+    const attributes = { friendly_name: `Unraid prefixed ${spec.raw}`, [spec.attribute]: spec.raw };
+    const scenarios: Array<{ description: string; attributes: Record<string, unknown>; labels?: Record<string, unknown>; expected: string; tooltip: string }> = [
+      { description: "raw name", attributes, expected: spec.raw, tooltip: spec.raw },
+      { description: "explicit override", attributes, labels: { [spec.raw]: "Short label" }, expected: "Short label", tooltip: spec.raw },
+      { description: "friendly fallback", attributes: { friendly_name: "Friendly label" }, expected: "Friendly label", tooltip: "Friendly label" },
+      { description: "slug fallback", attributes: { friendly_name: "" }, expected: spec.slug, tooltip: spec.slug },
+      { description: "legacy slug override", attributes: { friendly_name: "Long name" }, labels: { [spec.slug]: "Legacy label" }, expected: "Legacy label", tooltip: "Long name" },
+      ...["", "   ", 42, null].map((value) => ({ description: `invalid override ${String(value)}`, attributes, labels: { [spec.raw]: value }, expected: spec.raw, tooltip: spec.raw })),
+    ];
+    it.each(scenarios)("renders $description with a full-name tooltip", async (scenario) => {
+      const card = new spec.Card();
+      card.setConfig({ type: spec.type, view_mode: "list", [spec.labels]: scenario.labels });
+      const hass = createMockHass();
+      hass.states[spec.entity]!.attributes = scenario.attributes;
+      card.hass = hass;
+      document.body.appendChild(card);
+      await card.updateComplete;
+      const name = card.shadowRoot!.querySelector(spec.selector)!;
+      expect(name.textContent?.trim()).toBe(scenario.expected);
+      expect(name.getAttribute("title")).toBe(scenario.tooltip);
+    });
+  });
+}
+
+function mixedVmHass(): HomeAssistant {
+  const hass = createMockHass();
+  hass.states["switch.cube_virtual_machine_backup"] = {
+    entity_id: "switch.cube_virtual_machine_backup", state: "off", attributes: { friendly_name: "Unraid VM Backup", vm_name: "Backup" }, last_changed: "", last_updated: "",
+  };
+  return hass;
+}
+
+function vmNames(card: UnraidVmCard): string[] {
+  return [...card.shadowRoot!.querySelectorAll(".vm-name")].map((name) => name.textContent!.trim());
+}
+
+describe("VM status filters", () => {
+  afterEach(() => document.body.replaceChildren());
+  it("filters all, running and stopped VMs using counted tabs", async () => {
+    const card = new UnraidVmCard();
+    card.setConfig({ type: "custom:unraid-vm-card" });
+    card.hass = mixedVmHass();
+    document.body.appendChild(card);
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Home Assistant", "Backup"]);
+    const tabs = card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn");
+    expect([...tabs].map((b) => b.textContent!.trim())).toEqual(["All (2)", "Running (1)", "Stopped (1)"]);
+    for (const [index, expected] of [[1, ["Home Assistant"]], [2, ["Backup"]], [0, ["Home Assistant", "Backup"]]] as const) {
+      tabs[index]!.click();
+      await card.updateComplete;
+      expect(vmNames(card)).toEqual(expected);
+    }
+  });
+  it("honors a configured default without overwriting runtime choices on refresh", async () => {
+    const card = new UnraidVmCard();
+    card.setConfig({ type: "custom:unraid-vm-card", default_filter: "running" });
+    card.hass = mixedVmHass();
+    document.body.appendChild(card);
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Home Assistant"]);
+    card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")[2]!.click();
+    await card.updateComplete;
+    card.hass = mixedVmHass();
+    card.setConfig({ type: "custom:unraid-vm-card", default_filter: "running", title: "VMs" });
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Backup"]);
+    card.setConfig({ type: "custom:unraid-vm-card", default_filter: "all" });
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Home Assistant", "Backup"]);
+  });
+  it.each(["updates", "unknown"])("treats unsupported default %s as all", async (value) => {
+    const card = new UnraidVmCard();
+    card.setConfig({ type: "custom:unraid-vm-card", default_filter: value as "updates" });
+    card.hass = mixedVmHass();
+    document.body.appendChild(card);
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Home Assistant", "Backup"]);
+  });
+  it("distinguishes an empty filter from an unconfigured VM list", async () => {
+    const card = new UnraidVmCard();
+    card.setConfig({ type: "custom:unraid-vm-card", default_filter: "stopped" });
+    card.hass = createMockHass();
+    document.body.appendChild(card);
+    await card.updateComplete;
+    expect(card.shadowRoot!.textContent).toContain("No stopped virtual machines");
+    const hass = createMockHass();
+    delete hass.states["switch.cube_virtual_machine_ha"];
+    card.hass = hass;
+    await card.updateComplete;
+    expect(card.shadowRoot!.textContent).toContain("No virtual machines configured");
+  });
+});
+
+describe("workload filter editors", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each([
+    { Editor: UnraidDockerCardEditor, type: "custom:unraid-docker-card", updates: true },
+    { Editor: UnraidVmCardEditor, type: "custom:unraid-vm-card", updates: false },
+  ])("persists Default Filter and label maps for $type", async (spec) => {
+    const editor = new spec.Editor();
+    editor.setConfig({ type: spec.type, default_filter: "stopped", container_labels: { plex: "Media" }, vm_labels: { "Home Assistant": "HA" } });
+    editor.hass = createMockHass();
+    document.body.appendChild(editor);
+    await editor.updateComplete;
+    const select = editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe("stopped");
+    expect([...select.options].map((o) => o.value)).toEqual(spec.updates ? ["all", "running", "stopped", "updates"] : ["all", "running", "stopped"]);
+    let saved: Record<string, unknown> = {};
+    editor.addEventListener("config-changed", (event) => { saved = (event as CustomEvent).detail.config; });
+    select.value = "running";
+    select.dispatchEvent(new Event("change"));
+    expect(saved.default_filter).toBe("running");
+    expect(saved.container_labels).toEqual({ plex: "Media" });
+    expect(saved.vm_labels).toEqual({ "Home Assistant": "HA" });
+  });
+});
+
+describe("Docker filter defaults", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each(["running", "stopped"] as const)("applies default %s on initial render", async (filter) => {
+    const card = new UnraidDockerCard();
+    card.setConfig({ type: "custom:unraid-docker-card", view_mode: "list", default_filter: filter });
+    const hass = createMockHass();
+    hass.states["switch.cube_docker_container_backup"] = {
+      entity_id: "switch.cube_docker_container_backup", state: "off", attributes: { container_name: "Backup" }, last_changed: "", last_updated: "",
+    };
+    card.hass = hass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+    const labels = [...card.shadowRoot!.querySelectorAll(".row-left span[title]")].map((name) => name.textContent!.trim());
+    expect(labels).toEqual(filter === "running" ? ["plex"] : ["Backup"]);
+  });
+});
+
+describe("VM editor filter compatibility", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each(["updates", "unknown"])("shows all for unsupported default %s", async (filter) => {
+    const editor = new UnraidVmCardEditor();
+    editor.setConfig({ type: "custom:unraid-vm-card", default_filter: filter as "updates" });
+    document.body.appendChild(editor);
+    await editor.updateComplete;
+    expect(editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value).toBe("all");
   });
 });

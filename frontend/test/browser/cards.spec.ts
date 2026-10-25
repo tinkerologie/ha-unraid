@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import type { UnraidDockerCard } from "../../src/docker-card";
+import type { UnraidVmCard } from "../../src/vm-card";
+import type { HomeAssistant } from "../../src/ha-types";
 
 test.describe("Unraid Lovelace Dashboard Cards Browser Tests", () => {
   test.beforeEach(async ({ page }) => {
@@ -103,5 +106,71 @@ test.describe("Unraid Lovelace Dashboard Cards Browser Tests", () => {
     // Click Storage tab
     await dashboardCard.locator(".tab-btn:has-text('Storage & Disks')").click();
     await expect(dashboardCard.locator("unraid-storage-card")).toBeVisible();
+  });
+
+  test("shows custom Docker labels in grid and list views", async ({ page }) => {
+    await page.evaluate(async () => {
+      const hass = (window as unknown as { mockHass: HomeAssistant }).mockHass;
+      hass.states["switch.cube_docker_container_plex"]!.attributes = {
+        friendly_name: "Unraid Container plex",
+        container_name: "plex",
+      };
+      const card = document.querySelector<UnraidDockerCard>("#docker-card")!;
+      card.setConfig({ type: "custom:unraid-docker-card", view_mode: "grid", container_labels: { plex: "Media" } });
+      card.hass = { ...hass };
+      await card.updateComplete;
+    });
+    const card = page.locator("#docker-card");
+    await expect(card.locator(".tile-name")).toHaveText("Media");
+    await expect(card.locator(".tile-name")).toHaveAttribute("title", "plex");
+    await page.evaluate(async () => {
+      const card = document.querySelector<UnraidDockerCard>("#docker-card")!;
+      card.setConfig({ ...card.config, view_mode: "list" });
+      await card.updateComplete;
+    });
+    await expect(card.locator(".row-left span[title]")).toHaveText("Media");
+    await expect(card.locator(".row-left span[title]")).toHaveAttribute("title", "plex");
+  });
+
+  test("persists the VM running default and allows stopped VM filtering", async ({ page }, testInfo) => {
+    await page.evaluate(async () => {
+      const hass = (window as unknown as { mockHass: HomeAssistant }).mockHass;
+      hass.states["switch.cube_virtual_machine_ha"]!.attributes = {
+        friendly_name: "Unraid VM Home Assistant",
+        vm_name: "Home Assistant",
+      };
+      hass.states["switch.cube_virtual_machine_backup"] = {
+        entity_id: "switch.cube_virtual_machine_backup", state: "off", attributes: { vm_name: "Backup" }, last_changed: "", last_updated: "",
+      };
+      const card = document.querySelector<UnraidVmCard>("#vm-card")!;
+      card.style.width = "320px";
+      card.setConfig({ type: "custom:unraid-vm-card", default_filter: "running", vm_labels: { "Home Assistant": "Smart Home" } });
+      card.hass = { ...hass };
+      await card.updateComplete;
+    });
+    const card = page.locator("#vm-card");
+    await expect(card.locator(".vm-name")).toHaveText("Smart Home");
+    await expect(card.locator(".vm-name")).toHaveAttribute("title", "Home Assistant");
+    await card.getByRole("button", { name: "Stopped (1)" }).click();
+    await expect(card.locator(".vm-name")).toHaveText("Backup");
+    await card.getByRole("button", { name: "All (2)" }).click();
+    await expect(card.locator(".vm-name")).toHaveText(["Smart Home", "Backup"]);
+    await card.screenshot({ path: testInfo.outputPath("vm-card.png") });
+  });
+
+  test("truncates long VM names without losing the full tooltip", async ({ page }) => {
+    const fullName = "A virtual machine with a very long descriptive workload name for the dashboard";
+    await page.evaluate(async (name) => {
+      const hass = (window as unknown as { mockHass: HomeAssistant }).mockHass;
+      hass.states["switch.cube_virtual_machine_ha"]!.attributes.vm_name = name;
+      const card = document.querySelector<UnraidVmCard>("#vm-card")!;
+      card.style.width = "320px";
+      card.hass = { ...hass };
+      await card.updateComplete;
+    }, fullName);
+    const name = page.locator("#vm-card .vm-name");
+    await expect(name).toHaveAttribute("title", fullName);
+    expect(await name.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+    expect(await name.evaluate((element) => getComputedStyle(element).textOverflow)).toBe("ellipsis");
   });
 });

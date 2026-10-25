@@ -70,6 +70,10 @@ export class UnraidCardEditor extends LitElement {
           d.identifiers?.some(([domain]) => domain === "unraid")
         )
       : [];
+    const isDocker = this._config.type?.includes("docker");
+    const filter = this._config.default_filter;
+    const defaultFilter = filter === "running" || filter === "stopped" ||
+      (isDocker && filter === "updates") ? filter : "all";
 
     return html`
       <div class="card-config">
@@ -148,6 +152,24 @@ export class UnraidCardEditor extends LitElement {
               </div>
             `
           : ""}
+        ${isDocker || this._config.type?.includes("vm")
+          ? html`
+              <div class="form-row">
+                <label for="default_filter">Default Filter</label>
+                <select
+                  id="default_filter"
+                  .value=${defaultFilter}
+                  @change=${(e: Event) =>
+                    this._valueChanged("default_filter", (e.target as HTMLSelectElement).value)}
+                >
+                  <option value="all">All</option>
+                  <option value="running">Running</option>
+                  <option value="stopped">Stopped</option>
+                  ${isDocker
+                    ? html`<option value="updates">Updates</option>` : ""}
+                </select>
+              </div>
+            ` : ""}
         <label class="checkbox-row">
           <input
             type="checkbox"

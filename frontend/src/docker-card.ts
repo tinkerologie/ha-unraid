@@ -19,6 +19,7 @@ import { registerDashboardCard } from "./register-dashboard-card";
 interface ContainerItem {
   id: string;
   name: string;
+  rawName: string;
   isRunning: boolean;
   switchEntityId: string;
   restartEntityId?: string;
@@ -80,6 +81,16 @@ export class UnraidDockerCard extends BaseUnraidCard {
         this._viewMode = this.config.view_mode;
       }
     }
+    if (changedProperties.has("config") && this.config.default_filter) {
+      const previous = changedProperties.get("config") as
+        | { default_filter?: string }
+        | undefined;
+      if (previous?.default_filter !== this.config.default_filter) {
+        this._filter = ["all", "running", "stopped", "updates"].includes(
+          this.config.default_filter
+        ) ? this.config.default_filter : "all";
+      }
+    }
   }
 
   private handleToggle(entityId: string, isRunning: boolean, name: string): void {
@@ -106,7 +117,9 @@ export class UnraidDockerCard extends BaseUnraidCard {
 
     for (const sw of switches) {
       const slug = extractEntityContainerSlug(sw.entity_id);
-      const cleanName = (sw.attributes.friendly_name as string) || slug;
+      const label = this.getWorkloadLabel(
+        sw, "container_name", slug, this.config.container_labels
+      );
       const isRunning = sw.state === "on";
 
       const restart = restarts.find(
@@ -127,7 +140,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
 
       list.push({
         id: slug,
-        name: cleanName,
+        ...label,
         isRunning,
         switchEntityId: sw.entity_id,
         restartEntityId: restart?.entity_id,
@@ -255,7 +268,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                     >
                       <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
                         <span class="status-dot ${c.isRunning ? "online" : "offline"}"></span>
-                        <span class="tile-name" title="${c.name}">${c.name}</span>
+                        <span class="tile-name" title="${c.rawName}">${c.name}</span>
                       </div>
                       <div style="display: flex; align-items: center; gap: 4px;">
                         ${c.hasUpdate
@@ -300,7 +313,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
                     <div class="list-row">
                       <div class="row-left">
                         <span class="status-dot ${c.isRunning ? "online" : "offline"}"></span>
-                        <span style="font-weight: 600; min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span title="${c.rawName}" style="font-weight: 600; min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                           ${c.name}
                         </span>
                         ${c.cpuPct !== undefined

@@ -59,6 +59,25 @@ export abstract class BaseUnraidCard extends LitElement {
     return 4;
   }
 
+  /** Resolve workload labels without depending on translated entity names. */
+  protected getWorkloadLabel(
+    entity: HassEntity,
+    attribute: "container_name" | "vm_name",
+    slug: string,
+    labels?: Record<string, string>
+  ): { name: string; rawName: string } {
+    const raw = entity.attributes[attribute];
+    const workloadName = typeof raw === "string" && raw.trim() ? raw : undefined;
+    const override = labels?.[workloadName ?? slug];
+    const friendly = entity.attributes.friendly_name;
+    const rawName = workloadName ??
+      (typeof friendly === "string" && friendly.trim() ? friendly : slug);
+    return {
+      name: typeof override === "string" && override.trim() ? override : rawName,
+      rawName,
+    };
+  }
+
   getGridOptions() {
     return { columns: 6, rows: 4, min_columns: 3, min_rows: 3 };
   }

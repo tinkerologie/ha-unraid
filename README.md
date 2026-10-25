@@ -227,6 +227,28 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 
 Previously discovered hardware temperature entities are retained when readings are absent; they show unknown until telemetry returns. Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
 
+### Docker and VM labels and filters
+
+Docker and VM cards display actual workload names. Use `title` to customize the card header and optional label maps to shorten individual names. Map keys are the exact, case-sensitive Unraid workload names (without a leading `/` for Docker containers):
+
+```yaml
+type: custom:unraid-docker-card
+title: Applications
+container_labels:
+  plex: Media
+default_filter: running
+```
+
+```yaml
+type: custom:unraid-vm-card
+title: Guests
+vm_labels:
+  Home Assistant: HA
+default_filter: running
+```
+
+`default_filter` supports `all` (the default), `running`, or `stopped`; Docker also supports `updates`. Choose **Default Filter** in the visual editor to persist the initial tab. Runtime tabs can still change the current view. Label maps are configured in YAML and preserved by the editor. Full workload names remain available in tooltips, and cards using older entities fall back to their friendly names.
+
 ### Interactive More-Info Dialogs
 
 Clicking on CPU, RAM, or Storage rings, as well as uptime, network, and battery metrics, automatically opens Home Assistant's native **More-Info dialog** with historical usage graphs, attributes, and settings.

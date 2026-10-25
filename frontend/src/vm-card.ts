@@ -1,4 +1,4 @@
-import { html, nothing, type TemplateResult } from "lit";
+import { html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import {
   VM_CARD_TAG,
   VM_EDITOR_TAG,
@@ -16,6 +16,7 @@ import { registerDashboardCard } from "./register-dashboard-card";
 interface VmItem {
   id: string;
   name: string;
+  rawName: string;
   isRunning: boolean;
   status: string;
   switchEntityId: string;
@@ -40,6 +41,31 @@ function extractEntityVmSlug(entityId: string): string {
 export class UnraidVmCard extends BaseUnraidCard {
   static override editorTag = VM_EDITOR_TAG;
 
+  static override properties = {
+    ...BaseUnraidCard.properties,
+    _filter: { state: true },
+  };
+
+  declare _filter: "all" | "running" | "stopped";
+
+  constructor() {
+    super();
+    this._filter = "all";
+  }
+
+  override willUpdate(changedProperties: PropertyValues<this>): void {
+    super.willUpdate(changedProperties);
+    if (changedProperties.has("config") && this.config.default_filter) {
+      const previous = changedProperties.get("config") as
+        | { default_filter?: string }
+        | undefined;
+      if (previous?.default_filter !== this.config.default_filter) {
+        const filter = this.config.default_filter;
+        this._filter = filter === "running" || filter === "stopped" ? filter : "all";
+      }
+    }
+  }
+
   private handleToggle(entityId: string, isRunning: boolean, name: string): void {
     if (isRunning) {
       if (!confirm(`Are you sure you want to shut down virtual machine "${name}"?`)) {
@@ -58,7 +84,9 @@ export class UnraidVmCard extends BaseUnraidCard {
 
     for (const sw of switches) {
       const slug = extractEntityVmSlug(sw.entity_id);
-      const cleanName = (sw.attributes.friendly_name as string) || slug;
+      const label = this.getWorkloadLabel(
+        sw, "vm_name", slug, this.config.vm_labels
+      );
       const isRunning = sw.state === "on";
 
       const status =
@@ -70,7 +98,7 @@ export class UnraidVmCard extends BaseUnraidCard {
 
       list.push({
         id: slug,
-        name: cleanName,
+        ...label,
         isRunning,
         status,
         switchEntityId: sw.entity_id,
@@ -88,6 +116,10 @@ export class UnraidVmCard extends BaseUnraidCard {
   protected override render(): TemplateResult {
     const vms = this.getVms();
     const runningCount = vms.filter((v) => v.isRunning).length;
+    const filtered = vms.filter((vm) =>
+      this._filter === "running" ? vm.isRunning :
+        this._filter === "stopped" ? !vm.isRunning : true
+    );
 
     const badge = html`
       <span class="badge ${runningCount > 0 ? "badge-online" : "badge-standby"}">
@@ -104,15 +136,30 @@ export class UnraidVmCard extends BaseUnraidCard {
           badge
         )}
 
+        <div style="display: flex; gap: 4px; overflow-x: auto;">
+          <button
+            class="tab-btn ${this._filter === "all" ? "active" : ""}"
+            @click=${() => (this._filter = "all")}
+          >All (${vms.length})</button>
+          <button
+            class="tab-btn ${this._filter === "running" ? "active" : ""}"
+            @click=${() => (this._filter = "running")}
+          >Running (${runningCount})</button>
+          <button
+            class="tab-btn ${this._filter === "stopped" ? "active" : ""}"
+            @click=${() => (this._filter = "stopped")}
+          >Stopped (${vms.length - runningCount})</button>
+        </div>
+
         <div class="item-list">
-          ${vms.length > 0
-            ? vms.map(
+          ${filtered.length > 0
+            ? filtered.map(
                 (v) => html`
                   <div class="list-row">
                     <div class="row-left">
                       <span class="status-dot ${v.isRunning ? "online" : "offline"}"></span>
-                      <div style="display: flex; flex-direction: column;">
-                        <span style="font-weight: 600;">${v.name}</span>
+                      <div style="display: flex; flex-direction: column; min-width: 0;">
+                        <span class="vm-name" title="${v.rawName}">${v.name}</span>
                         <span style="font-size: 0.7rem; color: var(--unraid-subtext); text-transform: capitalize;">
                           ${v.status}
                         </span>
@@ -144,7 +191,7 @@ export class UnraidVmCard extends BaseUnraidCard {
                   </div>
                 `
               )
-            : html`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">No virtual machines configured</div>`}
+            : html`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">${vms.length === 0 ? "No virtual machines configured" : `No ${this._filter} virtual machines`}</div>`}
         </div>
       </ha-card>
     `;

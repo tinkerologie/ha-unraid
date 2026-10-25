@@ -223,8 +223,8 @@ def test_container_switch_attributes_filters_none() -> None:
     )
 
     attrs = switch.extra_state_attributes
-    # Only status should be present (always set)
-    assert attrs == {"status": "RUNNING"}
+    # Status and the normalized workload name are always present.
+    assert attrs == {"status": "RUNNING", "container_name": "minimal"}
     assert "image" not in attrs
     assert "web_ui_url" not in attrs
     assert "icon_url" not in attrs
@@ -547,6 +547,7 @@ def test_vm_switch_attributes(uuid) -> None:
 
     attrs = switch.extra_state_attributes
     assert attrs["state"] == "RUNNING"
+    assert attrs["vm_name"] == "Ubuntu"
     assert attrs.get("uuid") == (uuid or None)
     assert ("uuid" in attrs) is bool(uuid)
     assert switch.unique_id == "test-uuid_vm_switch_Ubuntu"
@@ -573,8 +574,8 @@ def test_vm_switch_attributes_filters_none() -> None:
     )
 
     attrs = switch.extra_state_attributes
-    # Only state should be present (always set)
-    assert attrs == {"state": "RUNNING"}
+    # State and the workload name are always present.
+    assert attrs == {"state": "RUNNING", "vm_name": "Minimal"}
     assert "memory" not in attrs
     assert "vcpu" not in attrs
 

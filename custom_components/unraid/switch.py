@@ -161,6 +161,7 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
             return {}
         attrs: dict[str, Any] = {
             "status": container.state,
+            "container_name": container.name.lstrip("/"),
         }
         if container.image is not None:
             attrs["image"] = container.image
@@ -429,6 +430,7 @@ class VirtualMachineSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
             return {}
         attrs: dict[str, Any] = {
             "state": vm.state,
+            "vm_name": vm.name,
         }
         if vm.uuid:
             attrs["uuid"] = vm.uuid
