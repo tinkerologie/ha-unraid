@@ -863,6 +863,25 @@ describe("VM status filters", () => {
       expect(vmNames(card)).toEqual(expected);
     }
   });
+  it.each(["unknown", "unavailable"])("keeps %s VMs out of running and stopped filters", async (state) => {
+    const card = new UnraidVmCard();
+    const hass = mixedVmHass();
+    hass.states["switch.cube_virtual_machine_ha"]!.state = state;
+    delete hass.states["sensor.cube_virtual_machine_status_ha"];
+    card.setConfig({ type: "custom:unraid-vm-card" });
+    card.hass = hass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Backup", "Home Assistant"]);
+    const tabs = card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn");
+    expect([...tabs].map((b) => b.textContent!.trim())).toEqual(["All (2)", "Running (0)", "Stopped (1)"]);
+    tabs[2]!.click();
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual(["Backup"]);
+    tabs[1]!.click();
+    await card.updateComplete;
+    expect(vmNames(card)).toEqual([]);
+  });
   it("honors a configured default without overwriting runtime choices on refresh", async () => {
     const card = new UnraidVmCard();
     card.setConfig({ type: "custom:unraid-vm-card", default_filter: "running" });

@@ -18,6 +18,7 @@ interface VmItem {
   name: string;
   rawName: string;
   isRunning: boolean;
+  isStopped: boolean;
   status: string;
   switchEntityId: string;
   rebootEntityId?: string;
@@ -88,10 +89,11 @@ export class UnraidVmCard extends BaseUnraidCard {
         sw, "vm_name", slug, this.config.vm_labels
       );
       const isRunning = sw.state === "on";
+      const isStopped = sw.state === "off";
 
       const status =
         statuses.find((s) => extractEntityVmSlug(s.entity_id) === slug)?.state ||
-        (isRunning ? "running" : "shut off");
+        (isRunning ? "running" : isStopped ? "shut off" : sw.state);
       const reboot = reboots.find(
         (r) => extractEntityVmSlug(r.entity_id) === slug
       );
@@ -100,6 +102,7 @@ export class UnraidVmCard extends BaseUnraidCard {
         id: slug,
         ...label,
         isRunning,
+        isStopped,
         status,
         switchEntityId: sw.entity_id,
         rebootEntityId: reboot?.entity_id,
@@ -116,9 +119,10 @@ export class UnraidVmCard extends BaseUnraidCard {
   protected override render(): TemplateResult {
     const vms = this.getVms();
     const runningCount = vms.filter((v) => v.isRunning).length;
+    const stoppedCount = vms.filter((v) => v.isStopped).length;
     const filtered = vms.filter((vm) =>
       this._filter === "running" ? vm.isRunning :
-        this._filter === "stopped" ? !vm.isRunning : true
+        this._filter === "stopped" ? vm.isStopped : true
     );
 
     const badge = html`
@@ -148,7 +152,7 @@ export class UnraidVmCard extends BaseUnraidCard {
           <button
             class="tab-btn ${this._filter === "stopped" ? "active" : ""}"
             @click=${() => (this._filter = "stopped")}
-          >Stopped (${vms.length - runningCount})</button>
+          >Stopped (${stoppedCount})</button>
         </div>
 
         <div class="item-list">

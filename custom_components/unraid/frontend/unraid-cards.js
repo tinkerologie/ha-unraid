@@ -1286,13 +1286,13 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
           </div>
         </div>
       </ha-card>
-    `}},editor:ct,name:`Unraid Power & UPS Card`,description:`Monitor UPS battery level, power draw in Watts, load %, and estimated runtime.`});function ht(e){let t=e.split(`.`)[1]||``;return t.replace(/^.*?_vm_reboot_/,``).replace(/^vm_reboot_/,``).replace(/^.*?_virtual_machine_status_/,``).replace(/^virtual_machine_status_/,``).replace(/^.*?_virtual_machine_/,``).replace(/^virtual_machine_/,``).replace(/_status$/,``).replace(/_virtual_machine$/,``)||t}Z({tag:Oe,editorTag:ke,card:class extends Y{static editorTag=ke;static properties={...Y.properties,_filter:{state:!0}};constructor(){super(),this._filter=`all`}willUpdate(e){if(super.willUpdate(e),e.has(`config`)&&e.get(`config`)?.default_filter!==this.config.default_filter){let e=this.config.default_filter;this._filter=e===`running`||e===`stopped`?e:`all`}}handleToggle(e,t,n){(!t||confirm(`Are you sure you want to shut down virtual machine "${n}"?`))&&this.toggleEntity(e)}getVms(){let e=this.getEntities(`virtual_machine`,`switch`),t=this.getEntities(`virtual_machine_status`,`sensor`),n=this.getEntities(`vm_reboot`,`button`),r=[];for(let i of e){let e=ht(i.entity_id),a=this.getWorkloadLabel(i,`vm_name`,e,this.config.vm_labels),o=i.state===`on`,s=t.find(t=>ht(t.entity_id)===e)?.state||(o?`running`:`shut off`),c=n.find(t=>ht(t.entity_id)===e);r.push({id:e,...a,isRunning:o,status:s,switchEntityId:i.entity_id,rebootEntityId:c?.entity_id})}return r.sort((e,t)=>e.isRunning&&!t.isRunning?-1:!e.isRunning&&t.isRunning?1:e.name.localeCompare(t.name))}render(){let e=this.getVms(),t=e.filter(e=>e.isRunning).length,n=e.filter(e=>this._filter===`running`?e.isRunning:this._filter!==`stopped`||!e.isRunning),r=z`
+    `}},editor:ct,name:`Unraid Power & UPS Card`,description:`Monitor UPS battery level, power draw in Watts, load %, and estimated runtime.`});function ht(e){let t=e.split(`.`)[1]||``;return t.replace(/^.*?_vm_reboot_/,``).replace(/^vm_reboot_/,``).replace(/^.*?_virtual_machine_status_/,``).replace(/^virtual_machine_status_/,``).replace(/^.*?_virtual_machine_/,``).replace(/^virtual_machine_/,``).replace(/_status$/,``).replace(/_virtual_machine$/,``)||t}Z({tag:Oe,editorTag:ke,card:class extends Y{static editorTag=ke;static properties={...Y.properties,_filter:{state:!0}};constructor(){super(),this._filter=`all`}willUpdate(e){if(super.willUpdate(e),e.has(`config`)&&e.get(`config`)?.default_filter!==this.config.default_filter){let e=this.config.default_filter;this._filter=e===`running`||e===`stopped`?e:`all`}}handleToggle(e,t,n){(!t||confirm(`Are you sure you want to shut down virtual machine "${n}"?`))&&this.toggleEntity(e)}getVms(){let e=this.getEntities(`virtual_machine`,`switch`),t=this.getEntities(`virtual_machine_status`,`sensor`),n=this.getEntities(`vm_reboot`,`button`),r=[];for(let i of e){let e=ht(i.entity_id),a=this.getWorkloadLabel(i,`vm_name`,e,this.config.vm_labels),o=i.state===`on`,s=i.state===`off`,c=t.find(t=>ht(t.entity_id)===e)?.state||(o?`running`:s?`shut off`:i.state),l=n.find(t=>ht(t.entity_id)===e);r.push({id:e,...a,isRunning:o,isStopped:s,status:c,switchEntityId:i.entity_id,rebootEntityId:l?.entity_id})}return r.sort((e,t)=>e.isRunning&&!t.isRunning?-1:!e.isRunning&&t.isRunning?1:e.name.localeCompare(t.name))}render(){let e=this.getVms(),t=e.filter(e=>e.isRunning).length,n=e.filter(e=>e.isStopped).length,r=e.filter(e=>this._filter===`running`?e.isRunning:this._filter!==`stopped`||e.isStopped),i=z`
       <span class="badge ${t>0?`badge-online`:`badge-standby`}">
         ${t} Running
       </span>
     `;return z`
       <ha-card>
-        ${this.renderHeader(this.config.title||`Virtual Machines`,`${t} running of ${e.length} VMs`,Ge,r)}
+        ${this.renderHeader(this.config.title||`Virtual Machines`,`${t} running of ${e.length} VMs`,Ge,i)}
 
         <div style="display: flex; gap: 4px; overflow-x: auto;">
           <button
@@ -1306,11 +1306,11 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
           <button
             class="tab-btn ${this._filter===`stopped`?`active`:``}"
             @click=${()=>this._filter=`stopped`}
-          >Stopped (${e.length-t})</button>
+          >Stopped (${n})</button>
         </div>
 
         <div class="item-list">
-          ${n.length>0?n.map(e=>z`
+          ${r.length>0?r.map(e=>z`
                   <div class="list-row">
                     <div class="row-left">
                       <span class="status-dot ${e.isRunning?`online`:`offline`}"></span>

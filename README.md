@@ -229,7 +229,7 @@ Previously discovered hardware temperature entities are retained when readings a
 
 ### Docker and VM labels and filters
 
-Docker and VM cards display actual workload names. Use `title` to customize the card header and optional label maps to shorten individual names. Map keys are the exact, case-sensitive Unraid workload names (without a leading `/` for Docker containers):
+Docker and VM cards display actual workload names. Use `title` to customize the card header and optional label maps to shorten individual names. Map keys are the exact, case-sensitive Unraid workload names (without a leading `/` for Docker containers). Older entities without `container_name` or `vm_name` attributes use the entity slug as their map key (for example, `ha` for `switch.cube_virtual_machine_ha`), rather than the displayed friendly name:
 
 ```yaml
 type: custom:unraid-docker-card
