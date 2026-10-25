@@ -11,6 +11,6 @@
   "issue_tracker": "https://github.com/tinkerologie/ha-unraid/issues",
   "requirements": ["unraid-api>=1.14.0"],
   "ssdp": [],
-  "version": "2026.10.4",
+  "version": "2026.10.5",
   "zeroconf": []
 }
