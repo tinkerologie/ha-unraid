@@ -63,6 +63,7 @@ from custom_components.unraid.sensor import (
     DiskTemperatureSensor,
     DiskUsageSensor,
     DockerTotalCpuSensor,
+    DockerTotalMemoryBytesSensor,
     DockerTotalMemoryPercentSensor,
     InstalledPluginsSensor,
     LastParityCheckDateSensor,
@@ -5935,9 +5936,12 @@ def test_docker_total_cpu_sensor_init() -> None:
 
 
 def test_docker_total_cpu_sensor_value() -> None:
-    """Test DockerTotalCpuSensor sums container CPU usage."""
-    coordinator = MagicMock(spec=UnraidSystemCoordinator)
-    coordinator.data = None  # No coordinator data — use all stats as fallback
+    """Normalize Docker's per-core CPU sum by logical, not physical, CPUs."""
+    coordinator = _stats_coordinator(
+        [_make_docker_container(name, name) for name in ("c1", "c2", "c3")]
+    )
+    coordinator.data.info.cpu_threads = 12
+    coordinator.data.info.cpu_cores = 6
     ws = _make_ws_manager(
         stats={
             "c1": {"id": "c1", "cpuPercent": 25.5},
@@ -5945,45 +5949,28 @@ def test_docker_total_cpu_sensor_value() -> None:
             "c3": {"id": "c3", "cpuPercent": 5.0},
         }
     )
-    sensor = DockerTotalCpuSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="tower",
-        ws_manager=ws,
-    )
-    assert sensor.native_value == 40.8
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value == 3.4
 
 
 def test_docker_total_cpu_sensor_empty_stats() -> None:
-    """Test DockerTotalCpuSensor returns None when no stats."""
-    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    """An empty statistics snapshot leaves Docker CPU unknown."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
     ws = _make_ws_manager()
-    sensor = DockerTotalCpuSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="tower",
-        ws_manager=ws,
-    )
-    assert sensor.native_value is None
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value is None
 
 
 def test_docker_total_cpu_sensor_some_none() -> None:
-    """Test DockerTotalCpuSensor skips containers with None cpuPercent."""
-    coordinator = MagicMock(spec=UnraidSystemCoordinator)
-    coordinator.data = None
+    """A missing CPU value keeps the total unknown instead of reporting a partial."""
+    coordinator = _stats_coordinator(
+        [_make_docker_container(name, name) for name in ("c1", "c2")]
+    )
     ws = _make_ws_manager(
         stats={
             "c1": {"id": "c1", "cpuPercent": 10.0},
             "c2": {"id": "c2", "cpuPercent": None},
         }
     )
-    sensor = DockerTotalCpuSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="tower",
-        ws_manager=ws,
-    )
-    assert sensor.native_value == 10.0
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value is None
 
 
 def test_docker_total_cpu_sensor_extra_attributes() -> None:
@@ -6023,55 +6010,48 @@ def test_docker_total_memory_percent_sensor_init() -> None:
 
 
 def test_docker_total_memory_percent_sensor_value() -> None:
-    """Test DockerTotalMemoryPercentSensor sums container memory percentages."""
-    coordinator = MagicMock(spec=UnraidSystemCoordinator)
-    coordinator.data = None  # No coordinator data — use all stats as fallback
+    """Use actual bytes divided by host RAM, ignoring per-container percentages."""
+    coordinator = _stats_coordinator(
+        [_make_docker_container(name, name) for name in ("c1", "c2", "c3")]
+    )
+    coordinator.data.metrics.memory_total = 4 * 1024**3
     ws = _make_ws_manager(
         stats={
-            "c1": {"id": "c1", "memPercent": 15.2},
-            "c2": {"id": "c2", "memPercent": 8.5},
-            "c3": {"id": "c3", "memPercent": 3.1},
+            "c1": {"id": "c1", "memPercent": 90.0, "memUsage": "256MiB / 1GiB"},
+            "c2": {"id": "c2", "memPercent": 50.0, "memUsage": "512MiB / 2GiB"},
+            "c3": {"id": "c3", "memPercent": 25.0, "memUsage": "256MiB / 8GiB"},
         }
     )
-    sensor = DockerTotalMemoryPercentSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="tower",
-        ws_manager=ws,
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value == 25.0
     )
-    assert sensor.native_value == 26.8
 
 
 def test_docker_total_memory_percent_sensor_empty_stats() -> None:
-    """Test DockerTotalMemoryPercentSensor returns None when no stats."""
-    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    """An empty snapshot leaves Docker memory percentage unknown."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.metrics.memory_total = 1024**3
     ws = _make_ws_manager()
-    sensor = DockerTotalMemoryPercentSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="tower",
-        ws_manager=ws,
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value is None
     )
-    assert sensor.native_value is None
 
 
 def test_docker_total_memory_percent_sensor_some_none() -> None:
-    """Test DockerTotalMemoryPercentSensor skips containers with None memPercent."""
-    coordinator = MagicMock(spec=UnraidSystemCoordinator)
-    coordinator.data = None
+    """Missing per-container percentages do not affect a complete byte-based total."""
+    coordinator = _stats_coordinator(
+        [_make_docker_container(name, name) for name in ("c1", "c2")]
+    )
+    coordinator.data.metrics.memory_total = 2 * 1024**3
     ws = _make_ws_manager(
         stats={
-            "c1": {"id": "c1", "memPercent": 12.0},
-            "c2": {"id": "c2", "memPercent": None},
+            "c1": {"id": "c1", "memPercent": 12.0, "memUsage": "128MiB / 1GiB"},
+            "c2": {"id": "c2", "memPercent": None, "memUsage": "128MiB / 8GiB"},
         }
     )
-    sensor = DockerTotalMemoryPercentSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="tower",
-        ws_manager=ws,
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value == 12.5
     )
-    assert sensor.native_value == 12.0
 
 
 def test_docker_total_memory_percent_sensor_extra_attributes() -> None:
@@ -6811,6 +6791,7 @@ def _stats_coordinator(containers: list[Any] | None) -> MagicMock:
     else:
         coordinator.data = SimpleNamespace(
             containers=containers,
+            info=SimpleNamespace(cpu_threads=1, cpu_cores=1),
             metrics=SimpleNamespace(memory_total=None),
         )
     return coordinator
@@ -7003,17 +6984,23 @@ def test_docker_total_cpu_excludes_stopped_containers() -> None:
 
 
 def test_docker_total_memory_percent_filters_stale_ids() -> None:
-    """Aggregate memory % excludes stats for removed containers."""
-    coordinator = _stats_coordinator([_make_docker_container("plex", "live")])
+    """The host memory share excludes removed/stopped container byte readings."""
+    coordinator = _stats_coordinator(
+        [
+            _make_docker_container("plex", "live"),
+            _make_docker_container("backup", "stopped", state="EXITED"),
+        ]
+    )
+    coordinator.data.metrics.memory_total = 2 * 1024**3
     ws = _make_ws_manager(
         stats={
-            "live": {"id": "live", "memPercent": 5.0},
-            "stale": {"id": "stale", "memPercent": 50.0},
-        },
+            "live": {"id": "live", "memPercent": 5.0, "memUsage": "128MiB / 1GiB"},
+            "stopped": {"id": "stopped", "memUsage": "1GiB / 2GiB"},
+            "stale": {"id": "stale", "memPercent": 50.0, "memUsage": "1GiB / 2GiB"},
+        }
     )
-    sensor = DockerTotalMemoryPercentSensor(coordinator, "test-uuid", "tower", ws)
-
-    assert sensor.native_value == 5.0
+    sensor = DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws)
+    assert sensor.native_value == 6.25
     assert sensor.extra_state_attributes == {"container_count": 1}
 
 
@@ -7028,7 +7015,7 @@ def test_docker_total_memory_bytes_uses_actual_usage() -> None:
             _make_docker_container("backup", "stopped", state="EXITED"),
         ]
     )
-    coordinator.data.metrics.memory_total = 1000
+    coordinator.data.metrics.memory_total = 4 * 1024**3
     ws = _make_ws_manager(
         stats={
             "live": {"id": "live", "memPercent": 25.0, "memUsage": "256MiB / 1GiB"},
@@ -7048,7 +7035,7 @@ def test_docker_total_memory_bytes_uses_actual_usage() -> None:
         DockerTotalMemoryPercentSensor(
             coordinator, "test-uuid", "tower", ws
         ).native_value
-        == 75.0
+        == 18.75
     )
 
 
@@ -8213,3 +8200,176 @@ def test_docker_total_memory_bytes_without_coordinator_data() -> None:
     coordinator = _stats_coordinator(None)
     ws = _make_ws_manager(stats={"live": {"id": "live", "memUsage": "1GiB / 2GiB"}})
     assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [(0.0, 0.0), (100.0, 8.33), (225.5, 18.79), (1200.0, 100.0), (2400.0, 100.0)],
+)
+def test_docker_total_cpu_host_percentage_bounds(raw, expected) -> None:
+    """Host CPU percentages normalize by logical CPUs and stay within 0-100."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.info.cpu_threads = 12
+    coordinator.data.info.cpu_cores = 6
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "cpuPercent": raw}})
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value == expected
+
+
+@pytest.mark.parametrize("threads", [None, 0, -1, float("nan"), float("inf")])
+def test_docker_total_cpu_unknown_logical_cpu_count(threads) -> None:
+    """Physical cores are not a substitute for a missing logical CPU count."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.info.cpu_threads = threads
+    coordinator.data.info.cpu_cores = 6
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "cpuPercent": 225.5}})
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value is None
+
+
+@pytest.mark.parametrize("raw", [-1.0, float("nan"), float("inf")])
+def test_docker_total_cpu_invalid_reading(raw) -> None:
+    """Invalid readings do not become a plausible host percentage."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "cpuPercent": raw}})
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value is None
+
+
+def test_docker_total_cpu_overflowing_sum() -> None:
+    """Reject an overflowing sum even when each individual float is finite."""
+    coordinator = _stats_coordinator(
+        [_make_docker_container(name, name) for name in ("c1", "c2")]
+    )
+    ws = _make_ws_manager(
+        stats={name: {"id": name, "cpuPercent": 1e308} for name in ("c1", "c2")}
+    )
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value is None
+
+
+@pytest.mark.parametrize(
+    "sensor_class", [DockerTotalCpuSensor, DockerTotalMemoryPercentSensor]
+)
+def test_docker_percentages_without_coordinator_data(sensor_class) -> None:
+    """Host-normalized percentages require host data, not only stream readings."""
+    coordinator = _stats_coordinator(None)
+    ws = _make_ws_manager(
+        stats={"c1": {"id": "c1", "cpuPercent": 10.0, "memUsage": "128MiB / 1GiB"}}
+    )
+    assert sensor_class(coordinator, "u", "t", ws).native_value is None
+
+
+@pytest.mark.parametrize(
+    "sensor_class", [DockerTotalCpuSensor, DockerTotalMemoryPercentSensor]
+)
+def test_docker_percentages_reject_partial_snapshot(sensor_class) -> None:
+    """One missing running-container sample prevents reporting a partial total."""
+    coordinator = _stats_coordinator(
+        [_make_docker_container(name, name) for name in ("c1", "c2")]
+    )
+    coordinator.data.metrics.memory_total = 1024**3
+    ws = _make_ws_manager(
+        stats={"c1": {"id": "c1", "cpuPercent": 10.0, "memUsage": "128MiB / 1GiB"}}
+    )
+    assert sensor_class(coordinator, "u", "t", ws).native_value is None
+
+
+@pytest.mark.parametrize("total", [None, 0, -1, float("nan"), float("inf")])
+def test_docker_memory_percentage_unknown_host_memory(total) -> None:
+    """A missing/invalid host RAM denominator cannot yield a percentage."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.metrics.memory_total = total
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "memUsage": "128MiB / 1GiB"}})
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("usage", "expected"),
+    [("0B / 1GiB", 0.0), ("256MiB / 1GiB", 25.0), ("2GiB / 4GiB", 100.0)],
+)
+def test_docker_memory_percentage_host_bounds(usage, expected) -> None:
+    """A valid zero stays zero and an inconsistent snapshot stays bounded."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.metrics.memory_total = 1024**3
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "memUsage": usage}})
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value
+        == expected
+    )
+
+
+@pytest.mark.parametrize("usage", [None, "invalid", "NaNMiB / 1GiB"])
+def test_docker_memory_percentage_unknown_usage(usage) -> None:
+    """Invalid usage does not turn into zero or a per-limit percentage."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.metrics.memory_total = 1024**3
+    ws = _make_ws_manager(
+        stats={"c1": {"id": "c1", "memPercent": 50.0, "memUsage": usage}}
+    )
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value is None
+    )
+
+
+@pytest.mark.parametrize(
+    "sensor_class", [DockerTotalMemoryBytesSensor, DockerTotalMemoryPercentSensor]
+)
+@pytest.mark.parametrize("used", ["9" * 400 + "MiB", "1" + "0" * 307 + "PiB"])
+def test_docker_memory_aggregates_overflowing_usage(sensor_class, used) -> None:
+    """Overflow in the unchanged shared parser leaves aggregate usage unknown."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.metrics.memory_total = 1024**3
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "memUsage": used + " / 1GiB"}})
+    assert sensor_class(coordinator, "u", "t", ws).native_value is None
+
+
+@pytest.mark.parametrize(
+    ("sensor_class", "expected"),
+    [
+        (DockerTotalMemoryBytesSensor, 256 * 1024**2),
+        (DockerTotalMemoryPercentSensor, 25.0),
+    ],
+)
+def test_docker_memory_aggregates_ignore_invalid_limit(sensor_class, expected) -> None:
+    """Only used bytes matter when deriving host memory usage."""
+    coordinator = _stats_coordinator([_make_docker_container("plex", "c1")])
+    coordinator.data.metrics.memory_total = 1024**3
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "memUsage": "256MiB / invalid"}})
+    assert sensor_class(coordinator, "u", "t", ws).native_value == expected
+
+
+@pytest.mark.parametrize(
+    "sensor_class",
+    [
+        DockerTotalCpuSensor,
+        DockerTotalMemoryPercentSensor,
+        DockerTotalMemoryBytesSensor,
+    ],
+)
+@pytest.mark.parametrize("scenario", ["empty", "stopped", "no_data"])
+def test_docker_aggregate_data_boundaries(sensor_class, scenario) -> None:
+    """All aggregates preserve unknown for empty, all-stopped or absent host data."""
+    containers = [
+        _make_docker_container(
+            "plex", "c1", state="EXITED" if scenario == "stopped" else "RUNNING"
+        )
+    ]
+    coordinator = _stats_coordinator(None if scenario == "no_data" else containers)
+    if coordinator.data is not None:
+        coordinator.data.metrics.memory_total = 1024**3
+    stats = (
+        {}
+        if scenario == "empty"
+        else {"c1": {"id": "c1", "cpuPercent": 50.0, "memUsage": "256MiB / 1GiB"}}
+    )
+    ws = _make_ws_manager(stats=stats)
+    assert sensor_class(coordinator, "u", "t", ws).native_value is None
+
+
+def test_docker_cpu_normalization_with_typed_host_data() -> None:
+    """The real ServerInfo model distinguishes physical cores from logical CPUs."""
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(
+        cpu_cores=8, cpu_threads=16, containers=[_make_docker_container("plex", "c1")]
+    )
+    ws = _make_ws_manager(stats={"c1": {"id": "c1", "cpuPercent": 400.0}})
+    assert DockerTotalCpuSensor(coordinator, "u", "t", ws).native_value == 25.0

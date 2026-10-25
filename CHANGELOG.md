@@ -18,6 +18,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Fixed
 
+- Normalize Docker aggregate CPU and memory percentages to 0–100% of host capacity: use logical CPU threads for CPU and actual container bytes divided by host RAM for memory. Require complete readings, preserve zero, and keep entity IDs unchanged. Automations using the previous aggregate percentage scales may need threshold adjustments ([#202](https://github.com/tinkerologie/ha-unraid/issues/202)).
 - Compute Docker total memory used from actual running-container byte readings instead of percentages multiplied by host RAM; exclude stopped or stale containers and retain unknown when readings are missing. Document the five existing host/Docker summary sensors. ZFS ARC metrics remain dependent on upstream API support ([#202](https://github.com/tinkerologie/ha-unraid/issues/202)).
 
 - Restore hardware temperature metrics on Unraid API 4.37.6 and later using standby-aware collection, while keeping older or unknown API versions on polling that omits temperature queries to avoid waking disks ([#369](https://github.com/tinkerologie/ha-unraid/issues/369), [#203](https://github.com/tinkerologie/ha-unraid/issues/203), [#211](https://github.com/tinkerologie/ha-unraid/issues/211)). Polling intervals are unchanged. Reload the integration after upgrading the server API to discover temperature entities.

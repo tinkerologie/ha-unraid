@@ -108,6 +108,8 @@ def make_server_info(**kwargs: Any) -> ServerInfo:
 
 def make_system_data(
     cpu_percent: float | None = None,
+    cpu_threads: int | None = None,
+    cpu_cores: int | None = None,
     memory_used: int | None = None,
     memory_total: int | None = None,
     memory_percent: float | None = None,
@@ -148,6 +150,8 @@ def make_system_data(
             uuid="test-uuid",
             hostname="tower",
             manufacturer="Lime Technology",
+            cpu_threads=cpu_threads,
+            cpu_cores=cpu_cores,
         ),
         metrics=SystemMetrics(
             cpu_percent=cpu_percent,
