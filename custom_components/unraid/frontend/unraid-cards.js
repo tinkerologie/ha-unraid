@@ -1079,7 +1079,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
             >
               Stopped (${n})
             </button>
-            ${r>0?z`
+            ${r>0||this._filter===`updates`?z`
                   <button
                     class="tab-btn ${this._filter===`updates`?`active`:``}"
                     style="color: var(--unraid-warning);"
@@ -1109,6 +1109,9 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
             </button>
           </div>
         </div>
+        ${a.length===0?z`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">
+              ${e.length===0?`No Docker containers configured`:this._filter===`updates`?`No container updates available`:`No ${this._filter} containers`}
+            </div>`:V}
         ${this._viewMode===`grid`?z`
               <div class="container-grid">
                 ${a.map(e=>z`

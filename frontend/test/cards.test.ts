@@ -983,3 +983,21 @@ describe("removing workload filter defaults", () => {
     expect(card.shadowRoot!.querySelector(spec.selector)!.textContent?.trim()).toBe("Backup");
   });
 });
+
+describe("empty Docker update filters", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each(["grid", "list"] as const)("keeps the selected Updates tab visible in %s mode", async (view_mode) => {
+    const card = new UnraidDockerCard();
+    card.setConfig({ type: "custom:unraid-docker-card", view_mode, default_filter: "updates" });
+    card.hass = createMockHass();
+    document.body.appendChild(card);
+    await card.updateComplete;
+    const active = card.shadowRoot!.querySelector(".tab-btn.active")!;
+    expect(active.textContent!.trim()).toBe("Updates (0)");
+    expect(card.shadowRoot!.textContent).toContain("No container updates available");
+    card.shadowRoot!.querySelectorAll<HTMLButtonElement>(".tab-btn")[0]!.click();
+    await card.updateComplete;
+    expect(card.shadowRoot!.textContent).not.toContain("No container updates available");
+    expect(card.shadowRoot!.querySelectorAll(".container-tile, .list-row")).toHaveLength(1);
+  });
+});

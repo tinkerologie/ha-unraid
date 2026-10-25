@@ -223,7 +223,7 @@ export class UnraidDockerCard extends BaseUnraidCard {
             >
               Stopped (${stoppedCount})
             </button>
-            ${updateCount > 0
+            ${updateCount > 0 || this._filter === "updates"
               ? html`
                   <button
                     class="tab-btn ${this._filter === "updates" ? "active" : ""}"
@@ -258,6 +258,13 @@ export class UnraidDockerCard extends BaseUnraidCard {
             </button>
           </div>
         </div>
+        ${filtered.length === 0
+          ? html`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">
+              ${containers.length === 0 ? "No Docker containers configured" :
+                this._filter === "updates" ? "No container updates available" :
+                  `No ${this._filter} containers`}
+            </div>`
+          : nothing}
         ${this._viewMode === "grid"
           ? html`
               <div class="container-grid">
