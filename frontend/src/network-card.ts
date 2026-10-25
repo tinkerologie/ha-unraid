@@ -15,17 +15,6 @@ import { registerDashboardCard } from "./register-dashboard-card";
 export class UnraidNetworkCard extends BaseUnraidCard {
   static override editorTag = NETWORK_EDITOR_TAG;
 
-  private formatDataRate(valStr?: string, unit = "MB/s"): string {
-    if (!valStr) return "--";
-    const clean = valStr.toLowerCase().trim();
-    if (["unavailable", "unknown", "none", "--"].includes(clean)) return "--";
-    const num = parseFloat(valStr);
-    if (isNaN(num)) return "--";
-    if (num <= 0) return "0 kB/s";
-    if (num < 0.1) return `${(num * 1000).toFixed(1)} kB/s`;
-    return `${num.toFixed(2)} ${unit}`;
-  }
-
   private isValidIp(s?: string): boolean {
     return (
       Boolean(s) &&
@@ -104,8 +93,8 @@ export class UnraidNetworkCard extends BaseUnraidCard {
                     speedVal != null ? String(speedVal) : undefined
                   );
 
-                  const rxRate = this.formatDataRate(iface.rx?.state);
-                  const txRate = this.formatDataRate(iface.tx?.state);
+                  const rxRate = this.rateText(iface.rx) ?? "--";
+                  const txRate = this.rateText(iface.tx) ?? "--";
                   const totalRx =
                     (iface.rx?.attributes?.total_received as string) || "";
                   const totalTx = (iface.tx?.attributes?.total_sent as string) || "";

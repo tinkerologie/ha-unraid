@@ -174,3 +174,88 @@ test.describe("Unraid Lovelace Dashboard Cards Browser Tests", () => {
     expect(await name.evaluate((element) => getComputedStyle(element).textOverflow)).toBe("ellipsis");
   });
 });
+
+test("maps collision-suffixed disk metrics and native RAM without foreign network rows", async ({
+  page,
+}) => {
+  await page.goto("/test/browser/fixture.html");
+  await page.waitForFunction(
+    () => (window as unknown as { fixtureReady?: boolean }).fixtureReady
+  );
+  const snapshot = await (
+    await page.request.get("/test/fixtures/storage-suffixed.json")
+  ).json();
+  await page.evaluate(async (snapshot) => {
+    const hass = {
+      ...(window as unknown as { mockHass: HomeAssistant }).mockHass,
+      states: snapshot.states,
+      entities: snapshot.entities,
+    };
+    hass.formatEntityState = (entity) =>
+      `${entity.state}${entity.attributes.unit_of_measurement ? ` ${entity.attributes.unit_of_measurement}` : ""}`;
+    for (const selector of ["#server-card", "#storage-card"]) {
+      const card = document.querySelector(selector) as HTMLElement & {
+        hass: HomeAssistant;
+        updateComplete: Promise<boolean>;
+      };
+      card.hass = hass;
+      await card.updateComplete;
+    }
+  }, snapshot);
+  await expect(
+    page.locator("#server-card").getByText("8 GiB used", { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.locator("#server-card").getByText("10 TB / 40 TB", { exact: true })
+  ).toBeVisible();
+  const storage = page.locator("#storage-card");
+  await expect(storage.locator(".item-list .list-row")).toHaveCount(6);
+  await expect(storage.getByText("10 TB used of 40 TB (30 TB Free)")).toBeVisible();
+  await expect(storage.getByText("Cache (POOL_2)", { exact: true })).toBeVisible();
+  await expect(storage.getByText("0°C", { exact: true }).first()).toBeVisible();
+  await page.evaluate(async () => {
+    const hass = (window as unknown as { mockHass: HomeAssistant }).mockHass;
+    for (const name of ["aaa_foreign", "other"]) {
+      const entity_id = `sensor.cube_network_${name}_rx`;
+      hass.states[entity_id] = {
+        entity_id,
+        state: "99999",
+        attributes: { unit_of_measurement: "B/s" },
+        last_changed: "",
+        last_updated: "",
+      };
+      hass.entities![entity_id] = {
+        entity_id,
+        platform: name === "aaa_foreign" ? "unraid_management_agent" : "unraid",
+        device_id: name === "other" ? "other" : "dev_1",
+      };
+    }
+    for (const direction of ["rx", "tx"]) {
+      const entity = hass.states[`sensor.cube_network_eth0_${direction}_throughput`]!;
+      entity.state = "25000";
+      entity.attributes.unit_of_measurement = "B/s";
+    }
+    for (const selector of ["#server-card", "#network-card"]) {
+      const card = document.querySelector(selector) as HTMLElement & {
+        hass: HomeAssistant;
+        updateComplete: Promise<boolean>;
+      };
+      card.hass = { ...hass };
+      await card.updateComplete;
+    }
+  });
+  await expect(page.locator("#network-card .network-row")).toHaveCount(1);
+  await expect(
+    page.locator("#network-card").getByText("25.00 kB/s", { exact: true }).first()
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("#server-card")
+      .getByText("↓ 25.00 kB/s • ↑ 25.00 kB/s", { exact: true })
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __serviceCalls: unknown[] }).__serviceCalls
+    )
+  ).toEqual([]);
+});

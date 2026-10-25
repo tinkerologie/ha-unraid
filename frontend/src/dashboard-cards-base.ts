@@ -193,6 +193,9 @@ export abstract class BaseUnraidCard extends LitElement {
     >();
 
     for (const [entityId, stateObj] of Object.entries(this.hass.states)) {
+      const registry = this.hass.entities?.[entityId];
+      if (registry?.platform && registry.platform !== "unraid") continue;
+      if (device && registry?.device_id && registry.device_id !== device.id) continue;
       if (cleanName && !entityId.includes(cleanName)) continue;
       const match = entityId.match(
         /_network_([a-zA-Z0-9_-]+)_(inbound(?:_throughput)?|outbound(?:_throughput)?|rx(?:_throughput)?|tx(?:_throughput)?|speed|ip|ip_address|link)$/i
@@ -281,7 +284,7 @@ export abstract class BaseUnraidCard extends LitElement {
             s.entity_id.includes("_parity") ||
             s.entity_id.includes("_boot") ||
             s.entity_id.includes("_flash")) &&
-          s.entity_id.endsWith("_usage") &&
+          /_usage(?:_\d+)?$/.test(s.entity_id) &&
           !s.entity_id.includes("_array_usage") &&
           !s.entity_id.includes("_share_")
         );
@@ -292,7 +295,7 @@ export abstract class BaseUnraidCard extends LitElement {
             s.entity_id.includes("_cache") ||
             s.entity_id.includes("_parity") ||
             s.entity_id.includes("_boot")) &&
-          (s.entity_id.endsWith("_temperature") || s.entity_id.includes("_temp"))
+          /_(?:temperature|temp)(?:_\d+)?$/.test(s.entity_id)
         );
       }
       if (translationKey === "disk_spin") {
@@ -300,7 +303,7 @@ export abstract class BaseUnraidCard extends LitElement {
           (s.entity_id.includes("_disk_") ||
             s.entity_id.includes("_cache") ||
             s.entity_id.includes("_parity")) &&
-          s.entity_id.includes("_spin")
+          /_spin(?:_\d+)?$/.test(s.entity_id)
         );
       }
       if (translationKey === "disk_health") {
@@ -309,7 +312,7 @@ export abstract class BaseUnraidCard extends LitElement {
             s.entity_id.includes("_cache") ||
             s.entity_id.includes("_parity") ||
             s.entity_id.includes("_boot")) &&
-          (s.entity_id.endsWith("_health") || s.entity_id.includes("_health_"))
+          /_health(?:_\d+)?$/.test(s.entity_id)
         );
       }
       if (translationKey === "share_usage" || translationKey === "share") {
@@ -347,6 +350,66 @@ export abstract class BaseUnraidCard extends LitElement {
       return this.hass.states[pattern];
     }
     return Object.values(this.hass.states).find((s) => pattern.test(s.entity_id));
+  }
+
+  /** Format a numeric reading with its HA display unit and locale. */
+  protected numericStateText(entity?: HassEntity): string | undefined {
+    if (!entity?.state.trim() || !Number.isFinite(Number(entity.state)))
+      return undefined;
+    if (this.hass?.formatEntityState) return this.hass.formatEntityState(entity);
+    const unit = entity.attributes.unit_of_measurement;
+    return `${entity.state}${typeof unit === "string" && unit.trim() ? ` ${unit}` : ""}`;
+  }
+
+  /** Respect HA display preferences, with unit-aware formatting for legacy hosts. */
+  protected rateText(entity?: HassEntity): string | undefined {
+    if (!entity?.state.trim()) return undefined;
+    const value = Number(entity.state);
+    if (!Number.isFinite(value)) return undefined;
+    if (this.hass?.formatEntityState)
+      return this.hass.formatEntityState(
+        value < 0 ? { ...entity, state: "0" } : entity
+      );
+    const rate = Math.max(0, value);
+    const rawUnit = entity.attributes.unit_of_measurement;
+    const unit = typeof rawUnit === "string" ? rawUnit.trim() : "";
+    if (!unit) {
+      return rate < 0.1
+        ? `${(rate * 1000).toFixed(1)} kB/s`
+        : `${rate.toFixed(2)} MB/s`;
+    }
+    const decimalUnits = ["B/s", "kB/s", "MB/s", "GB/s"];
+    const binaryUnits = ["B/s", "KiB/s", "MiB/s", "GiB/s"];
+    const binary = binaryUnits.includes(unit) && unit !== "B/s";
+    const units = binary ? binaryUnits : decimalUnits;
+    const sourceIndex = units.indexOf(unit);
+    if (sourceIndex < 0) return `${rate} ${unit}`;
+    const base = binary ? 1024 : 1000;
+    let scaled = rate * base ** sourceIndex;
+    let index = 0;
+    while (scaled >= base && index < units.length - 1) {
+      scaled /= base;
+      index++;
+    }
+    return `${scaled.toFixed(2)} ${units[index]}`;
+  }
+
+  /** Select the first usable current or legacy attribute, preserving zero. */
+  protected attributeText(
+    entity: HassEntity | undefined,
+    keys: readonly string[]
+  ): string | undefined {
+    for (const key of keys) {
+      const value = entity?.attributes[key];
+      if (typeof value === "number" && Number.isFinite(value)) return String(value);
+      if (
+        typeof value === "string" &&
+        value.trim() &&
+        !["unknown", "unavailable"].includes(value.trim().toLowerCase())
+      )
+        return value;
+    }
+    return undefined;
   }
 
   protected formatState(entity?: HassEntity, fallback = "Unavailable"): string {

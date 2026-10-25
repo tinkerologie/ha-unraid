@@ -16,6 +16,7 @@ import {
   UnraidSharesCardEditor,
 } from "../src/dashboard-cards-editor";
 import workloadSnapshot from "./fixtures/workloads.json";
+import storageSnapshot from "./fixtures/storage-suffixed.json";
 import type { HomeAssistant } from "../src/ha-types";
 
 function createMockHass(): HomeAssistant {
@@ -1539,4 +1540,308 @@ describe("system health status", () => {
     expect(row.querySelector(".detail-val")!.textContent!.trim()).toBe(expected);
     expect(row.querySelector(".detail-val")!.getAttribute("style")).toBeNull();
   });
+});
+
+function storageFixture(registry = true): HomeAssistant {
+  const snapshot = structuredClone(storageSnapshot);
+  return {
+    ...createMockHass(),
+    states: snapshot.states,
+    entities: registry ? snapshot.entities : {},
+  };
+}
+
+async function renderMetricCard(
+  Card: typeof UnraidServerCard | typeof UnraidStorageCard,
+  hass: HomeAssistant
+) {
+  const card = new Card();
+  card.setConfig({
+    type:
+      Card === UnraidServerCard
+        ? "custom:unraid-server-card"
+        : "custom:unraid-storage-card",
+  });
+  card.hass = hass;
+  document.body.append(card);
+  await card.updateComplete;
+  return card;
+}
+
+function metricSubtitle(
+  card: UnraidServerCard | UnraidStorageCard,
+  label: string
+): string {
+  const ring = [...card.shadowRoot!.querySelectorAll(".ring-card")].find((el) =>
+    el.textContent!.includes(label)
+  )!;
+  return ring.querySelector(".ring-subtext")!.textContent!.trim();
+}
+
+describe("native RAM and current array labels", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each([
+    ["8", "GiB", "8 GiB used"],
+    ["0", "GiB", "0 GiB used"],
+    ["8", undefined, "8 used"],
+    ["unknown", "GiB", "25% used"],
+    ["unavailable", "GiB", "25% used"],
+    ["", "GiB", "25% used"],
+    ["NaN", "GiB", "25% used"],
+    ["Infinity", "GiB", "25% used"],
+    ["-1", "GiB", "25% used"],
+  ])("uses native RAM %s %s as %s", async (state, unit, expected) => {
+    const hass = storageFixture();
+    hass.states["sensor.cube_ram_used"]!.state = state!;
+    hass.states["sensor.cube_ram_used"]!.attributes.unit_of_measurement = unit;
+    const card = await renderMetricCard(UnraidServerCard, hass);
+    expect(metricSubtitle(card, "Memory")).toBe(expected);
+    expect(metricSubtitle(card, "Memory")).not.toContain("30 GB");
+  });
+  it("uses HA localized measurement text without duplicating its unit", async () => {
+    const hass = storageFixture();
+    hass.formatEntityState = vi.fn(() => "8,0 Gio");
+    const card = await renderMetricCard(UnraidServerCard, hass);
+    expect(metricSubtitle(card, "Memory")).toBe("8,0 Gio used");
+  });
+  it("falls back to percentage when the RAM-used entity is absent", async () => {
+    const hass = storageFixture();
+    delete hass.states["sensor.cube_ram_used"];
+    const card = await renderMetricCard(UnraidServerCard, hass);
+    expect(metricSubtitle(card, "Memory")).toBe("25% used");
+  });
+  it.each([
+    { used: "10 TB", total: "40 TB", free: "30 TB" },
+    { capacity_used: "10 TB", capacity_total: "40 TB", capacity_free: "30 TB" },
+    {
+      used: "",
+      total: "unknown",
+      free: null,
+      capacity_used: "10 TB",
+      capacity_total: "40 TB",
+      capacity_free: "30 TB",
+    },
+  ])("displays capacity using current or legacy attributes", async (attributes) => {
+    const hass = storageFixture();
+    hass.states["sensor.cube_array_usage_2"]!.attributes = attributes;
+    const server = await renderMetricCard(UnraidServerCard, hass);
+    expect(metricSubtitle(server, "Array Storage")).toBe("10 TB / 40 TB");
+    const storage = await renderMetricCard(UnraidStorageCard, hass);
+    expect(
+      storage.shadowRoot!.querySelector(".header-subtitle")!.textContent!.trim()
+    ).toBe("10 TB used of 40 TB (30 TB Free)");
+  });
+  it("preserves numeric zero capacities over legacy aliases", async () => {
+    const hass = storageFixture();
+    hass.states["sensor.cube_array_usage_2"]!.attributes = {
+      used: 0,
+      total: 0,
+      free: 0,
+      capacity_used: "wrong",
+    };
+    const server = await renderMetricCard(UnraidServerCard, hass);
+    expect(metricSubtitle(server, "Array Storage")).toBe("0 / 0");
+    const storage = await renderMetricCard(UnraidStorageCard, hass);
+    expect(
+      storage.shadowRoot!.querySelector(".header-subtitle")!.textContent
+    ).toContain("0 used of 0 (0 Free)");
+  });
+  it.each(["unknown", "unavailable", "", " "])(
+    "shows absent %s array readings without a fake zero",
+    async (state) => {
+      const hass = storageFixture();
+      hass.states["sensor.cube_array_usage_2"]!.state = state;
+      hass.states["sensor.cube_array_usage_2"]!.attributes = {};
+      const card = await renderMetricCard(UnraidStorageCard, hass);
+      expect(
+        card.shadowRoot!.querySelector(".progress-fill")!.getAttribute("style")
+      ).toContain("width: 0%");
+      expect(card.shadowRoot!.textContent).toContain("—");
+      expect(card.shadowRoot!.textContent).not.toContain("0% used");
+    }
+  );
+});
+
+for (const registry of [true, false])
+  describe(`disk association with ${registry ? "registry" : "fallback"} discovery`, () => {
+    afterEach(() => document.body.replaceChildren());
+    it("joins collision-suffixed usage, health, zero temperature and spin into one row per device", async () => {
+      const card = await renderMetricCard(UnraidStorageCard, storageFixture(registry));
+      const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+      expect(rows).toHaveLength(6);
+      const disk = rows.find((el) => el.textContent!.includes("Disk 1"))!;
+      expect(disk.textContent).toContain("10%");
+      expect(disk.textContent).toContain("0°C");
+      expect(disk.textContent).toContain("Healthy");
+      expect(disk.querySelector("button")!.getAttribute("aria-label")).toBe(
+        "Spin down Disk 1"
+      );
+      expect(rows.some((el) => el.textContent!.includes("Cache (POOL_2)"))).toBe(true);
+      expect(rows.filter((el) => /Parity 2/.test(el.textContent!))).toHaveLength(1);
+      expect(rows.filter((el) => /Parity/.test(el.textContent!))).toHaveLength(2);
+      expect(rows.filter((el) => /Flash/.test(el.textContent!))).toHaveLength(1);
+      expect(rows.every((el) => !el.textContent!.includes("usage 2"))).toBe(true);
+    });
+    it("joins renamed metric IDs by their unambiguous device attribute", async () => {
+      const hass = storageFixture(registry);
+      const old = "binary_sensor.cube_disk_disk1_health";
+      const next = "binary_sensor.cube_disk_renamed_health_2";
+      hass.states[next] = { ...hass.states[old]!, entity_id: next };
+      delete hass.states[old];
+      if (registry) {
+        hass.entities![next] = { ...hass.entities![old]!, entity_id: next };
+        delete hass.entities![old];
+      }
+      const card = await renderMetricCard(UnraidStorageCard, hass);
+      expect(card.shadowRoot!.querySelectorAll(".item-list .list-row")).toHaveLength(6);
+    });
+    it("uses tokens for a shared or blank device rather than merging different disks", async () => {
+      const hass = storageFixture(registry);
+      for (const [id, entity] of Object.entries(hass.states))
+        if (id.includes("_disk1_") || id.includes("_disk2_"))
+          entity.attributes.device = " shared ";
+      const card = await renderMetricCard(UnraidStorageCard, hass);
+      const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+      expect(rows).toHaveLength(6);
+      expect(rows.filter((el) => el.textContent!.includes("Disk 1"))).toHaveLength(1);
+      expect(rows.filter((el) => el.textContent!.includes("Disk 2"))).toHaveLength(1);
+    });
+  });
+
+describe("network ownership and displayed rate units", () => {
+  afterEach(() => document.body.replaceChildren());
+  async function renderNetwork(hass: HomeAssistant) {
+    const card = new UnraidNetworkCard();
+    card.setConfig({ type: "custom:unraid-network-card" });
+    card.hass = hass;
+    document.body.append(card);
+    await card.updateComplete;
+    return card;
+  }
+  function addInterface(
+    hass: HomeAssistant,
+    name: string,
+    ownership?: { platform?: string; device_id?: string | null }
+  ) {
+    for (const direction of ["rx", "tx"]) {
+      const entity_id = `sensor.cube_network_${name}_${direction}`;
+      hass.states[entity_id] = {
+        entity_id,
+        state: "999",
+        attributes: { unit_of_measurement: "B/s" },
+        last_changed: "",
+        last_updated: "",
+      };
+      if (ownership) hass.entities![entity_id] = { entity_id, ...ownership };
+    }
+  }
+  it("rejects foreign integration and server ownership while preserving legacy entries", async () => {
+    const hass = createMockHass();
+    addInterface(hass, "aaa_foreign", {
+      platform: "unraid_management_agent",
+      device_id: "dev_1",
+    });
+    addInterface(hass, "aab_other_server", { platform: "unraid", device_id: "other" });
+    addInterface(hass, "legacy_missing");
+    addInterface(hass, "legacy_platform", { device_id: "dev_1" });
+    addInterface(hass, "legacy_device", { platform: "unraid", device_id: null });
+    addInterface(hass, "owned", { platform: "unraid", device_id: "dev_1" });
+    const card = await renderNetwork(hass);
+    const names = [...card.shadowRoot!.querySelectorAll(".network-row")].map((row) =>
+      row.getAttribute("title")
+    );
+    expect(names).toHaveLength(5);
+    expect(names.join()).not.toContain("FOREIGN");
+    expect(names.join()).not.toContain("OTHER_SERVER");
+    for (const name of ["OWNED", "LEGACY_MISSING", "LEGACY_PLATFORM", "LEGACY_DEVICE"])
+      expect(names.join()).toContain(name);
+    const server = await renderMetricCard(UnraidServerCard, hass);
+    expect(server.shadowRoot!.textContent).toContain("↓ 12.40 MB/s • ↑ 5.80 MB/s");
+  });
+  it("applies platform filtering without a selected server device", async () => {
+    const hass = createMockHass();
+    hass.devices = {};
+    addInterface(hass, "foreign", { platform: "other" });
+    addInterface(hass, "owned", { platform: "unraid", device_id: "other" });
+    const card = await renderNetwork(hass);
+    expect(
+      card.shadowRoot!.querySelector('[title="Show details for FOREIGN"]')
+    ).toBeNull();
+    expect(
+      card.shadowRoot!.querySelector('[title="Show details for OWNED"]')
+    ).not.toBeNull();
+  });
+  it.each([
+    ["25000", "B/s", "25.00 kB/s"],
+    ["25", "kB/s", "25.00 kB/s"],
+    ["2048", "KiB/s", "2.00 MiB/s"],
+    ["2.5", "MB/s", "2.50 MB/s"],
+    ["2.5", "MiB/s", "2.50 MiB/s"],
+    ["12.4", undefined, "12.40 MB/s"],
+    ["0.05", undefined, "50.0 kB/s"],
+    ["0", "B/s", "0.00 B/s"],
+    ["-5", "B/s", "0.00 B/s"],
+    ["12", "Mbit/s", "12 Mbit/s"],
+  ])("formats %s %s as %s in both cards", async (state, unit, expected) => {
+    const hass = createMockHass();
+    for (const direction of ["rx", "tx"]) {
+      const entity = hass.states[`sensor.cube_network_eth0_${direction}_throughput`]!;
+      entity.state = state!;
+      entity.attributes.unit_of_measurement = unit;
+    }
+    const network = await renderNetwork(hass);
+    expect(network.shadowRoot!.textContent).toContain(expected);
+    expect(network.shadowRoot!.textContent).toContain("1 Connected");
+    expect(network.shadowRoot!.textContent).toContain("1 Gbps");
+    expect(
+      network.shadowRoot!.querySelector(".network-row")!.getAttribute("title")
+    ).toBe("Show details for ETH0");
+    const server = await renderMetricCard(UnraidServerCard, hass);
+    expect(server.shadowRoot!.textContent).toContain(`↓ ${expected} • ↑ ${expected}`);
+  });
+  it("uses HA localized traffic text unchanged in both cards", async () => {
+    const hass = createMockHass();
+    hass.formatEntityState = vi.fn((entity) =>
+      entity.entity_id.includes("_throughput") ? "12,4 Mo/s" : entity.state
+    );
+    const network = await renderNetwork(hass);
+    const server = await renderMetricCard(UnraidServerCard, hass);
+    expect(network.shadowRoot!.textContent).toContain("12,4 Mo/s");
+    expect(server.shadowRoot!.textContent).toContain("↓ 12,4 Mo/s • ↑ 12,4 Mo/s");
+    expect(server.shadowRoot!.textContent).not.toContain("Mo/s MB/s");
+  });
+  it("clamps negative rates before applying HA formatting without mutating states", async () => {
+    const hass = createMockHass();
+    const entity = hass.states["sensor.cube_network_eth0_rx_throughput"]!;
+    entity.state = "-1";
+    hass.formatEntityState = (reading) => `${reading.state} octets/s`;
+    const network = await renderNetwork(hass);
+    const server = await renderMetricCard(UnraidServerCard, hass);
+    expect(network.shadowRoot!.textContent).toContain("0 octets/s");
+    expect(server.shadowRoot!.textContent).toContain("↓ 0 octets/s");
+    expect(entity.state).toBe("-1");
+  });
+  it.each(["unknown", "unavailable", "", "NaN", "Infinity", undefined])(
+    "preserves absent %s traffic placeholders and link state",
+    async (state) => {
+      const hass = createMockHass();
+      const id = "sensor.cube_network_eth0_rx_throughput";
+      if (state === undefined) delete hass.states[id];
+      else hass.states[id]!.state = state;
+      hass.formatEntityState = vi.fn((entity) => entity.state);
+      const network = await renderNetwork(hass);
+      const server = await renderMetricCard(UnraidServerCard, hass);
+      expect(network.shadowRoot!.textContent).toContain("--");
+      expect(network.shadowRoot!.textContent).toContain("1 Connected");
+      expect(server.shadowRoot!.textContent).not.toContain("↓");
+      expect(server.shadowRoot!.textContent).toContain("1 Gbps");
+      expect(hass.formatEntityState).not.toHaveBeenCalledWith(
+        expect.objectContaining({ entity_id: id })
+      );
+      delete hass.states["sensor.cube_network_eth0_speed"];
+      server.hass = { ...hass };
+      await server.updateComplete;
+      expect(server.shadowRoot!.textContent).toContain("Active");
+    }
+  );
 });
