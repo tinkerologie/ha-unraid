@@ -2722,7 +2722,7 @@ class DockerTotalMemoryPercentSensor(
 class DockerTotalMemoryBytesSensor(
     UnraidBaseEntity[UnraidSystemCoordinator], SensorEntity
 ):
-    """Total Docker memory used in bytes (derived from memory % x system RAM)."""
+    """Total Docker memory used in bytes from running container usage."""
 
     _attr_translation_key = "docker_total_memory_bytes"
     _attr_device_class = SensorDeviceClass.DATA_SIZE
@@ -2753,21 +2753,22 @@ class DockerTotalMemoryBytesSensor(
         """
         Return total Docker memory used in bytes.
 
-        Computed as sum(container memPercent) x system_memory_total / 100.
+        Sum parsed usage rather than percentages with different container limits.
         """
         all_stats = self._ws_manager.container_stats.stats
         if not all_stats:
             return None
         data: UnraidSystemData | None = self.coordinator.data
-        if data is None or data.metrics.memory_total is None:
+        if data is None:
             return None
         valid_ids = {c.id for c in data.containers if c.is_running}
-        total_pct = sum(
-            s.memPercent
+        used_values = [
+            used
             for cid, s in all_stats.items()
-            if cid in valid_ids and s.memPercent is not None
-        )
-        return int(total_pct * data.metrics.memory_total / 100)
+            if cid in valid_ids
+            if (used := parse_docker_mem_usage(s.memUsage)[0]) is not None
+        ]
+        return sum(used_values) if used_values else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -3690,23 +3691,6 @@ async def async_setup_entry(
         _create_ups_sensors(system_coordinator, server_uuid, server_name, entry)
     )
 
-    # System temperature sensors (dynamic, per hardware sensor)
-    if (
-        system_coordinator.data
-        and system_coordinator.data.metrics.temperature is not None
-    ):
-        valid_temp_sensors = _get_valid_temperature_sensors(system_coordinator.data)
-        if valid_temp_sensors:
-            entities.append(
-                TemperatureAverageSensor(system_coordinator, server_uuid, server_name)
-            )
-            for sensor in valid_temp_sensors:
-                entities.append(
-                    SystemTemperatureSensor(
-                        system_coordinator, server_uuid, server_name, sensor
-                    )
-                )
-
     # Storage sensors
     entities.extend(
         [
@@ -3754,6 +3738,42 @@ async def async_setup_entry(
 
     _LOGGER.debug("Adding %d sensor entities", len(entities))
     async_add_entities(entities)
+
+    # Supported servers may supply hardware readings after the initial poll.
+    # Keep each sensor and the average's identity stable across absent readings.
+    entry.async_on_unload(
+        async_add_dynamic_resource_entities(
+            coordinator=system_coordinator,
+            async_add_entities=async_add_entities,
+            get_resources=lambda: (
+                _get_valid_temperature_sensors(system_coordinator.data)
+                if system_coordinator.data
+                else []
+            ),
+            get_key=lambda sensor: sensor.id,
+            create_entities=lambda sensor: [
+                SystemTemperatureSensor(
+                    system_coordinator, server_uuid, server_name, sensor
+                )
+            ],
+        )
+    )
+    entry.async_on_unload(
+        async_add_dynamic_resource_entities(
+            coordinator=system_coordinator,
+            async_add_entities=async_add_entities,
+            get_resources=lambda: (
+                ["temperature_average"]
+                if system_coordinator.data
+                and _get_valid_temperature_sensors(system_coordinator.data)
+                else []
+            ),
+            get_key=lambda key: key,
+            create_entities=lambda _: [
+                TemperatureAverageSensor(system_coordinator, server_uuid, server_name)
+            ],
+        )
+    )
 
     # Container stats sensors (WebSocket-powered). Containers created after
     # setup get sensors on the next coordinator refresh — no reload needed.

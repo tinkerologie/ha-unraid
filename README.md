@@ -143,6 +143,24 @@ After setup, you can adjust UPS settings (only shown if UPS is detected):
 | UPS Power       | Power consumption W | power        |
 | Notifications   | Unread count        | -            |
 
+### Summary sensors
+
+These host and Docker aggregates are enabled by default; group helpers are unnecessary:
+
+| Requested metric | Entity name | Translation key |
+| --- | --- | --- |
+| Docker total CPU usage | Docker Total CPU | `docker_total_cpu` |
+| System used memory | RAM Used | `ram_used` |
+| System memory usage | RAM Usage | `ram_usage` |
+| Docker used memory | Docker Total Memory Used | `docker_total_memory_bytes` |
+| Docker memory usage | Docker Total Memory % | `docker_total_memory_percent` |
+
+RAM Used is whole-host total memory minus available memory. RAM Usage uses the API-reported percentage. Docker memory bytes sum the reported usage of running containers, including containers with different memory limits. Missing usage stays unknown; a reported zero remains zero. Byte sensors can display MB or MiB through Home Assistant's entity unit setting.
+
+Docker Total CPU sums API values and can exceed 100% on multi-core hosts. Docker Total Memory % sums API percentages, whose denominators can be different container memory limits. Unraid's separate Docker vdisk/folder bar measures storage; the Docker segment of its RAM chart measures memory.
+
+ZFS ARC used memory and percentage require an upstream API extension ([Unraid API #2119](https://github.com/unraid/api/issues/2119), [Python client #131](https://github.com/tinkerologie/unraid-api/issues/131)). Generic free/buffer/cache metrics cannot identify ARC usage, so this integration does not estimate it.
+
 ### Binary Sensors
 
 | Entity               | Description                         |
@@ -205,7 +223,7 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 | **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine manager with state pills, memory allocation, CPU assignments, and lifecycle controls. |
 | **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
 
-Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. Temperature entities are discovered during setup; reload the integration after upgrading the server API.
+Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
 
 ### Interactive More-Info Dialogs
 

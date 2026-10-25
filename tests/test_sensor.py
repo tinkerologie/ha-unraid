@@ -7017,34 +7017,84 @@ def test_docker_total_memory_percent_filters_stale_ids() -> None:
     assert sensor.extra_state_attributes == {"container_count": 1}
 
 
-def test_docker_total_memory_bytes_computes_from_percent() -> None:
-    """Total memory bytes derives from summed percent x system RAM."""
+def test_docker_total_memory_bytes_uses_actual_usage() -> None:
+    """Sum running usage despite different limits; exclude stopped/stale stats."""
     from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
 
-    coordinator = _stats_coordinator([_make_docker_container("plex", "live")])
+    coordinator = _stats_coordinator(
+        [
+            _make_docker_container("plex", "live"),
+            _make_docker_container("media", "second"),
+            _make_docker_container("backup", "stopped", state="EXITED"),
+        ]
+    )
     coordinator.data.metrics.memory_total = 1000
     ws = _make_ws_manager(
         stats={
-            "live": {"id": "live", "memPercent": 10.0},
-            "stale": {"id": "stale", "memPercent": 50.0},
-        },
+            "live": {"id": "live", "memPercent": 25.0, "memUsage": "256MiB / 1GiB"},
+            "second": {
+                "id": "second",
+                "memPercent": 50.0,
+                "memUsage": "512MiB / 16GiB",
+            },
+            "stopped": {"id": "stopped", "memPercent": 99.0, "memUsage": "4GiB / 8GiB"},
+            "stale": {"id": "stale", "memPercent": 90.0, "memUsage": "8GiB / 16GiB"},
+        }
     )
     sensor = DockerTotalMemoryBytesSensor(coordinator, "test-uuid", "tower", ws)
+    assert sensor.native_value == 768 * 1024**2
+    assert sensor.extra_state_attributes == {"container_count": 2}
+    assert (
+        DockerTotalMemoryPercentSensor(
+            coordinator, "test-uuid", "tower", ws
+        ).native_value
+        == 75.0
+    )
 
-    assert sensor.native_value == 100
-    assert sensor.extra_state_attributes == {"container_count": 1}
 
-
-def test_docker_total_memory_bytes_none_without_memory_total() -> None:
-    """No system memory info means no derived byte value."""
+def test_docker_total_memory_bytes_without_host_memory() -> None:
+    """Container byte usage does not depend on host RAM or memory percentages."""
     from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
 
-    coordinator = _stats_coordinator([])
-    coordinator.data.metrics.memory_total = None
-    ws = _make_ws_manager(stats={"c": {"id": "c", "memPercent": 10.0}})
+    coordinator = _stats_coordinator([_make_docker_container("plex", "live")])
+    ws = _make_ws_manager(stats={"live": {"id": "live", "memUsage": "128MiB / 1GiB"}})
     sensor = DockerTotalMemoryBytesSensor(coordinator, "test-uuid", "tower", ws)
+    assert sensor.native_value == 128 * 1024**2
 
-    assert sensor.native_value is None
+
+@pytest.mark.parametrize("usage", [None, "", "invalid"])
+def test_docker_total_memory_bytes_missing_usage(usage) -> None:
+    """Missing readings remain unknown rather than presenting a false zero."""
+    from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
+
+    coordinator = _stats_coordinator([_make_docker_container("plex", "live")])
+    ws = _make_ws_manager(stats={"live": {"id": "live", "memUsage": usage}})
+    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
+
+
+def test_docker_total_memory_bytes_all_stopped() -> None:
+    """Lingering stats of stopped containers do not contribute to either total."""
+    from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
+
+    coordinator = _stats_coordinator(
+        [_make_docker_container("plex", "old", state="EXITED")]
+    )
+    ws = _make_ws_manager(
+        stats={"old": {"id": "old", "memUsage": "1GiB / 2GiB", "memPercent": 50.0}}
+    )
+    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
+    assert (
+        DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value is None
+    )
+
+
+def test_docker_total_memory_bytes_valid_zero() -> None:
+    """A reported zero is distinct from a missing usage value."""
+    from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
+
+    coordinator = _stats_coordinator([_make_docker_container("plex", "live")])
+    ws = _make_ws_manager(stats={"live": {"id": "live", "memUsage": "0B / 1GiB"}})
+    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value == 0
 
 
 # =============================================================================
@@ -7314,7 +7364,7 @@ def test_docker_aggregates_with_only_none_values() -> None:
     assert (
         DockerTotalMemoryPercentSensor(coordinator, "u", "t", ws).native_value is None
     )
-    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value == 0
+    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
 
 
 def test_network_interface_tx_sensor_missing_interface() -> None:
@@ -8136,3 +8186,12 @@ def test_create_disk_sensors_parity_only_no_usage() -> None:
     assert len([s for s in sensors if type(s).__name__ == "DiskUsageSensor"]) == 0
     assert len([s for s in sensors if type(s).__name__ == "DiskTemperatureSensor"]) == 1
     assert len([s for s in sensors if type(s).__name__ == "DiskErrorCountSensor"]) == 1
+
+
+def test_docker_total_memory_bytes_without_coordinator_data() -> None:
+    """Unknown running inventory prevents totals from counting stale stats."""
+    from custom_components.unraid.sensor import DockerTotalMemoryBytesSensor
+
+    coordinator = _stats_coordinator(None)
+    ws = _make_ws_manager(stats={"live": {"id": "live", "memUsage": "1GiB / 2GiB"}})
+    assert DockerTotalMemoryBytesSensor(coordinator, "u", "t", ws).native_value is None
