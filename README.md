@@ -222,7 +222,7 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 | **Network Interfaces** | `custom:unraid-network-card` | Physical NICs, bonds, and bridges with real-time throughput metrics (rates and totals), link speed badges, active link state chips, MTU, MAC addresses, and clickable WebGUI links. |
 | **Docker Containers** | `custom:unraid-docker-card` | Container manager displaying active containers, status badges, CPU/memory footprints, autostart toggles, and start/stop/restart controls. |
 | **Power & UPS** | `custom:unraid-ups-card` | Power & UPS monitor with battery charge rings, electrical load, AC voltages, estimated runtime, and adaptive status coloring. |
-| **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine manager with state pills, memory allocation, CPU assignments, and lifecycle controls. |
+| **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine status, running/stopped filters, custom labels, and lifecycle controls. |
 | **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
 
 Previously discovered hardware temperature entities are retained when readings are absent; they show unknown until telemetry returns. Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
@@ -248,6 +248,22 @@ default_filter: running
 ```
 
 `default_filter` supports `all` (the default), `running`, or `stopped`; Docker also supports `updates`. Choose **Default Filter** in the visual editor to persist the initial tab. Runtime tabs can still change the current view. Label maps are configured in YAML and preserved by the editor. Full workload names remain available in tooltips, and cards using older entities fall back to their friendly names.
+
+### Card appearance and accessibility
+
+All eight cards follow Home Assistant theme colours, typography, spacing and radii, including light, dark and custom themes. Controls have visible keyboard focus and 40px text or 48px icon touch targets. Status is shown in text as well as colour. Reduced-motion preferences are respected. Unknown readings show a placeholder rather than a false zero; unknown workloads are excluded from Running/Stopped filters and their power controls are disabled.
+
+The unified dashboard uses accessible tabs: Left/Right moves focus (following RTL direction), Home/End jumps to the first/last tab, and Enter/Space opens the focused section. Workload names, share rows, network interfaces and metric gauges open the native more-info dialog by keyboard or pointer. Long names keep full-name tooltips. Cards use content-driven Sections heights so long lists remain reachable; narrow layouts wrap controls and respect RTL.
+
+| Editor option | Cards | Default |
+| --- | --- | --- |
+| `server`, `title` | All | Automatic server, default title |
+| `show_system_info` | Server, unified dashboard | `true` |
+| `view_mode` | Docker, unified dashboard | `grid` |
+| `default_filter` | Docker, VM, unified dashboard | `all`; `updates` applies to Docker only |
+| `container_labels`, `vm_labels` | Corresponding card, unified dashboard | YAML only; preserved by the editor |
+
+The frontend uses **TypeScript 7.0.2**, pinned in both its package manifest and lockfile. CI installs with `npm ci` and runs `tsc --noEmit`, unit tests, the bundle build and Chromium regression tests. The design follows Home Assistant's [custom-card guidance](https://contributors.home-assistant.io/frontend/custom-ui/card/) and [accessibility foundations](https://contributors.home-assistant.io/design/foundations/accessibility/) with fallbacks for the supported HA 2026.9 baseline.
 
 ### Interactive More-Info Dialogs
 

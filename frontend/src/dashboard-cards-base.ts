@@ -1,4 +1,10 @@
-import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from "lit";
+import {
+  LitElement,
+  html,
+  nothing,
+  type PropertyValues,
+  type TemplateResult,
+} from "lit";
 import { type CardConfig } from "./config";
 import { dashboardCardStyles } from "./dashboard-cards-styles";
 import {
@@ -13,9 +19,7 @@ export abstract class BaseUnraidCard extends LitElement {
   static override styles = dashboardCardStyles;
   static editorTag = "";
 
-  static async getConfigElement(this: {
-    editorTag: string;
-  }): Promise<HTMLElement> {
+  static async getConfigElement(this: { editorTag: string }): Promise<HTMLElement> {
     return document.createElement(this.editorTag);
   }
 
@@ -69,8 +73,10 @@ export abstract class BaseUnraidCard extends LitElement {
     const raw = entity.attributes[attribute];
     const workloadName = typeof raw === "string" && raw.trim() ? raw : undefined;
     const override = labels?.[workloadName ?? slug];
-    const friendly = entity.attributes.friendly_name;
-    const rawName = workloadName ??
+    const friendly =
+      this.hass?.formatEntityName?.(entity) ?? entity.attributes.friendly_name;
+    const rawName =
+      workloadName ??
       (typeof friendly === "string" && friendly.trim() ? friendly : slug);
     return {
       name: typeof override === "string" && override.trim() ? override : rawName,
@@ -79,7 +85,7 @@ export abstract class BaseUnraidCard extends LitElement {
   }
 
   getGridOptions() {
-    return { columns: 6, rows: 4, min_columns: 3, min_rows: 3 };
+    return { columns: 12, min_columns: 6 };
   }
 
   /** Get all Unraid server devices registered in Home Assistant */
@@ -110,10 +116,7 @@ export abstract class BaseUnraidCard extends LitElement {
   /**
    * Find an entity by translation key or entity_id suffix.
    */
-  protected getEntity(
-    translationKey: string,
-    domain?: string
-  ): HassEntity | undefined {
+  protected getEntity(translationKey: string, domain?: string): HassEntity | undefined {
     if (!this.hass?.states) return undefined;
     const device = this.getActiveDevice();
     const deviceId = device?.id;
@@ -206,7 +209,8 @@ export abstract class BaseUnraidCard extends LitElement {
       }
       const entry = ifaceMap.get(ifaceName)!;
       if (prop.startsWith("inbound") || prop.startsWith("rx")) entry.rx = stateObj;
-      else if (prop.startsWith("outbound") || prop.startsWith("tx")) entry.tx = stateObj;
+      else if (prop.startsWith("outbound") || prop.startsWith("tx"))
+        entry.tx = stateObj;
       else if (prop === "speed") entry.speed = stateObj;
       else if (prop === "ip" || prop === "ip_address") entry.ip = stateObj;
       else if (prop === "link") entry.link = stateObj;
@@ -231,8 +235,7 @@ export abstract class BaseUnraidCard extends LitElement {
       if (!s.entity_id.startsWith("sensor.")) return false;
       if (cleanName && !s.entity_id.includes(cleanName)) return false;
       return (
-        (s.entity_id.includes("_disk_flash_") ||
-          s.entity_id.includes("_disk_boot_")) &&
+        (s.entity_id.includes("_disk_flash_") || s.entity_id.includes("_disk_boot_")) &&
         s.entity_id.endsWith("_usage")
       );
     });
@@ -241,10 +244,7 @@ export abstract class BaseUnraidCard extends LitElement {
   /**
    * Find all entities matching a translation key (e.g. disks, docker containers).
    */
-  protected getEntities(
-    translationKey: string,
-    domain?: string
-  ): HassEntity[] {
+  protected getEntities(translationKey: string, domain?: string): HassEntity[] {
     if (!this.hass?.states) return [];
     const device = this.getActiveDevice();
     const deviceId = device?.id;
@@ -313,10 +313,7 @@ export abstract class BaseUnraidCard extends LitElement {
         );
       }
       if (translationKey === "share_usage" || translationKey === "share") {
-        return (
-          s.entity_id.includes("_share_") &&
-          s.entity_id.endsWith("_usage")
-        );
+        return s.entity_id.includes("_share_") && s.entity_id.endsWith("_usage");
       }
       const objectId = s.entity_id.split(".")[1] || "";
       return (
@@ -349,9 +346,57 @@ export abstract class BaseUnraidCard extends LitElement {
     if (typeof pattern === "string") {
       return this.hass.states[pattern];
     }
-    return Object.values(this.hass.states).find((s) =>
-      pattern.test(s.entity_id)
+    return Object.values(this.hass.states).find((s) => pattern.test(s.entity_id));
+  }
+
+  protected formatState(entity?: HassEntity, fallback = "Unavailable"): string {
+    if (!entity) return fallback;
+    return (
+      this.hass?.formatEntityState?.(entity) ??
+      { unknown: "Unknown", unavailable: "Unavailable" }[entity.state] ??
+      entity.state
     );
+  }
+
+  protected percentValue(entity?: HassEntity): number | null {
+    if (!entity?.state.trim()) return null;
+    const value = Number(entity.state);
+    return Number.isFinite(value)
+      ? Math.round(Math.min(100, Math.max(0, value)))
+      : null;
+  }
+
+  protected handleTabKeydown(event: KeyboardEvent): void {
+    if (
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey ||
+      !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+    )
+      return;
+    const tabs = [
+      ...(event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        'button[role="tab"]'
+      ),
+    ];
+    const target = (event.target as Element).closest<HTMLButtonElement>(
+      'button[role="tab"]'
+    );
+    const current = target ? tabs.indexOf(target) : -1;
+    if (current < 0) return;
+    const rtl = getComputedStyle(this).direction === "rtl";
+    const step = (event.key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? tabs.length - 1
+          : (current + step + tabs.length) % tabs.length;
+    event.preventDefault();
+    tabs[next]?.focus();
+    for (const [index, tab] of tabs.entries()) tab.tabIndex = index === next ? 0 : -1;
+    tabs[next]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
   /** Toggle switch service call */
@@ -397,7 +442,7 @@ export abstract class BaseUnraidCard extends LitElement {
         <div class="header-main">
           <div class="header-icon">${iconTemplate(iconPath, 22)}</div>
           <div class="header-titles">
-            <span class="header-title">${title}</span>
+            <h2 class="header-title">${title}</h2>
             <span class="header-subtitle">${subtitle}</span>
           </div>
         </div>

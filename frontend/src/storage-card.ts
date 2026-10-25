@@ -1,8 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
-import {
-  STORAGE_CARD_TAG,
-  STORAGE_EDITOR_TAG,
-} from "./config";
+import { STORAGE_CARD_TAG, STORAGE_EDITOR_TAG } from "./config";
 import { BaseUnraidCard } from "./dashboard-cards-base";
 import { UnraidStorageCardEditor } from "./dashboard-cards-editor";
 import {
@@ -40,7 +37,9 @@ export interface DiskItem {
 
 export function formatDiskName(rawName: string, id: string): string {
   const name = rawName.trim();
-  const match = name.match(/^(?:.*?\s+)?(?:Disk\s+)?([a-zA-Z0-9_-]+)(?:\s+(?:usage|health|temperature|temp|spin|errors))?$/i);
+  const match = name.match(
+    /^(?:.*?\s+)?(?:Disk\s+)?([a-zA-Z0-9_-]+)(?:\s+(?:usage|health|temperature|temp|spin|errors))?$/i
+  );
   if (match && match[1]) {
     const token = match[1];
     const diskNum = token.match(/^disk[_\s]?(\d+)$/i);
@@ -50,8 +49,10 @@ export function formatDiskName(rawName: string, id: string): string {
     const parityNum = token.match(/^parity[_\s]?(\d+)$/i);
     if (parityNum) return `Parity ${parityNum[1]}`;
     if (token.toLowerCase() === "cache") return "Cache";
-    if (token.toLowerCase().startsWith("cache_")) return `Cache (${token.slice(6).toUpperCase()})`;
-    if (token.toLowerCase() === "boot" || token.toLowerCase() === "flash") return "Flash (Boot)";
+    if (token.toLowerCase().startsWith("cache_"))
+      return `Cache (${token.slice(6).toUpperCase()})`;
+    if (token.toLowerCase() === "boot" || token.toLowerCase() === "flash")
+      return "Flash (Boot)";
     return token.replace(/\b\w/g, (c) => c.toUpperCase());
   }
   return name || id;
@@ -84,12 +85,20 @@ export class UnraidStorageCard extends BaseUnraidCard {
     // 1. Process usage entities (Data and Cache disks)
     for (const u of usageEntities) {
       const diskKey = extractDiskToken(u.entity_id);
-      const cleanName = formatDiskName((u.attributes.friendly_name as string) || diskKey, diskKey);
+      const cleanName = formatDiskName(
+        (u.attributes.friendly_name as string) || diskKey,
+        diskKey
+      );
       const isParity = cleanName.toLowerCase().includes("parity");
-      const isCache = cleanName.toLowerCase().includes("cache") || cleanName.toLowerCase().includes("pool");
-      const isBoot = cleanName.toLowerCase().includes("boot") || cleanName.toLowerCase().includes("flash");
+      const isCache =
+        cleanName.toLowerCase().includes("cache") ||
+        cleanName.toLowerCase().includes("pool");
+      const isBoot =
+        cleanName.toLowerCase().includes("boot") ||
+        cleanName.toLowerCase().includes("flash");
 
-      const attrSpin = u.attributes.spin_state === "active" || u.attributes.spinning === true;
+      const attrSpin =
+        u.attributes.spin_state === "active" || u.attributes.spinning === true;
       const attrTemp = u.attributes.temperature_celsius ?? u.attributes.temperature;
       const attrErrors = Number(u.attributes.num_errors ?? 0);
       const attrStatus = (u.attributes.status as string) || "DISK_OK";
@@ -116,13 +125,23 @@ export class UnraidStorageCard extends BaseUnraidCard {
     for (const h of healthEntities) {
       const diskKey = extractDiskToken(h.entity_id);
       if (diskMap.has(diskKey)) continue;
-      if (diskKey.includes("disabled") || diskKey.includes("missing") || diskKey.includes("invalid")) continue;
+      if (
+        diskKey.includes("disabled") ||
+        diskKey.includes("missing") ||
+        diskKey.includes("invalid")
+      )
+        continue;
 
-      const cleanName = formatDiskName((h.attributes.friendly_name as string) || diskKey, diskKey);
+      const cleanName = formatDiskName(
+        (h.attributes.friendly_name as string) || diskKey,
+        diskKey
+      );
       const isParity = cleanName.toLowerCase().includes("parity");
       const isCache = cleanName.toLowerCase().includes("cache");
       const isBoot = cleanName.toLowerCase().includes("boot");
-      const attrSpin = h.attributes.spinning === true || (h.attributes.standby !== undefined ? !h.attributes.standby : false);
+      const attrSpin =
+        h.attributes.spinning === true ||
+        (h.attributes.standby !== undefined ? !h.attributes.standby : false);
       const attrTemp = h.attributes.temperature;
       const attrStatus = (h.attributes.status as string) || "DISK_OK";
 
@@ -198,7 +217,12 @@ export class UnraidStorageCard extends BaseUnraidCard {
     // 7. Calculate overall health level
     for (const disk of diskMap.values()) {
       const status = (disk.statusText || "").toUpperCase();
-      const hasStatusError = status.includes("ERR") || status.includes("WRONG") || status.includes("INVALID") || status.includes("DSBL") || status.includes("FAIL");
+      const hasStatusError =
+        status.includes("ERR") ||
+        status.includes("WRONG") ||
+        status.includes("INVALID") ||
+        status.includes("DSBL") ||
+        status.includes("FAIL");
 
       if (disk.health === "error" || hasStatusError || disk.errors >= 10) {
         disk.health = "error";
@@ -237,7 +261,8 @@ export class UnraidStorageCard extends BaseUnraidCard {
     const parityValid = this.getEntity("parity_valid", "binary_sensor");
     const parityRunning = this.getEntity("parity_check_running", "binary_sensor");
     const legacyParityStatus =
-      this.getEntity("parity_status", "binary_sensor") ?? this.getEntity("parity_status");
+      this.getEntity("parity_status", "binary_sensor") ??
+      this.getEntity("parity_status");
     const parityProgress = this.getEntity("parity_progress");
 
     // Validity: binary_sensor.parity_valid has device_class problem (off = valid, on = invalid)
@@ -254,7 +279,9 @@ export class UnraidStorageCard extends BaseUnraidCard {
       if (s === "off") {
         validity = "valid";
       } else if (s === "on") {
-        const st = String(legacyParityStatus!.attributes?.status ?? "").toLowerCase().trim();
+        const st = String(legacyParityStatus!.attributes?.status ?? "")
+          .toLowerCase()
+          .trim();
         if (st !== "running" && st !== "paused") {
           validity = "invalid";
         }
@@ -268,11 +295,15 @@ export class UnraidStorageCard extends BaseUnraidCard {
       if (s === "off") {
         activity = "idle";
       } else if (s === "on") {
-        const st = String(parityRunning!.attributes?.status ?? "").toLowerCase().trim();
+        const st = String(parityRunning!.attributes?.status ?? "")
+          .toLowerCase()
+          .trim();
         activity = st === "paused" ? "paused" : "running";
       }
     } else if (this.isUsable(legacyParityStatus)) {
-      const st = String(legacyParityStatus!.attributes?.status ?? "").toLowerCase().trim();
+      const st = String(legacyParityStatus!.attributes?.status ?? "")
+        .toLowerCase()
+        .trim();
       if (st === "running") {
         activity = "running";
       } else if (st === "paused") {
@@ -343,9 +374,12 @@ export class UnraidStorageCard extends BaseUnraidCard {
       parityTitle = "Parity Status: Unknown";
     }
 
-    const rowIcon = validity === "valid" || isChecking ? mdiCheckCircle : mdiAlertCircle;
+    const rowIcon =
+      validity === "valid" || isChecking ? mdiCheckCircle : mdiAlertCircle;
     const rowColor =
-      validity === "valid" || isChecking ? "var(--unraid-online)" : "var(--unraid-warning)";
+      validity === "valid" || isChecking
+        ? "var(--unraid-online)"
+        : "var(--unraid-warning)";
 
     const hasLastCheckDate = this.isUsable(lastCheckDate);
     const numErrors = Number(lastCheckErrors?.state);
@@ -370,7 +404,9 @@ export class UnraidStorageCard extends BaseUnraidCard {
           badge
         )}
         <div style="display: flex; flex-direction: column; gap: 4px;">
-          <div style="display: flex; justify-content: space-between; font-size: 0.76rem; font-weight: 600;">
+          <div
+            style="display: flex; justify-content: space-between; font-size: var(--ha-font-size-s, 12px); font-weight: var(--ha-font-weight-medium, 500);"
+          >
             <span>Array Capacity</span>
             <span>${arrayPct}%</span>
           </div>
@@ -378,144 +414,204 @@ export class UnraidStorageCard extends BaseUnraidCard {
             <div class="progress-fill" style="width: ${arrayPct}%;"></div>
           </div>
         </div>
-        <div class="list-row" style="background: color-mix(in srgb, var(--unraid-text) 5%, transparent);">
+        <div
+          class="list-row"
+          style="background: color-mix(in srgb, var(--unraid-text) 5%, transparent);"
+        >
           <div class="row-left">
-            <div style="color: ${rowColor}">
-              ${iconTemplate(rowIcon, 18)}
-            </div>
+            <div style="color: ${rowColor}">${iconTemplate(rowIcon, 18)}</div>
             <div style="display: flex; flex-direction: column; min-width: 0;">
-              <span style="font-weight: 600; font-size: 0.78rem;">
+              <span
+                style="font-weight: var(--ha-font-weight-medium, 500); font-size: var(--ha-font-size-s, 12px);"
+              >
                 ${parityTitle}
               </span>
-              ${showHistoryLine
-                ? html`
-                    <span style="font-size: 0.7rem; color: var(--unraid-subtext);">
-                      ${historyText}${errorsText}
-                    </span>
-                  `
-                : nothing}
+              ${
+                showHistoryLine
+                  ? html`
+                      <span
+                        style="font-size: var(--ha-font-size-s, 12px); color: var(--unraid-subtext);"
+                      >
+                        ${historyText}${errorsText}
+                      </span>
+                    `
+                  : nothing
+              }
             </div>
           </div>
           <div class="row-right">
-            ${paritySwitch
-              ? html`
-                  <button
-                    class="btn ${isChecking ? "btn" : "btn-primary"}"
-                    @click=${() => this.toggleEntity(paritySwitch.entity_id)}
-                  >
-                    ${iconTemplate(isChecking ? mdiPause : mdiPlay, 14)}
-                    <span>${isChecking ? "Cancel" : "Check Now"}</span>
-                  </button>
-                `
-              : nothing}
+            ${
+              paritySwitch
+                ? html`
+                    <button
+                      type="button"
+                      class="btn ${isChecking ? "btn" : "btn-primary"}"
+                      aria-label="${isChecking ? "Cancel parity check" : "Check parity now"}"
+                      @click=${() => this.toggleEntity(paritySwitch.entity_id)}
+                    >
+                      ${iconTemplate(isChecking ? mdiPause : mdiPlay, 20)}
+                      <span>${isChecking ? "Cancel" : "Check Now"}</span>
+                    </button>
+                  `
+                : nothing
+            }
           </div>
         </div>
         <div class="item-list">
-          ${disks.length > 0
-            ? disks.map((disk) => {
-                const tempNum = disk.tempNum ?? parseFloat(disk.temp);
-                const hasValidTemp = disk.isSpinning && !isNaN(tempNum) && disk.temp !== "*" && disk.temp !== "unavailable";
-                const tempColor = hasValidTemp
-                  ? tempNum > 45
-                    ? "var(--unraid-error)"
-                    : tempNum > 36
-                    ? "var(--unraid-warning)"
-                    : "var(--unraid-online)"
-                  : "var(--unraid-standby)";
+          ${
+            disks.length > 0
+              ? disks.map((disk) => {
+                  const tempNum = disk.tempNum ?? parseFloat(disk.temp);
+                  const hasValidTemp =
+                    disk.isSpinning &&
+                    !isNaN(tempNum) &&
+                    disk.temp !== "*" &&
+                    disk.temp !== "unavailable";
+                  const tempColor = hasValidTemp
+                    ? tempNum > 45
+                      ? "var(--unraid-error)"
+                      : tempNum > 36
+                        ? "var(--unraid-warning)"
+                        : "var(--unraid-online)"
+                    : "var(--unraid-standby)";
 
-                const tempDisplay = hasValidTemp ? `${Math.round(tempNum)}°C` : "--";
+                  const tempDisplay = hasValidTemp ? `${Math.round(tempNum)}°C` : "--";
 
-                const healthBadge = disk.health === "healthy"
-                  ? html`
-                      <span class="badge badge-online" style="font-size: 0.68rem; gap: 4px;">
-                        ${iconTemplate(mdiCheckCircle, 11)}
-                        <span>Healthy</span>
-                      </span>
-                    `
-                  : disk.health === "warning"
-                  ? html`
-                      <span class="badge badge-warning" style="font-size: 0.68rem; gap: 4px;">
-                        ${iconTemplate(mdiAlertCircle, 11)}
-                        <span>Warning${disk.errors > 0 ? ` (${disk.errors})` : ""}</span>
-                      </span>
-                    `
-                  : html`
-                      <span class="badge badge-error" style="font-size: 0.68rem; gap: 4px;">
-                        ${iconTemplate(mdiAlertCircle, 11)}
-                        <span>Error${disk.errors > 0 ? ` (${disk.errors})` : ""}</span>
-                      </span>
-                    `;
-
-                return html`
-                  <div class="list-row">
-                    <div class="row-left">
-                      ${disk.isBoot
+                  const healthBadge =
+                    disk.health === "healthy"
+                      ? html`
+                          <span
+                            class="badge badge-online"
+                            style="font-size: var(--ha-font-size-s, 12px); gap: 4px;"
+                          >
+                            ${iconTemplate(mdiCheckCircle, 11)}
+                            <span>Healthy</span>
+                          </span>
+                        `
+                      : disk.health === "warning"
                         ? html`
                             <span
-                              class="badge badge-online"
-                              style="font-size: 0.68rem; gap: 4px; min-width: 60px; justify-content: center;"
-                              title="USB Flash Boot Drive"
+                              class="badge badge-warning"
+                              style="font-size: var(--ha-font-size-s, 12px); gap: 4px;"
                             >
-                              ${iconTemplate(mdiUsbFlashDrive, 11)}
-                              <span>Flash</span>
+                              ${iconTemplate(mdiAlertCircle, 11)}
+                              <span
+                                >Warning${disk.errors > 0 ? ` (${disk.errors})` : ""}</span
+                              >
                             </span>
-                          `
-                        : disk.spinEntityId
-                        ? html`
-                            <button
-                              class="badge ${disk.isSpinning ? "badge-online" : "badge-standby"}"
-                              style="cursor: pointer; border: none;"
-                              title="Click to spin ${disk.isSpinning ? "down" : "up"}"
-                              @click=${() => this.toggleEntity(disk.spinEntityId!)}
-                            >
-                              <span class="status-dot ${disk.isSpinning ? "online" : "offline"}"></span>
-                              <span>${disk.isSpinning ? "Active" : "Standby"}</span>
-                            </button>
                           `
                         : html`
-                            <span class="badge ${disk.isSpinning ? "badge-online" : "badge-standby"}">
-                              <span>${disk.isSpinning ? "Active" : "Standby"}</span>
+                            <span
+                              class="badge badge-error"
+                              style="font-size: var(--ha-font-size-s, 12px); gap: 4px;"
+                            >
+                              ${iconTemplate(mdiAlertCircle, 11)}
+                              <span
+                                >Error${disk.errors > 0 ? ` (${disk.errors})` : ""}</span
+                              >
                             </span>
-                          `}
+                          `;
 
-                      <span style="font-weight: 600; min-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        ${disk.name}
-                      </span>
-                    </div>
+                  return html`
+                    <div class="list-row">
+                      <div class="row-left">
+                        ${
+                          disk.isBoot
+                            ? html`
+                                <span
+                                  class="badge badge-online"
+                                  style="font-size: var(--ha-font-size-s, 12px); gap: 4px; min-width: 60px; justify-content: center;"
+                                  title="USB Flash Boot Drive"
+                                >
+                                  ${iconTemplate(mdiUsbFlashDrive, 11)}
+                                  <span>Flash</span>
+                                </span>
+                              `
+                            : disk.spinEntityId
+                              ? html`
+                                  <button
+                                    type="button"
+                                    class="badge ${disk.isSpinning ? "badge-online" : "badge-standby"}"
+                                    style="cursor: pointer; border: none;"
+                                    title="Spin ${disk.isSpinning ? "down" : "up"} ${disk.name}"
+                                    aria-label="Spin ${disk.isSpinning ? "down" : "up"} ${disk.name}"
+                                    @click=${() => this.toggleEntity(disk.spinEntityId!)}
+                                  >
+                                    <span
+                                      class="status-dot ${disk.isSpinning ? "online" : "offline"}"
+                                    ></span>
+                                    <span
+                                      >${disk.isSpinning ? "Active" : "Standby"}</span
+                                    >
+                                  </button>
+                                `
+                              : html`
+                                  <span
+                                    class="badge ${disk.isSpinning ? "badge-online" : "badge-standby"}"
+                                  >
+                                    <span
+                                      >${disk.isSpinning ? "Active" : "Standby"}</span
+                                    >
+                                  </span>
+                                `
+                        }
 
-                    <div class="row-right">
-                      <span
-                        class="badge"
-                        style="color: ${disk.isBoot ? "var(--unraid-text-dim)" : tempColor}; background: color-mix(in srgb, ${disk.isBoot ? "var(--unraid-text-dim)" : tempColor} 12%, transparent); min-width: 44px; justify-content: center;"
-                        title="${disk.isBoot ? "USB Flash Drive" : disk.isSpinning ? `Temperature: ${tempDisplay}` : "Disk is in standby"}"
-                      >
-                        ${disk.isBoot ? "--" : tempDisplay}
-                      </span>
-                      ${healthBadge}
-                      <div style="display: flex; align-items: center; gap: 6px; width: 85px;">
-                        ${disk.isParity
-                          ? html`
-                              <span style="font-size: 0.72rem; color: var(--unraid-online); font-weight: 500; font-family: monospace;">
-                                Parity
-                              </span>
-                            `
-                          : html`
-                              <div class="progress-bar" style="height: 4px; flex: 1;">
-                                <div
-                                  class="progress-fill"
-                                  style="width: ${disk.usagePct}%; background: ${disk.isBoot ? "var(--unraid-warning)" : disk.isCache ? "var(--unraid-info)" : "var(--unraid-accent)"};"
-                                ></div>
-                              </div>
-                              <span style="font-size: 0.7rem; font-family: monospace; color: var(--unraid-subtext);">
-                                ${disk.usagePct}%
-                              </span>
-                            `}
+                        <span
+                          style="font-weight: var(--ha-font-weight-medium, 500); min-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                        >
+                          ${disk.name}
+                        </span>
+                      </div>
+
+                      <div class="row-right">
+                        <span
+                          class="badge"
+                          style="color: var(--unraid-text); background: color-mix(in srgb, ${disk.isBoot ? "var(--unraid-subtext)" : tempColor} 12%, transparent); min-width: 44px; justify-content: center;"
+                          title="${disk.isBoot ? "USB Flash Drive" : disk.isSpinning ? `Temperature: ${tempDisplay}` : "Disk is in standby"}"
+                        >
+                          ${disk.isBoot ? "--" : tempDisplay}
+                        </span>
+                        ${healthBadge}
+                        <div
+                          style="display: flex; align-items: center; gap: 6px; width: 85px;"
+                        >
+                          ${
+                            disk.isParity
+                              ? html`
+                                  <span
+                                    style="font-size: var(--ha-font-size-s, 12px); color: var(--unraid-text); font-weight: 500; font-family: var(--ha-font-family-code, monospace);"
+                                  >
+                                    Parity
+                                  </span>
+                                `
+                              : html`
+                                  <div
+                                    class="progress-bar"
+                                    style="height: 4px; flex: 1;"
+                                  >
+                                    <div
+                                      class="progress-fill"
+                                      style="width: ${disk.usagePct}%; background: ${disk.isBoot ? "var(--unraid-warning)" : disk.isCache ? "var(--unraid-info)" : "var(--unraid-accent)"};"
+                                    ></div>
+                                  </div>
+                                  <span
+                                    style="font-size: var(--ha-font-size-s, 12px); font-family: var(--ha-font-family-code, monospace); color: var(--unraid-subtext);"
+                                  >
+                                    ${disk.usagePct}%
+                                  </span>
+                                `
+                          }
+                        </div>
                       </div>
                     </div>
-                  </div>
-                `;
-              })
-            : html`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">No disk devices found</div>`}
+                  `;
+                })
+              : html`<div
+                  style="text-align: center; color: var(--unraid-subtext); font-size: var(--ha-font-size-m, 14px); padding: 12px;"
+                >
+                  No disk devices found
+                </div>`
+          }
         </div>
       </ha-card>
     `;
@@ -528,5 +624,6 @@ registerDashboardCard({
   card: UnraidStorageCard,
   editor: UnraidStorageCardEditor,
   name: "Unraid Storage & Disks Card",
-  description: "Array capacity, parity checks, and interactive disk tray with spin state controls.",
+  description:
+    "Array capacity, parity checks, and interactive disk tray with spin state controls.",
 });

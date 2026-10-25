@@ -1,16 +1,8 @@
 import { html, nothing, type PropertyValues, type TemplateResult } from "lit";
-import {
-  VM_CARD_TAG,
-  VM_EDITOR_TAG,
-} from "./config";
+import { VM_CARD_TAG, VM_EDITOR_TAG } from "./config";
 import { BaseUnraidCard } from "./dashboard-cards-base";
 import { UnraidVmCardEditor } from "./dashboard-cards-editor";
-import {
-  iconTemplate,
-  mdiMonitor,
-  mdiPower,
-  mdiRestart,
-} from "./icons";
+import { iconTemplate, mdiMonitor, mdiPower, mdiRestart } from "./icons";
 import { registerDashboardCard } from "./register-dashboard-card";
 
 interface VmItem {
@@ -58,8 +50,7 @@ export class UnraidVmCard extends BaseUnraidCard {
     super.willUpdate(changedProperties);
     if (changedProperties.has("config")) {
       const previous = changedProperties.get("config") as
-        | { default_filter?: string }
-        | undefined;
+        { default_filter?: string } | undefined;
       if (previous?.default_filter !== this.config.default_filter) {
         const filter = this.config.default_filter;
         this._filter = filter === "running" || filter === "stopped" ? filter : "all";
@@ -85,18 +76,21 @@ export class UnraidVmCard extends BaseUnraidCard {
 
     for (const sw of switches) {
       const slug = extractEntityVmSlug(sw.entity_id);
-      const label = this.getWorkloadLabel(
-        sw, "vm_name", slug, this.config.vm_labels
-      );
+      const label = this.getWorkloadLabel(sw, "vm_name", slug, this.config.vm_labels);
       const isRunning = sw.state === "on";
       const isStopped = sw.state === "off";
 
-      const status =
-        statuses.find((s) => extractEntityVmSlug(s.entity_id) === slug)?.state ||
-        (isRunning ? "running" : isStopped ? "shut off" : sw.state);
-      const reboot = reboots.find(
-        (r) => extractEntityVmSlug(r.entity_id) === slug
+      const statusEntity = statuses.find(
+        (s) => extractEntityVmSlug(s.entity_id) === slug
       );
+      const status = statusEntity
+        ? this.formatState(statusEntity)
+        : isRunning
+          ? "Running"
+          : isStopped
+            ? "Stopped"
+            : this.formatState(sw);
+      const reboot = reboots.find((r) => extractEntityVmSlug(r.entity_id) === slug);
 
       list.push({
         id: slug,
@@ -121,8 +115,11 @@ export class UnraidVmCard extends BaseUnraidCard {
     const runningCount = vms.filter((v) => v.isRunning).length;
     const stoppedCount = vms.filter((v) => v.isStopped).length;
     const filtered = vms.filter((vm) =>
-      this._filter === "running" ? vm.isRunning :
-        this._filter === "stopped" ? vm.isStopped : true
+      this._filter === "running"
+        ? vm.isRunning
+        : this._filter === "stopped"
+          ? vm.isStopped
+          : true
     );
 
     const badge = html`
@@ -140,62 +137,95 @@ export class UnraidVmCard extends BaseUnraidCard {
           badge
         )}
 
-        <div style="display: flex; gap: 4px; overflow-x: auto;">
+        <div class="tab-strip" role="group" aria-label="Virtual machine status filter">
           <button
+            type="button"
             class="tab-btn ${this._filter === "all" ? "active" : ""}"
+            aria-pressed=${this._filter === "all"}
             @click=${() => (this._filter = "all")}
-          >All (${vms.length})</button>
+          >
+            All (${vms.length})
+          </button>
           <button
+            type="button"
             class="tab-btn ${this._filter === "running" ? "active" : ""}"
+            aria-pressed=${this._filter === "running"}
             @click=${() => (this._filter = "running")}
-          >Running (${runningCount})</button>
+          >
+            Running (${runningCount})
+          </button>
           <button
+            type="button"
             class="tab-btn ${this._filter === "stopped" ? "active" : ""}"
+            aria-pressed=${this._filter === "stopped"}
             @click=${() => (this._filter = "stopped")}
-          >Stopped (${stoppedCount})</button>
+          >
+            Stopped (${stoppedCount})
+          </button>
         </div>
 
         <div class="item-list">
-          ${filtered.length > 0
-            ? filtered.map(
-                (v) => html`
-                  <div class="list-row">
-                    <div class="row-left">
-                      <span class="status-dot ${v.isRunning ? "online" : "offline"}"></span>
-                      <div style="display: flex; flex-direction: column; min-width: 0;">
-                        <span class="vm-name" title="${v.rawName}">${v.name}</span>
-                        <span style="font-size: 0.7rem; color: var(--unraid-subtext); text-transform: capitalize;">
-                          ${v.status}
-                        </span>
+          ${
+            filtered.length > 0
+              ? filtered.map(
+                  (v) => html`
+                    <div class="list-row">
+                      <div class="row-left">
+                        <button
+                          type="button"
+                          class="workload-name-button"
+                          title="${v.rawName}"
+                          aria-label="Show details for ${v.name}, ${v.status}"
+                          @click=${() => this.openMoreInfo(v.switchEntityId)}
+                        >
+                          <span
+                            aria-hidden="true"
+                            class="status-dot ${v.isRunning ? "online" : "offline"}"
+                          ></span>
+                          <span class="workload-label">
+                            <span class="vm-name" title="${v.rawName}">${v.name}</span>
+                            <span class="workload-status">${v.status}</span>
+                          </span>
+                        </button>
+                      </div>
+                      <div class="row-right">
+                        ${
+                          v.rebootEntityId
+                            ? html`
+                                <button
+                                  type="button"
+                                  class="btn"
+                                  style="padding: 3px 8px;"
+                                  title="Reboot ${v.name}"
+                                  aria-label="Reboot ${v.name}"
+                                  ?disabled=${!v.isRunning}
+                                  @click=${() => this.pressButton(v.rebootEntityId!)}
+                                >
+                                  ${iconTemplate(mdiRestart, 13)}
+                                  <span>Reboot</span>
+                                </button>
+                              `
+                            : nothing
+                        }
+                        <button
+                          type="button"
+                          class="btn ${v.isRunning ? "btn" : "btn-primary"}"
+                          style="padding: 3px 8px;"
+                          aria-label="${v.isRunning ? "Stop" : "Start"} ${v.name}"
+                          ?disabled=${!v.isRunning && !v.isStopped}
+                          @click=${() => this.handleToggle(v.switchEntityId, v.isRunning, v.name)}
+                        >
+                          ${iconTemplate(mdiPower, 13)}
+                          <span>${v.isRunning ? "Stop" : "Start"}</span>
+                        </button>
                       </div>
                     </div>
-                    <div class="row-right">
-                      ${v.rebootEntityId
-                        ? html`
-                            <button
-                              class="btn"
-                              style="padding: 3px 8px;"
-                              title="Reboot VM"
-                              @click=${() => this.pressButton(v.rebootEntityId!)}
-                            >
-                              ${iconTemplate(mdiRestart, 13)}
-                              <span>Reboot</span>
-                            </button>
-                          `
-                        : nothing}
-                      <button
-                        class="btn ${v.isRunning ? "btn" : "btn-primary"}"
-                        style="padding: 3px 8px;"
-                        @click=${() => this.handleToggle(v.switchEntityId, v.isRunning, v.name)}
-                      >
-                        ${iconTemplate(mdiPower, 13)}
-                        <span>${v.isRunning ? "Stop" : "Start"}</span>
-                      </button>
-                    </div>
-                  </div>
-                `
-              )
-            : html`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">${vms.length === 0 ? "No virtual machines configured" : `No ${this._filter} virtual machines`}</div>`}
+                  `
+                )
+              : html`<div class="empty-state" role="status">
+                  ${vms.length === 0 ? "No virtual machines configured" : `No ${this._filter} virtual machines`}
+                </div>`
+          }
         </div>
       </ha-card>
     `;

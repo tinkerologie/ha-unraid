@@ -1,0 +1,670 @@
+{
+  "states": {
+    "switch.cube_docker_container_plex": {
+      "entity_id": "switch.cube_docker_container_plex",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container plex",
+        "container_name": "plex"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_plex": {
+      "entity_id": "button.cube_docker_container_restart_plex",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_01": {
+      "entity_id": "switch.cube_docker_container_application_01",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_01",
+        "container_name": "application_01"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_01": {
+      "entity_id": "button.cube_docker_container_restart_application_01",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_02": {
+      "entity_id": "switch.cube_docker_container_application_02",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_02",
+        "container_name": "application_02"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_02": {
+      "entity_id": "button.cube_docker_container_restart_application_02",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_03": {
+      "entity_id": "switch.cube_docker_container_application_03",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_03",
+        "container_name": "application_03"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_03": {
+      "entity_id": "button.cube_docker_container_restart_application_03",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_04": {
+      "entity_id": "switch.cube_docker_container_application_04",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_04",
+        "container_name": "application_04"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_04": {
+      "entity_id": "button.cube_docker_container_restart_application_04",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_05": {
+      "entity_id": "switch.cube_docker_container_application_05",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_05",
+        "container_name": "application_05"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_05": {
+      "entity_id": "button.cube_docker_container_restart_application_05",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_06": {
+      "entity_id": "switch.cube_docker_container_application_06",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_06",
+        "container_name": "application_06"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_06": {
+      "entity_id": "button.cube_docker_container_restart_application_06",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_07": {
+      "entity_id": "switch.cube_docker_container_application_07",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_07",
+        "container_name": "application_07"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_07": {
+      "entity_id": "button.cube_docker_container_restart_application_07",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_08": {
+      "entity_id": "switch.cube_docker_container_application_08",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_08",
+        "container_name": "application_08"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_08": {
+      "entity_id": "button.cube_docker_container_restart_application_08",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_09": {
+      "entity_id": "switch.cube_docker_container_application_09",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_09",
+        "container_name": "application_09"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_09": {
+      "entity_id": "button.cube_docker_container_restart_application_09",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_10": {
+      "entity_id": "switch.cube_docker_container_application_10",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_10",
+        "container_name": "application_10"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_10": {
+      "entity_id": "button.cube_docker_container_restart_application_10",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_11": {
+      "entity_id": "switch.cube_docker_container_application_11",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid Container application_11",
+        "container_name": "application_11"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_11": {
+      "entity_id": "button.cube_docker_container_restart_application_11",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_12": {
+      "entity_id": "switch.cube_docker_container_application_12",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_12",
+        "container_name": "application_12"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_12": {
+      "entity_id": "button.cube_docker_container_restart_application_12",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_13": {
+      "entity_id": "switch.cube_docker_container_application_13",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_13",
+        "container_name": "application_13"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_13": {
+      "entity_id": "button.cube_docker_container_restart_application_13",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_14": {
+      "entity_id": "switch.cube_docker_container_application_14",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_14",
+        "container_name": "application_14"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_14": {
+      "entity_id": "button.cube_docker_container_restart_application_14",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_15": {
+      "entity_id": "switch.cube_docker_container_application_15",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_15",
+        "container_name": "application_15"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_15": {
+      "entity_id": "button.cube_docker_container_restart_application_15",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_16": {
+      "entity_id": "switch.cube_docker_container_application_16",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_16",
+        "container_name": "application_16"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_16": {
+      "entity_id": "button.cube_docker_container_restart_application_16",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_17": {
+      "entity_id": "switch.cube_docker_container_application_17",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_17",
+        "container_name": "application_17"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_17": {
+      "entity_id": "button.cube_docker_container_restart_application_17",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_18": {
+      "entity_id": "switch.cube_docker_container_application_18",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_18",
+        "container_name": "application_18"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_18": {
+      "entity_id": "button.cube_docker_container_restart_application_18",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_docker_container_application_19": {
+      "entity_id": "switch.cube_docker_container_application_19",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid Container application_19",
+        "container_name": "application_19"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_docker_container_restart_application_19": {
+      "entity_id": "button.cube_docker_container_restart_application_19",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "update.cube_docker_container_update_plex": {
+      "entity_id": "update.cube_docker_container_update_plex",
+      "state": "on",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_check_container_updates": {
+      "entity_id": "button.cube_check_container_updates",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_virtual_machine_ha": {
+      "entity_id": "switch.cube_virtual_machine_ha",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Unraid VM Home Assistant",
+        "vm_name": "Home Assistant"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_vm_reboot_ha": {
+      "entity_id": "button.cube_vm_reboot_ha",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "switch.cube_virtual_machine_backup": {
+      "entity_id": "switch.cube_virtual_machine_backup",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Unraid VM Backup",
+        "vm_name": "Backup"
+      },
+      "last_changed": "",
+      "last_updated": ""
+    },
+    "button.cube_vm_reboot_backup": {
+      "entity_id": "button.cube_vm_reboot_backup",
+      "state": "unknown",
+      "attributes": {},
+      "last_changed": "",
+      "last_updated": ""
+    }
+  },
+  "entities": {
+    "switch.cube_docker_container_plex": {
+      "entity_id": "switch.cube_docker_container_plex",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_plex": {
+      "entity_id": "button.cube_docker_container_restart_plex",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_01": {
+      "entity_id": "switch.cube_docker_container_application_01",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_01": {
+      "entity_id": "button.cube_docker_container_restart_application_01",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_02": {
+      "entity_id": "switch.cube_docker_container_application_02",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_02": {
+      "entity_id": "button.cube_docker_container_restart_application_02",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_03": {
+      "entity_id": "switch.cube_docker_container_application_03",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_03": {
+      "entity_id": "button.cube_docker_container_restart_application_03",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_04": {
+      "entity_id": "switch.cube_docker_container_application_04",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_04": {
+      "entity_id": "button.cube_docker_container_restart_application_04",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_05": {
+      "entity_id": "switch.cube_docker_container_application_05",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_05": {
+      "entity_id": "button.cube_docker_container_restart_application_05",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_06": {
+      "entity_id": "switch.cube_docker_container_application_06",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_06": {
+      "entity_id": "button.cube_docker_container_restart_application_06",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_07": {
+      "entity_id": "switch.cube_docker_container_application_07",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_07": {
+      "entity_id": "button.cube_docker_container_restart_application_07",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_08": {
+      "entity_id": "switch.cube_docker_container_application_08",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_08": {
+      "entity_id": "button.cube_docker_container_restart_application_08",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_09": {
+      "entity_id": "switch.cube_docker_container_application_09",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_09": {
+      "entity_id": "button.cube_docker_container_restart_application_09",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_10": {
+      "entity_id": "switch.cube_docker_container_application_10",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_10": {
+      "entity_id": "button.cube_docker_container_restart_application_10",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_11": {
+      "entity_id": "switch.cube_docker_container_application_11",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_11": {
+      "entity_id": "button.cube_docker_container_restart_application_11",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_12": {
+      "entity_id": "switch.cube_docker_container_application_12",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_12": {
+      "entity_id": "button.cube_docker_container_restart_application_12",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_13": {
+      "entity_id": "switch.cube_docker_container_application_13",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_13": {
+      "entity_id": "button.cube_docker_container_restart_application_13",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_14": {
+      "entity_id": "switch.cube_docker_container_application_14",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_14": {
+      "entity_id": "button.cube_docker_container_restart_application_14",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_15": {
+      "entity_id": "switch.cube_docker_container_application_15",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_15": {
+      "entity_id": "button.cube_docker_container_restart_application_15",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_16": {
+      "entity_id": "switch.cube_docker_container_application_16",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_16": {
+      "entity_id": "button.cube_docker_container_restart_application_16",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_17": {
+      "entity_id": "switch.cube_docker_container_application_17",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_17": {
+      "entity_id": "button.cube_docker_container_restart_application_17",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_18": {
+      "entity_id": "switch.cube_docker_container_application_18",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_18": {
+      "entity_id": "button.cube_docker_container_restart_application_18",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "switch.cube_docker_container_application_19": {
+      "entity_id": "switch.cube_docker_container_application_19",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container"
+    },
+    "button.cube_docker_container_restart_application_19": {
+      "entity_id": "button.cube_docker_container_restart_application_19",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_restart"
+    },
+    "update.cube_docker_container_update_plex": {
+      "entity_id": "update.cube_docker_container_update_plex",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "docker_container_update"
+    },
+    "button.cube_check_container_updates": {
+      "entity_id": "button.cube_check_container_updates",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "check_container_updates"
+    },
+    "switch.cube_virtual_machine_ha": {
+      "entity_id": "switch.cube_virtual_machine_ha",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "virtual_machine"
+    },
+    "button.cube_vm_reboot_ha": {
+      "entity_id": "button.cube_vm_reboot_ha",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "vm_reboot"
+    },
+    "switch.cube_virtual_machine_backup": {
+      "entity_id": "switch.cube_virtual_machine_backup",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "virtual_machine"
+    },
+    "button.cube_vm_reboot_backup": {
+      "entity_id": "button.cube_vm_reboot_backup",
+      "device_id": "dev_1",
+      "platform": "unraid",
+      "translation_key": "vm_reboot"
+    }
+  }
+}

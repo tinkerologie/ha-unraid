@@ -1,8 +1,5 @@
 import { html, nothing, type PropertyValues, type TemplateResult } from "lit";
-import {
-  DOCKER_CARD_TAG,
-  DOCKER_EDITOR_TAG,
-} from "./config";
+import { DOCKER_CARD_TAG, DOCKER_EDITOR_TAG } from "./config";
 import { BaseUnraidCard } from "./dashboard-cards-base";
 import { UnraidDockerCardEditor } from "./dashboard-cards-editor";
 import {
@@ -21,10 +18,14 @@ interface ContainerItem {
   name: string;
   rawName: string;
   isRunning: boolean;
+  isStopped: boolean;
+  isAvailable: boolean;
+  status: string;
   switchEntityId: string;
   restartEntityId?: string;
   autostartEntityId?: string;
   cpuPct?: number;
+  cpuText?: string;
   memoryUsage?: string;
   hasUpdate?: boolean;
   updateEntityId?: string;
@@ -75,21 +76,20 @@ export class UnraidDockerCard extends BaseUnraidCard {
     super.willUpdate(changedProperties);
     if (changedProperties.has("config") && this.config.view_mode) {
       const previous = changedProperties.get("config") as
-        | { view_mode?: "grid" | "list" }
-        | undefined;
+        { view_mode?: "grid" | "list" } | undefined;
       if (previous?.view_mode !== this.config.view_mode) {
         this._viewMode = this.config.view_mode;
       }
     }
     if (changedProperties.has("config")) {
       const previous = changedProperties.get("config") as
-        | { default_filter?: string }
-        | undefined;
+        { default_filter?: string } | undefined;
       if (previous?.default_filter !== this.config.default_filter) {
         const filter = this.config.default_filter;
-        this._filter = filter && ["all", "running", "stopped", "updates"].includes(
-          filter
-        ) ? filter : "all";
+        this._filter =
+          filter && ["all", "running", "stopped", "updates"].includes(filter)
+            ? filter
+            : "all";
       }
     }
   }
@@ -119,9 +119,13 @@ export class UnraidDockerCard extends BaseUnraidCard {
     for (const sw of switches) {
       const slug = extractEntityContainerSlug(sw.entity_id);
       const label = this.getWorkloadLabel(
-        sw, "container_name", slug, this.config.container_labels
+        sw,
+        "container_name",
+        slug,
+        this.config.container_labels
       );
       const isRunning = sw.state === "on";
+      const isStopped = sw.state === "off";
 
       const restart = restarts.find(
         (r) => extractEntityContainerSlug(r.entity_id) === slug
@@ -129,12 +133,8 @@ export class UnraidDockerCard extends BaseUnraidCard {
       const autostart = autostarts.find(
         (a) => extractEntityContainerSlug(a.entity_id) === slug
       );
-      const cpu = cpus.find(
-        (c) => extractEntityContainerSlug(c.entity_id) === slug
-      );
-      const mem = mems.find(
-        (m) => extractEntityContainerSlug(m.entity_id) === slug
-      );
+      const cpu = cpus.find((c) => extractEntityContainerSlug(c.entity_id) === slug);
+      const mem = mems.find((m) => extractEntityContainerSlug(m.entity_id) === slug);
       const update = updates.find(
         (u) => extractEntityContainerSlug(u.entity_id) === slug
       );
@@ -143,6 +143,9 @@ export class UnraidDockerCard extends BaseUnraidCard {
         id: slug,
         ...label,
         isRunning,
+        isStopped,
+        isAvailable: isRunning || isStopped,
+        status: isRunning ? "Running" : isStopped ? "Stopped" : this.formatState(sw),
         switchEntityId: sw.entity_id,
         restartEntityId: restart?.entity_id,
         autostartEntityId: autostart?.entity_id,
@@ -150,9 +153,14 @@ export class UnraidDockerCard extends BaseUnraidCard {
           cpu?.state && Number.isFinite(parseFloat(cpu.state))
             ? parseFloat(cpu.state)
             : undefined,
+        cpuText:
+          cpu && Number.isFinite(Number(cpu.state))
+            ? (this.hass?.formatEntityState?.(cpu) ?? `${cpu.state}%`)
+            : undefined,
         memoryUsage:
-          mem?.state && mem.state !== "unavailable"
-            ? `${mem.state} ${mem.attributes.unit_of_measurement || "B"}`
+          mem && !["unknown", "unavailable"].includes(mem.state)
+            ? (this.hass?.formatEntityState?.(mem) ??
+              `${mem.state}${mem.attributes.unit_of_measurement ? ` ${mem.attributes.unit_of_measurement}` : ""}`)
             : undefined,
         hasUpdate: update?.state === "on",
         updateEntityId: update?.entity_id,
@@ -169,14 +177,14 @@ export class UnraidDockerCard extends BaseUnraidCard {
   protected override render(): TemplateResult {
     const containers = this.getContainers();
     const runningCount = containers.filter((c) => c.isRunning).length;
-    const stoppedCount = containers.length - runningCount;
+    const stoppedCount = containers.filter((c) => c.isStopped).length;
     const updateCount = containers.filter((c) => c.hasUpdate).length;
 
     const checkUpdatesBtn = this.getEntity("check_container_updates", "button");
 
     const filtered = containers.filter((c) => {
       if (this._filter === "running") return c.isRunning;
-      if (this._filter === "stopped") return !c.isRunning;
+      if (this._filter === "stopped") return c.isStopped;
       if (this._filter === "updates") return c.hasUpdate;
       return true;
     });
@@ -185,14 +193,16 @@ export class UnraidDockerCard extends BaseUnraidCard {
       <span class="badge ${runningCount > 0 ? "badge-online" : "badge-standby"}">
         ${runningCount} Running
       </span>
-      ${updateCount > 0
-        ? html`
-            <span class="badge badge-warning">
-              ${iconTemplate(mdiAlertCircle, 12)}
-              <span>${updateCount} Updates</span>
-            </span>
-          `
-        : nothing}
+      ${
+        updateCount > 0
+          ? html`
+              <span class="badge badge-warning">
+                ${iconTemplate(mdiAlertCircle, 12)}
+                <span>${updateCount} Updates</span>
+              </span>
+            `
+          : nothing
+      }
     `;
 
     return html`
@@ -203,54 +213,70 @@ export class UnraidDockerCard extends BaseUnraidCard {
           mdiDocker,
           badge
         )}
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-          <div style="display: flex; gap: 4px; overflow-x: auto;">
+        <div
+          style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;"
+        >
+          <div class="tab-strip" role="group" aria-label="Container status filter">
             <button
+              type="button"
               class="tab-btn ${this._filter === "all" ? "active" : ""}"
+              aria-pressed=${this._filter === "all"}
               @click=${() => (this._filter = "all")}
             >
               All (${containers.length})
             </button>
             <button
+              type="button"
               class="tab-btn ${this._filter === "running" ? "active" : ""}"
+              aria-pressed=${this._filter === "running"}
               @click=${() => (this._filter = "running")}
             >
               Running (${runningCount})
             </button>
             <button
+              type="button"
               class="tab-btn ${this._filter === "stopped" ? "active" : ""}"
+              aria-pressed=${this._filter === "stopped"}
               @click=${() => (this._filter = "stopped")}
             >
               Stopped (${stoppedCount})
             </button>
-            ${updateCount > 0 || this._filter === "updates"
-              ? html`
-                  <button
-                    class="tab-btn ${this._filter === "updates" ? "active" : ""}"
-                    style="color: var(--unraid-warning);"
-                    @click=${() => (this._filter = "updates")}
-                  >
-                    Updates (${updateCount})
-                  </button>
-                `
-              : nothing}
+            ${
+              updateCount > 0 || this._filter === "updates"
+                ? html`
+                    <button
+                      type="button"
+                      class="tab-btn ${this._filter === "updates" ? "active" : ""}"
+                      aria-pressed=${this._filter === "updates"}
+                      @click=${() => (this._filter = "updates")}
+                    >
+                      Updates (${updateCount})
+                    </button>
+                  `
+                : nothing
+            }
           </div>
 
           <div style="display: flex; align-items: center; gap: 6px;">
-            ${checkUpdatesBtn
-              ? html`
-                  <button
-                    class="btn"
-                    title="Check for updates"
-                    @click=${() => this.pressButton(checkUpdatesBtn.entity_id)}
-                  >
-                    Check Updates
-                  </button>
-                `
-              : nothing}
+            ${
+              checkUpdatesBtn
+                ? html`
+                    <button
+                      type="button"
+                      class="btn"
+                      title="Check for updates"
+                      @click=${() => this.pressButton(checkUpdatesBtn.entity_id)}
+                    >
+                      Check Updates
+                    </button>
+                  `
+                : nothing
+            }
             <button
+              type="button"
               class="btn-icon"
               title="Toggle View Mode"
+              aria-label="${this._viewMode === "grid" ? "Show list view" : "Show grid view"}"
               @click=${() =>
                 (this._viewMode = this._viewMode === "grid" ? "list" : "grid")}
             >
@@ -258,111 +284,178 @@ export class UnraidDockerCard extends BaseUnraidCard {
             </button>
           </div>
         </div>
-        ${filtered.length === 0
-          ? html`<div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 12px;">
-              ${containers.length === 0 ? "No Docker containers configured" :
-                this._filter === "updates" ? "No container updates available" :
-                  `No ${this._filter} containers`}
-            </div>`
-          : nothing}
-        ${this._viewMode === "grid"
-          ? html`
-              <div class="container-grid">
-                ${filtered.map(
-                  (c) => html`
-                    <div
-                      class="container-tile"
-                      @click=${() => this.openMoreInfo(c.switchEntityId)}
-                    >
-                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                        <span class="status-dot ${c.isRunning ? "online" : "offline"}"></span>
-                        <span class="tile-name" title="${c.rawName}">${c.name}</span>
-                      </div>
-                      <div style="display: flex; align-items: center; gap: 4px;">
-                        ${c.hasUpdate
-                          ? html`<span style="color: var(--unraid-warning);">${iconTemplate(mdiAlertCircle, 14)}</span>`
-                          : nothing}
-                        ${c.restartEntityId
-                          ? html`
-                              <button
-                                class="btn-icon"
-                                style="padding: 2px;"
-                                title="Restart ${c.name}"
-                                @click=${(e: Event) => {
-                                  e.stopPropagation();
-                                  this.pressButton(c.restartEntityId!);
-                                }}
-                              >
-                                ${iconTemplate(mdiRestart, 14)}
-                              </button>
-                            `
-                          : nothing}
+        ${
+          filtered.length === 0
+            ? html`<div class="empty-state" role="status">
+                ${
+                  containers.length === 0
+                    ? "No Docker containers configured"
+                    : this._filter === "updates"
+                      ? "No container updates available"
+                      : `No ${this._filter} containers`
+                }
+              </div>`
+            : nothing
+        }
+        ${
+          this._viewMode === "grid"
+            ? html`
+                <div class="container-grid">
+                  ${filtered.map(
+                    (c) => html`
+                      <div class="container-tile">
                         <button
-                          class="btn-icon"
-                          style="padding: 2px; color: ${c.isRunning ? "var(--unraid-online)" : "var(--unraid-subtext)"};"
-                          title="${c.isRunning ? "Stop" : "Start"} ${c.name}"
-                          @click=${(e: Event) => {
-                            e.stopPropagation();
-                            this.handleToggle(c.switchEntityId, c.isRunning, c.name);
-                          }}
+                          type="button"
+                          class="tile-main"
+                          title="${c.rawName}"
+                          aria-label="Show details for ${c.name}, ${c.status}"
+                          @click=${() => this.openMoreInfo(c.switchEntityId)}
                         >
-                          ${iconTemplate(mdiPower, 14)}
+                          <span
+                            aria-hidden="true"
+                            class="status-dot ${c.isRunning ? "online" : "offline"}"
+                          ></span>
+                          <span class="workload-label">
+                            <span class="tile-name" title="${c.rawName}"
+                              >${c.name}</span
+                            >
+                            <span class="workload-status">${c.status}</span>
+                          </span>
                         </button>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                          ${
+                            c.hasUpdate
+                              ? html`<span style="color: var(--unraid-warning);"
+                                  >${iconTemplate(mdiAlertCircle, 20)}</span
+                                >`
+                              : nothing
+                          }
+                          ${
+                            c.restartEntityId
+                              ? html`
+                                  <button
+                                    type="button"
+                                    class="btn-icon"
+                                    style="padding: 2px;"
+                                    title="Restart ${c.name}"
+                                    aria-label="Restart ${c.name}"
+                                    ?disabled=${!c.isAvailable}
+                                    @click=${(e: Event) => {
+                                      e.stopPropagation();
+                                      this.pressButton(c.restartEntityId!);
+                                    }}
+                                  >
+                                    ${iconTemplate(mdiRestart, 20)}
+                                  </button>
+                                `
+                              : nothing
+                          }
+                          <button
+                            type="button"
+                            class="btn-icon"
+                            style="padding: 4px;"
+                            title="${c.isRunning ? "Stop" : "Start"} ${c.name}"
+                            aria-label="${c.isRunning ? "Stop" : "Start"} ${c.name}"
+                            ?disabled=${!c.isAvailable}
+                            @click=${(e: Event) => {
+                              e.stopPropagation();
+                              this.handleToggle(c.switchEntityId, c.isRunning, c.name);
+                            }}
+                          >
+                            ${iconTemplate(mdiPower, 20)}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  `
-                )}
-              </div>
-            `
-          : html`
-              <div class="item-list">
-                ${filtered.map(
-                  (c) => html`
-                    <div class="list-row">
-                      <div class="row-left">
-                        <span class="status-dot ${c.isRunning ? "online" : "offline"}"></span>
-                        <span title="${c.rawName}" style="font-weight: 600; min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                          ${c.name}
-                        </span>
-                        ${c.cpuPct !== undefined
-                          ? html`<span style="font-size: 0.72rem; color: var(--unraid-subtext);">${c.cpuPct}% CPU</span>`
-                          : nothing}
-                        ${c.memoryUsage
-                          ? html`<span style="font-size: 0.72rem; color: var(--unraid-subtext);">${c.memoryUsage}</span>`
-                          : nothing}
-                      </div>
-                      <div class="row-right">
-                        ${c.hasUpdate
-                          ? html`
-                              <span class="badge badge-warning">Update Available</span>
-                            `
-                          : nothing}
-                        ${c.restartEntityId
-                          ? html`
-                              <button
-                                class="btn"
-                                style="padding: 3px 8px;"
-                                @click=${() => this.pressButton(c.restartEntityId!)}
+                    `
+                  )}
+                </div>
+              `
+            : html`
+                <div class="item-list">
+                  ${filtered.map(
+                    (c) => html`
+                      <div class="list-row">
+                        <div class="row-left">
+                          <button
+                            type="button"
+                            class="workload-name-button"
+                            title="${c.rawName}"
+                            aria-label="Show details for ${c.name}, ${c.status}"
+                            @click=${() => this.openMoreInfo(c.switchEntityId)}
+                          >
+                            <span
+                              aria-hidden="true"
+                              class="status-dot ${c.isRunning ? "online" : "offline"}"
+                            ></span>
+                            <span class="workload-label">
+                              <span class="tile-name" title="${c.rawName}"
+                                >${c.name}</span
                               >
-                                ${iconTemplate(mdiRestart, 13)}
-                                <span>Restart</span>
-                              </button>
-                            `
-                          : nothing}
-                        <button
-                          class="btn ${c.isRunning ? "btn" : "btn-primary"}"
-                          style="padding: 3px 8px;"
-                          @click=${() => this.handleToggle(c.switchEntityId, c.isRunning, c.name)}
-                        >
-                          ${iconTemplate(mdiPower, 13)}
-                          <span>${c.isRunning ? "Stop" : "Start"}</span>
-                        </button>
+                              <span class="workload-status">${c.status}</span>
+                            </span>
+                          </button>
+                          ${
+                            c.cpuPct !== undefined
+                              ? html`<span
+                                  style="font-size: var(--ha-font-size-s, 12px); color: var(--unraid-subtext);"
+                                  >${c.cpuText} CPU</span
+                                >`
+                              : nothing
+                          }
+                          ${
+                            c.memoryUsage
+                              ? html`<span
+                                  style="font-size: var(--ha-font-size-s, 12px); color: var(--unraid-subtext);"
+                                  >${c.memoryUsage}</span
+                                >`
+                              : nothing
+                          }
+                        </div>
+                        <div class="row-right">
+                          ${
+                            c.hasUpdate
+                              ? html`
+                                  <span class="badge badge-warning"
+                                    >Update Available</span
+                                  >
+                                `
+                              : nothing
+                          }
+                          ${
+                            c.restartEntityId
+                              ? html`
+                                  <button
+                                    type="button"
+                                    class="btn"
+                                    style="padding: 3px 8px;"
+                                    aria-label="Restart ${c.name}"
+                                    ?disabled=${!c.isAvailable}
+                                    @click=${() => this.pressButton(c.restartEntityId!)}
+                                  >
+                                    ${iconTemplate(mdiRestart, 13)}
+                                    <span>Restart</span>
+                                  </button>
+                                `
+                              : nothing
+                          }
+                          <button
+                            type="button"
+                            class="btn ${c.isRunning ? "btn" : "btn-primary"}"
+                            style="padding: 3px 8px;"
+                            aria-label="${c.isRunning ? "Stop" : "Start"} ${c.name}"
+                            ?disabled=${!c.isAvailable}
+                            @click=${() => this.handleToggle(c.switchEntityId, c.isRunning, c.name)}
+                          >
+                            ${iconTemplate(mdiPower, 13)}
+                            <span>${c.isRunning ? "Stop" : "Start"}</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  `
-                )}
-              </div>
-            `}
+                    `
+                  )}
+                </div>
+              `
+        }
       </ha-card>
     `;
   }
@@ -374,5 +467,6 @@ registerDashboardCard({
   card: UnraidDockerCard,
   editor: UnraidDockerCardEditor,
   name: "Unraid Docker Containers Card",
-  description: "Monitor, start, stop, restart, and update Docker containers in grid or list view.",
+  description:
+    "Monitor, start, stop, restart, and update Docker containers in grid or list view.",
 });

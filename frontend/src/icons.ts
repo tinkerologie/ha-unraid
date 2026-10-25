@@ -84,6 +84,8 @@ export function iconTemplate(
 ): TemplateResult {
   return html`
     <svg
+      aria-hidden="true"
+      focusable="false"
       class="${className}"
       style="width: ${size}px; height: ${size}px;"
       viewBox="0 0 24 24"

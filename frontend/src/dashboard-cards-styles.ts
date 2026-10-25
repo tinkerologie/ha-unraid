@@ -6,435 +6,533 @@ export const dashboardCardStyles = [
   css`
     :host {
       display: block;
-      height: 100%;
+      box-sizing: border-box;
+      container-type: inline-size;
+      font-family: var(--ha-card-font-family, var(--ha-font-family-body, inherit));
+      font-size: var(--ha-font-size-m, 14px);
+      line-height: var(--ha-line-height-normal, 1.6);
+    }
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
     }
-
     ha-card {
-      height: 100%;
-      box-sizing: border-box;
-      padding: 16px;
+      padding: var(--ha-space-4, 16px);
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      overflow: hidden;
+      gap: var(--ha-space-3, 12px);
       background: var(--unraid-card-bg);
-      border: 1px solid var(--unraid-border);
+      border: var(--ha-card-border-width, 1px) solid var(--unraid-border);
       border-radius: var(--unraid-radius);
       color: var(--unraid-text);
-      font-family: var(--ha-card-font-family, inherit);
     }
-
     :host([embedded]) ha-card {
       border: none;
       box-shadow: none;
       background: transparent;
       padding: 0;
     }
-
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+    button {
+      color: inherit;
+      text-align: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    button:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+    [role="tabpanel"][hidden] {
+      display: none;
+    }
+    [role="tabpanel"] {
+      min-width: 0;
+    }
+    :where(button, a, input, select, [tabindex]):focus-visible {
+      outline: 2px solid var(--unraid-focus);
+      outline-offset: 2px;
+    }
     .icon {
       display: inline-block;
       vertical-align: middle;
       fill: currentColor;
       flex-shrink: 0;
     }
-
-    /* Header */
+    .sr-only {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
     .header {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: var(--ha-space-3, 12px);
     }
-
     .header-main {
       display: flex;
+      flex: 1;
       align-items: center;
-      gap: 12px;
+      gap: var(--ha-space-3, 12px);
       min-width: 0;
     }
-
     .header-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: color-mix(in srgb, var(--unraid-accent) 15%, transparent);
+      inline-size: var(--ha-space-10, 40px);
+      block-size: var(--ha-space-10, 40px);
+      border-radius: var(--ha-border-radius-lg, 12px);
+      background: color-mix(in srgb, var(--unraid-accent) 12%, transparent);
       color: var(--unraid-accent);
       display: grid;
       place-items: center;
       flex-shrink: 0;
     }
-
     .header-titles {
       display: flex;
       flex-direction: column;
       min-width: 0;
     }
-
     .header-title {
-      font-size: 1.05rem;
-      font-weight: 700;
+      margin: 0;
+      font-size: var(--ha-card-header-font-size, var(--ha-font-size-l, 16px));
+      font-weight: var(--ha-font-weight-heading, 700);
       color: var(--unraid-text);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      line-height: 1.25;
+      line-height: var(--ha-line-height-condensed, 1.2);
     }
-
     .header-subtitle {
-      font-size: 0.78rem;
+      font-size: var(--ha-font-size-s, 12px);
       color: var(--unraid-subtext);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
     }
-
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
+      flex-wrap: wrap;
+      gap: var(--ha-space-2, 8px);
+      margin-inline-start: auto;
     }
-
-    /* Badges / Chips */
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      line-height: 1;
+      gap: var(--ha-space-1, 4px);
+      padding: var(--ha-space-1, 4px) var(--ha-space-2, 8px);
+      border-radius: var(--ha-border-radius-pill, 9999px);
+      font-size: var(--ha-font-size-s, 12px);
+      font-weight: var(--ha-font-weight-medium, 500);
+      line-height: var(--ha-line-height-condensed, 1.2);
       white-space: nowrap;
+      color: var(--unraid-text);
+      border: 1px solid var(--unraid-border);
     }
-
+    button.badge {
+      min-block-size: var(--ha-space-10, 40px);
+      min-inline-size: var(--ha-space-10, 40px);
+    }
     .badge-online {
-      background: color-mix(in srgb, var(--unraid-online) 15%, transparent);
-      color: var(--unraid-online);
-      border: 1px solid color-mix(in srgb, var(--unraid-online) 25%, transparent);
+      background: color-mix(in srgb, var(--unraid-online) 12%, var(--unraid-card-bg));
+      border-color: color-mix(in srgb, var(--unraid-online) 35%, var(--unraid-card-bg));
     }
-
     .badge-warning {
-      background: color-mix(in srgb, var(--unraid-warning) 15%, transparent);
-      color: var(--unraid-warning);
-      border: 1px solid color-mix(in srgb, var(--unraid-warning) 25%, transparent);
+      background: color-mix(in srgb, var(--unraid-warning) 12%, var(--unraid-card-bg));
+      border-color: color-mix(
+        in srgb,
+        var(--unraid-warning) 35%,
+        var(--unraid-card-bg)
+      );
     }
-
     .badge-error {
-      background: color-mix(in srgb, var(--unraid-error) 15%, transparent);
-      color: var(--unraid-error);
-      border: 1px solid color-mix(in srgb, var(--unraid-error) 25%, transparent);
+      background: color-mix(in srgb, var(--unraid-error) 12%, var(--unraid-card-bg));
+      border-color: color-mix(in srgb, var(--unraid-error) 35%, var(--unraid-card-bg));
     }
-
     .badge-standby {
-      background: color-mix(in srgb, var(--unraid-standby) 15%, transparent);
-      color: var(--unraid-standby);
-      border: 1px solid color-mix(in srgb, var(--unraid-standby) 25%, transparent);
+      background: color-mix(in srgb, var(--unraid-standby) 12%, var(--unraid-card-bg));
     }
-
     .pulse-dot {
-      width: 7px;
-      height: 7px;
+      inline-size: var(--ha-space-2, 8px);
+      block-size: var(--ha-space-2, 8px);
       border-radius: 50%;
       background: currentColor;
     }
-
-    /* Conic Ring Gauges */
     .rings-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 80px), 1fr));
+      gap: var(--ha-space-2, 8px);
     }
-
+    .rings-grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
     .ring-card {
       background: color-mix(in srgb, var(--unraid-text) 3%, transparent);
       border: 1px solid var(--unraid-border);
-      border-radius: 10px;
-      padding: 10px 6px;
+      border-radius: var(--ha-border-radius-lg, 12px);
+      padding: var(--ha-space-3, 12px) var(--ha-space-2, 8px);
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: 6px;
+      gap: var(--ha-space-1, 4px);
+      min-width: 0;
     }
-
-    .ring-card[role="button"]:focus-visible {
-      outline: 2px solid var(--unraid-primary);
-      outline-offset: 2px;
-    }
-
     .ring-gauge {
-      width: 54px;
-      height: 54px;
+      inline-size: var(--ha-space-14, 56px);
+      block-size: var(--ha-space-14, 56px);
       border-radius: 50%;
       position: relative;
       display: grid;
       place-items: center;
+      flex-shrink: 0;
       background: conic-gradient(
         var(--ring-color, var(--unraid-primary)) calc(var(--pct, 0) * 1%),
-        color-mix(in srgb, var(--unraid-text) 8%, transparent) 0
+        color-mix(in srgb, var(--unraid-text) 55%, var(--unraid-card-bg)) 0
       );
-      flex-shrink: 0;
     }
-
     .ring-gauge::after {
       content: "";
       position: absolute;
-      inset: 6px;
+      inset: var(--ha-space-2, 8px);
       border-radius: 50%;
       background: var(--unraid-card-bg);
     }
-
     .ring-content {
       position: relative;
       z-index: 2;
-      font-size: 0.75rem;
-      font-weight: 700;
+      font-size: var(--ha-font-size-m, 14px);
+      font-weight: var(--ha-font-weight-bold, 700);
       color: var(--unraid-text);
     }
-
     .ring-label {
-      font-size: 0.72rem;
-      font-weight: 600;
+      font-size: var(--ha-font-size-s, 12px);
+      font-weight: var(--ha-font-weight-medium, 500);
       color: var(--unraid-text);
-      line-height: 1.1;
+      line-height: var(--ha-line-height-condensed, 1.2);
     }
-
     .ring-subtext {
-      font-size: 0.68rem;
+      font-size: var(--ha-font-size-s, 12px);
       color: var(--unraid-subtext);
-      line-height: 1.1;
-      white-space: nowrap;
+      line-height: var(--ha-line-height-condensed, 1.2);
+      overflow-wrap: anywhere;
     }
-
-    /* Progress Bars */
     .progress-bar {
       width: 100%;
-      height: 6px;
-      background: color-mix(in srgb, var(--unraid-text) 10%, transparent);
-      border-radius: 4px;
+      height: var(--ha-space-2, 8px);
+      background: color-mix(in srgb, var(--unraid-text) 55%, var(--unraid-card-bg));
+      border-radius: var(--ha-border-radius-pill, 9999px);
       overflow: hidden;
     }
-
     .progress-fill {
       height: 100%;
       background: var(--fill-color, var(--unraid-accent));
-      border-radius: 4px;
-      transition: width 0.3s ease;
+      border-radius: inherit;
+      transition: width var(--ha-animation-duration-normal, 250ms) ease;
     }
-
-    /* Lists / Tables */
     .item-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: var(--ha-space-2, 8px);
     }
-
     .list-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 12px;
-      border-radius: 8px;
+      padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
+      border-radius: var(--ha-border-radius-lg, 12px);
       background: color-mix(in srgb, var(--unraid-text) 3%, transparent);
       border: 1px solid var(--unraid-border);
-      gap: 10px;
-      font-size: 0.8rem;
-      transition: border-color 0.2s ease;
+      gap: var(--ha-space-3, 12px);
+      font-size: var(--ha-font-size-m, 14px);
+      min-width: 0;
+      transition: border-color var(--ha-animation-duration-fast, 150ms) ease;
     }
-
+    button.ring-card {
+      border-color: var(--unraid-control-border);
+    }
+    button.list-row {
+      border-color: var(--unraid-control-border);
+      width: 100%;
+      min-block-size: var(--ha-space-12, 48px);
+    }
     .list-row:hover {
-      border-color: color-mix(in srgb, var(--unraid-accent) 40%, transparent);
+      border-color: color-mix(in srgb, var(--unraid-primary) 50%, var(--unraid-text));
     }
-
     .row-left {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--ha-space-2, 8px);
       min-width: 0;
       flex: 1;
     }
-
     .row-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--ha-space-2, 8px);
       flex-shrink: 0;
     }
-
-    /* Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 8px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      border: 1px solid var(--unraid-border);
+      gap: var(--ha-space-2, 8px);
+      min-block-size: var(--ha-space-10, 40px);
+      min-inline-size: var(--ha-space-10, 40px);
+      padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
+      border-radius: var(--ha-border-radius-pill, 9999px);
+      font-size: var(--ha-font-size-m, 14px);
+      font-weight: var(--ha-font-weight-action, 500);
+      border: 1px solid var(--unraid-control-border);
       background: color-mix(in srgb, var(--unraid-text) 6%, transparent);
       color: var(--unraid-text);
-      cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background-color var(--ha-animation-duration-fast, 150ms) ease;
     }
-
     .btn:hover {
       background: color-mix(in srgb, var(--unraid-text) 12%, transparent);
     }
-
     .btn-primary {
-      background: var(--unraid-accent);
-      color: white;
-      border-color: transparent;
+      background: color-mix(in srgb, var(--unraid-primary) 12%, var(--unraid-card-bg));
+      color: var(--unraid-text);
+      border-color: color-mix(in srgb, var(--unraid-primary) 50%, var(--unraid-text));
     }
-
-    .btn-primary:hover {
-      filter: brightness(1.1);
-    }
-
     .btn-icon {
-      padding: 6px;
-      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: var(--ha-space-12, 48px);
+      min-block-size: var(--ha-space-12, 48px);
+      padding: var(--ha-space-2, 8px);
+      border-radius: var(--ha-border-radius-pill, 9999px);
       border: 1px solid transparent;
       background: transparent;
       color: var(--unraid-subtext);
-      cursor: pointer;
     }
-
     .btn-icon:hover {
       background: color-mix(in srgb, var(--unraid-text) 8%, transparent);
       color: var(--unraid-text);
     }
-
-    /* Docker Containers Grid View (like Unraid GUI) */
     .container-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+      gap: var(--ha-space-2, 8px);
     }
-
     .container-tile {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 10px;
-      border-radius: 8px;
+      padding: var(--ha-space-2, 8px);
+      border-radius: var(--ha-border-radius-lg, 12px);
       background: color-mix(in srgb, var(--unraid-text) 4%, transparent);
       border: 1px solid var(--unraid-border);
-      cursor: pointer;
-      gap: 6px;
-      transition: all 0.2s ease;
+      gap: var(--ha-space-1, 4px);
+      min-width: 0;
+      transition: border-color var(--ha-animation-duration-fast, 150ms) ease;
     }
-
     .container-tile:hover {
-      border-color: var(--unraid-accent);
+      border-color: color-mix(in srgb, var(--unraid-primary) 50%, var(--unraid-text));
     }
-
-    .tile-name {
-      font-size: 0.76rem;
-      font-weight: 600;
+    .tile-main,
+    .workload-name-button {
+      display: flex;
+      align-items: center;
+      gap: var(--ha-space-2, 8px);
+      min-width: 0;
+      min-block-size: var(--ha-space-12, 48px);
+      flex: 1;
+      border: 0;
+      background: transparent;
+      padding: var(--ha-space-1, 4px);
+      border-radius: var(--ha-border-radius-md, 8px);
+      color: var(--unraid-text);
+    }
+    .workload-label {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .tile-name,
+    .vm-name {
+      font-size: var(--ha-font-size-m, 14px);
+      font-weight: var(--ha-font-weight-medium, 500);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       min-width: 0;
     }
-
-    .vm-name {
-      font-weight: 600;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .workload-status {
+      font-size: var(--ha-font-size-s, 12px);
+      color: var(--unraid-subtext);
     }
-
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: var(--ha-space-2, 8px);
+      height: var(--ha-space-2, 8px);
       border-radius: 50%;
       flex-shrink: 0;
     }
-
     .status-dot.online {
       background: var(--unraid-online);
     }
-
     .status-dot.offline {
-      background: var(--unraid-error);
+      background: var(--unraid-standby);
       border-radius: 2px;
     }
-
-    /* Section divider */
     .divider {
       height: 1px;
       background: var(--unraid-border);
       width: 100%;
-      margin: 4px 0;
+      margin: var(--ha-space-1, 4px) 0;
     }
-
-    /* Details Rows */
     .detail-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 8px;
-      font-size: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+      gap: var(--ha-space-3, 12px);
+      font-size: var(--ha-font-size-m, 14px);
     }
-
     .detail-item {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: var(--ha-space-1, 4px);
+      min-width: 0;
     }
-
-    .detail-item[role="button"]:focus-visible {
-      outline: 2px solid var(--unraid-primary);
-      outline-offset: 2px;
-      border-radius: 4px;
+    button.detail-item {
+      align-items: flex-start;
+      min-block-size: var(--ha-space-12, 48px);
+      padding: var(--ha-space-1, 4px);
+      border: 1px solid transparent;
+      border-radius: var(--ha-border-radius-md, 8px);
+      background: transparent;
     }
-
     .detail-label {
       color: var(--unraid-subtext);
-      font-size: 0.68rem;
+      font-size: var(--ha-font-size-s, 12px);
     }
-
     .detail-val {
-      font-weight: 600;
+      font-weight: var(--ha-font-weight-medium, 500);
       color: var(--unraid-text);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-
-    /* Tab strip for unified dashboard card */
+    a.detail-val {
+      display: inline-flex;
+      align-items: center;
+      min-block-size: var(--ha-space-10, 40px);
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-decoration: underline;
+      text-decoration-color: var(--unraid-accent);
+    }
     .tab-strip {
       display: flex;
-      gap: 6px;
+      gap: var(--ha-space-1, 4px);
       overflow-x: auto;
-      border-bottom: 1px solid var(--unraid-border);
-      padding-bottom: 6px;
+      padding: var(--ha-space-1, 4px);
+      border-block-end: 1px solid var(--unraid-border);
+      min-width: 0;
     }
-
     .tab-btn {
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.76rem;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--ha-space-2, 8px);
+      min-block-size: var(--ha-space-10, 40px);
+      padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
+      border-radius: var(--ha-border-radius-pill, 9999px);
+      font-size: var(--ha-font-size-m, 14px);
+      font-weight: var(--ha-font-weight-action, 500);
       background: transparent;
-      border: none;
+      border: 2px solid transparent;
       color: var(--unraid-subtext);
       cursor: pointer;
       white-space: nowrap;
-      transition: all 0.2s ease;
+      transition: background-color var(--ha-animation-duration-fast, 150ms) ease;
     }
-
     .tab-btn:hover {
       color: var(--unraid-text);
       background: color-mix(in srgb, var(--unraid-text) 5%, transparent);
     }
-
     .tab-btn.active {
-      background: color-mix(in srgb, var(--unraid-accent) 15%, transparent);
-      color: var(--unraid-accent);
+      background: color-mix(in srgb, var(--unraid-primary) 12%, var(--unraid-card-bg));
+      color: var(--unraid-text);
+      border-color: color-mix(in srgb, var(--unraid-primary) 50%, var(--unraid-text));
+    }
+    input[type="search"] {
+      min-block-size: var(--ha-space-14, 56px);
+      font: inherit;
+    }
+    label {
+      font-size: var(--ha-font-size-s, 12px);
+      color: var(--unraid-subtext);
+    }
+    .empty-state {
+      padding: var(--ha-space-4, 16px);
+      text-align: center;
+      color: var(--unraid-subtext);
+    }
+    .network-row {
+      overflow-wrap: anywhere;
+    }
+    .network-row > span {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--ha-space-2, 8px);
+    }
+    @container (max-width: 360px) {
+      .header-main {
+        flex-basis: 100%;
+      }
+      .list-row {
+        flex-wrap: wrap;
+      }
+      .row-left {
+        flex-wrap: wrap;
+      }
+      .workload-name-button {
+        flex-basis: 100%;
+      }
+      .row-right {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        margin-inline-start: auto;
+        max-width: 100%;
+      }
+      .list-row > .row-right {
+        flex-basis: 100%;
+      }
+      .container-tile {
+        flex-wrap: wrap;
+      }
+      .tile-main {
+        flex-basis: 100%;
+      }
+      .network-row .row-left {
+        flex-wrap: wrap;
+      }
+    }
+    @container (max-width: 240px) {
+      .rings-grid.two {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
     }
   `,
 ];
