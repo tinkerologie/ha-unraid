@@ -14,7 +14,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Added
 
+- Align all eight dashboard cards and editors with Home Assistant theme and design tokens, readable light/dark/custom-theme colours, keyboard and screen-reader semantics, 40px/48px touch targets, reduced motion, and responsive RTL layouts. Keep Sections heights content-driven and show only relevant editor fields ([#370](https://github.com/tinkerologie/ha-unraid/issues/370)).
+
 - Discover hardware temperature entities when valid readings first arrive after setup, retaining entity identities through missing and restored readings, including prolonged telemetry gaps ([#203](https://github.com/tinkerologie/ha-unraid/issues/203)).
+- Docker and VM cards show actual workload names, support optional YAML label overrides, and retain full-name tooltips. VM cards now offer running/stopped filters; both card types support a persisted default filter through the visual editor ([#370](https://github.com/tinkerologie/ha-unraid/issues/370)).
 
 ### Fixed
 

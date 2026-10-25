@@ -1,17 +1,9 @@
 import { html, nothing, type TemplateResult } from "lit";
-import {
-  SHARES_CARD_TAG,
-  SHARES_EDITOR_TAG,
-} from "./config";
+import { SHARES_CARD_TAG, SHARES_EDITOR_TAG } from "./config";
 import { BaseUnraidCard } from "./dashboard-cards-base";
 import { UnraidSharesCardEditor } from "./dashboard-cards-editor";
 import { fireEvent } from "./ha-types";
-import {
-  iconTemplate,
-  mdiFolder,
-  mdiShieldAlert,
-  mdiShieldCheck,
-} from "./icons";
+import { iconTemplate, mdiFolder, mdiShieldAlert, mdiShieldCheck } from "./icons";
 import { registerDashboardCard } from "./register-dashboard-card";
 
 export interface ShareItem {
@@ -63,7 +55,9 @@ export class UnraidSharesCard extends BaseUnraidCard {
 
     for (const u of shareEntities) {
       const parts = u.entity_id.split(".");
-      const namePart = (parts[1] || "").replace(/^.*?_share_/, "").replace(/_usage$/, "");
+      const namePart = (parts[1] || "")
+        .replace(/^.*?_share_/, "")
+        .replace(/_usage$/, "");
       const cleanName = formatShareName(
         (u.attributes.friendly_name as string) || namePart,
         namePart
@@ -110,7 +104,10 @@ export class UnraidSharesCard extends BaseUnraidCard {
     const badge = html`
       <span class="badge ${unprotectedCount === 0 ? "badge-online" : "badge-warning"}">
         ${iconTemplate(unprotectedCount === 0 ? mdiShieldCheck : mdiShieldAlert, 13)}
-        <span>${protectedCount} Protected${unprotectedCount > 0 ? ` • ${unprotectedCount} Unprotected` : ""}</span>
+        <span
+          >${protectedCount}
+          Protected${unprotectedCount > 0 ? ` • ${unprotectedCount} Unprotected` : ""}</span
+        >
       </span>
     `;
 
@@ -122,98 +119,123 @@ export class UnraidSharesCard extends BaseUnraidCard {
           mdiFolder,
           badge
         )}
-        ${allShares.length > 4
-          ? html`
-              <div style="margin-bottom: 4px;">
-                <input
-                  type="text"
-                  placeholder="Filter shares..."
-                  style="
+        ${
+          allShares.length > 4
+            ? html`
+                <div style="margin-block-end: 4px;">
+                  <label for="share-filter">Filter shares</label>
+                  <input
+                    type="search"
+                    id="share-filter"
+                    placeholder="Share name"
+                    style="
                     width: 100%;
                     padding: 6px 10px;
                     border-radius: 6px;
-                    border: 1px solid var(--unraid-border);
+                    border: 1px solid var(--unraid-control-border);
                     background: color-mix(in srgb, var(--unraid-text) 4%, transparent);
                     color: var(--unraid-text);
-                    font-size: 0.8rem;
+                    font-size: var(--ha-font-size-m, 14px);
                     box-sizing: border-box;
                   "
-                  .value=${this._searchQuery}
-                  @input=${(e: Event) =>
-                    (this._searchQuery = (e.target as HTMLInputElement).value)}
-                />
-              </div>
-            `
-          : nothing}
-        <div class="item-list">
-          ${filteredShares.length > 0
-            ? filteredShares.map((share) => {
-                const barColor =
-                  share.usagePct > 90
-                    ? "var(--unraid-error)"
-                    : share.usagePct > 75
-                    ? "var(--unraid-warning)"
-                    : "var(--unraid-online)";
-
-                return html`
-                  <div
-                    class="list-row"
-                    style="cursor: pointer;"
-                    title="Click for details on ${share.name}"
-                    @click=${() => this._openMoreInfo(share.entityId)}
-                  >
-                    <div class="row-left">
-                      <div
-                        style="color: ${share.isProtected ? "var(--unraid-accent)" : "var(--unraid-warning)"}; display: flex; align-items: center;"
-                      >
-                        ${iconTemplate(mdiFolder, 18)}
-                      </div>
-
-                      <div style="display: flex; flex-direction: column; min-width: 0;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                          <span
-                            style="font-weight: 600; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                          >
-                            ${share.name}
-                          </span>
-                          <span
-                            class="badge ${share.isProtected ? "badge-online" : "badge-warning"}"
-                            style="font-size: 0.62rem; padding: 1px 6px;"
-                            title="${share.isProtected ? "Data protected on parity array" : "Data on pool / unprotected storage"}"
-                          >
-                            ${share.isProtected ? "Protected" : "Unprotected"}
-                          </span>
-                        </div>
-
-                        ${share.used && share.total
-                          ? html`<span style="font-size: 0.7rem; color: var(--unraid-subtext);">${share.used} / ${share.total}${share.free ? ` • ${share.free} free` : ""}</span>`
-                          : nothing}
-                      </div>
-                    </div>
-
-                    <div class="row-right">
-                      <div style="display: flex; align-items: center; gap: 6px; width: 110px;">
-                        <div class="progress-bar" style="height: 6px; flex: 1;">
-                          <div
-                            class="progress-fill"
-                            style="width: ${share.usagePct}%; background: ${barColor};"
-                          ></div>
-                        </div>
-                        <span
-                          style="font-size: 0.72rem; font-family: monospace; font-weight: 600; color: var(--unraid-text); min-width: 32px; text-align: right;"
-                        >
-                          ${share.usagePct}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              })
-            : html`
-                <div style="text-align: center; color: var(--unraid-subtext); font-size: 0.8rem; padding: 16px;">
-                  ${allShares.length === 0 ? "No user shares found" : "No shares matching filter"}
+                    .value=${this._searchQuery}
+                    @input=${(e: Event) =>
+                      (this._searchQuery = (e.target as HTMLInputElement).value)}
+                  />
                 </div>
-              `}
+              `
+            : nothing
+        }
+        <div class="sr-only" role="status">
+          ${filteredShares.length} of ${allShares.length} shares shown
+        </div>
+        <div class="item-list">
+          ${
+            filteredShares.length > 0
+              ? filteredShares.map((share) => {
+                  const barColor =
+                    share.usagePct > 90
+                      ? "var(--unraid-error)"
+                      : share.usagePct > 75
+                        ? "var(--unraid-warning)"
+                        : "var(--unraid-online)";
+
+                  return html`
+                    <button
+                      type="button"
+                      class="list-row"
+                      style="cursor: pointer;"
+                      title="Click for details on ${share.name}"
+                      @click=${() => this._openMoreInfo(share.entityId)}
+                    >
+                      <span class="row-left">
+                        <span
+                          style="color: ${share.isProtected ? "var(--unraid-accent)" : "var(--unraid-warning)"}; display: flex; align-items: center;"
+                        >
+                          ${iconTemplate(mdiFolder, 18)}
+                        </span>
+
+                        <span
+                          style="display: flex; flex-direction: column; min-width: 0;"
+                        >
+                          <span style="display: flex; align-items: center; gap: 6px;">
+                            <span
+                              style="font-weight: var(--ha-font-weight-medium, 500); font-size: var(--ha-font-size-m, 14px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                            >
+                              ${share.name}
+                            </span>
+                            <span
+                              class="badge ${share.isProtected ? "badge-online" : "badge-warning"}"
+                              style="font-size: var(--ha-font-size-s, 12px); padding: 1px 6px;"
+                              title="${share.isProtected ? "Data protected on parity array" : "Data on pool / unprotected storage"}"
+                            >
+                              ${share.isProtected ? "Protected" : "Unprotected"}
+                            </span>
+                          </span>
+
+                          ${
+                            share.used && share.total
+                              ? html`<span
+                                  style="font-size: var(--ha-font-size-s, 12px); color: var(--unraid-subtext);"
+                                  >${share.used} /
+                                  ${share.total}${share.free ? ` • ${share.free} free` : ""}</span
+                                >`
+                              : nothing
+                          }
+                        </span>
+                      </span>
+
+                      <span class="row-right">
+                        <span
+                          style="display: flex; align-items: center; gap: 6px; width: 110px;"
+                        >
+                          <span
+                            class="progress-bar"
+                            style="height: 6px; flex: 1; display: inline-block;"
+                          >
+                            <span
+                              class="progress-fill"
+                              style="width: ${share.usagePct}%; background: ${barColor}; display: block;"
+                            ></span>
+                          </span>
+                          <span
+                            style="font-size: var(--ha-font-size-s, 12px); font-family: var(--ha-font-family-code, monospace); font-weight: var(--ha-font-weight-medium, 500); color: var(--unraid-text); min-width: 32px; text-align: end;"
+                          >
+                            ${share.usagePct}%
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                  `;
+                })
+              : html`
+                  <div
+                    style="text-align: center; color: var(--unraid-subtext); font-size: var(--ha-font-size-m, 14px); padding: 16px;"
+                  >
+                    ${allShares.length === 0 ? "No user shares found" : "No shares matching filter"}
+                  </div>
+                `
+          }
         </div>
       </ha-card>
     `;
@@ -226,5 +248,6 @@ registerDashboardCard({
   card: UnraidSharesCard,
   editor: UnraidSharesCardEditor,
   name: "Unraid User Shares Card",
-  description: "User share storage utilization, capacity allocation, and parity protection status.",
+  description:
+    "User share storage utilization, capacity allocation, and parity protection status.",
 });

@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`accessible filter and tab markup > keeps VM filter labels and pressed states together 1`] = `"<div class="tab-strip" role="group" aria-label="Virtual machine status filter"> <button type="button" class="tab-btn active" aria-pressed="true"> All (2) </button> <button type="button" class="tab-btn " aria-pressed="false"> Running (1) </button> <button type="button" class="tab-btn " aria-pressed="false"> Stopped (1) </button> </div>"`;
+
+exports[`accessible filter and tab markup > links every dashboard tab to its panel with one selected tab 1`] = `"<div class="tab-strip" role="tablist" aria-label="Unraid sections"> <button type="button" role="tab" id="tab-overview" class="tab-btn active" aria-selected="true" aria-controls="panel-overview" tabindex="0"> [icon] Overview </button> <button type="button" role="tab" id="tab-storage" class="tab-btn " aria-selected="false" aria-controls="panel-storage" tabindex="-1"> [icon] Storage &amp; Disks </button> <button type="button" role="tab" id="tab-shares" class="tab-btn " aria-selected="false" aria-controls="panel-shares" tabindex="-1"> [icon] Shares </button> <button type="button" role="tab" id="tab-network" class="tab-btn " aria-selected="false" aria-controls="panel-network" tabindex="-1"> [icon] Network </button> <button type="button" role="tab" id="tab-docker" class="tab-btn " aria-selected="false" aria-controls="panel-docker" tabindex="-1"> [icon] Docker </button> <button type="button" role="tab" id="tab-ups" class="tab-btn " aria-selected="false" aria-controls="panel-ups" tabindex="-1"> [icon] UPS Power </button> <button type="button" role="tab" id="tab-vms" class="tab-btn " aria-selected="false" aria-controls="panel-vms" tabindex="-1"> [icon] VMs </button> </div>"`;
+
+exports[`dashboard accessibility and action safeguards > renders the shared 20-container snapshot and counted accessible filters 1`] = `
+[
+  {
+    "name": "All (20)",
+    "pressed": "true",
+  },
+  {
+    "name": "Running (12)",
+    "pressed": "false",
+  },
+  {
+    "name": "Stopped (8)",
+    "pressed": "false",
+  },
+  {
+    "name": "Updates (1)",
+    "pressed": "false",
+  },
+]
+`;

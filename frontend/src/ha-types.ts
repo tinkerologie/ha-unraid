@@ -29,6 +29,8 @@ export interface EntityRegistryEntry {
 }
 
 export interface HomeAssistant {
+  formatEntityName?: (entity: HassEntity) => string;
+  formatEntityState?: (entity: HassEntity) => string;
   states: HassEntities;
   devices?: Record<string, DeviceRegistryEntry>;
   entities?: Record<string, EntityRegistryEntry>;

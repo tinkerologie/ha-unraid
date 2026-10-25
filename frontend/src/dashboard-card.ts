@@ -1,8 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
-import {
-  DASHBOARD_CARD_TAG,
-  DASHBOARD_EDITOR_TAG,
-} from "./config";
+import { DASHBOARD_CARD_TAG, DASHBOARD_EDITOR_TAG } from "./config";
 import { BaseUnraidCard } from "./dashboard-cards-base";
 import { UnraidDashboardCardEditor } from "./dashboard-cards-editor";
 import {
@@ -25,7 +22,16 @@ import "./docker-card";
 import "./ups-card";
 import "./vm-card";
 
-type ActiveTab = "overview" | "storage" | "shares" | "network" | "docker" | "ups" | "vms";
+const dashboardTabs = [
+  { id: "overview", label: "Overview", icon: mdiServer },
+  { id: "storage", label: "Storage & Disks", icon: mdiHarddisk },
+  { id: "shares", label: "Shares", icon: mdiFolder },
+  { id: "network", label: "Network", icon: mdiLanConnect },
+  { id: "docker", label: "Docker", icon: mdiDocker },
+  { id: "ups", label: "UPS Power", icon: mdiFlash },
+  { id: "vms", label: "VMs", icon: mdiMonitor },
+] as const;
+type ActiveTab = (typeof dashboardTabs)[number]["id"];
 
 export class UnraidDashboardCard extends BaseUnraidCard {
   static override editorTag = DASHBOARD_EDITOR_TAG;
@@ -42,88 +48,106 @@ export class UnraidDashboardCard extends BaseUnraidCard {
     this._activeTab = "overview";
   }
 
+  private renderActivePanel(): TemplateResult | typeof nothing {
+    const config = { ...this.config, embedded: true };
+    switch (this._activeTab) {
+      case "overview":
+        return html`<unraid-server-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-server-card" }}
+        ></unraid-server-card>`;
+      case "storage":
+        return html`<unraid-storage-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-storage-card" }}
+        ></unraid-storage-card>`;
+      case "shares":
+        return html`<unraid-shares-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-shares-card" }}
+        ></unraid-shares-card>`;
+      case "network":
+        return html`<unraid-network-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-network-card" }}
+        ></unraid-network-card>`;
+      case "docker":
+        return html`<unraid-docker-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-docker-card" }}
+        ></unraid-docker-card>`;
+      case "ups":
+        return html`<unraid-ups-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-ups-card" }}
+        ></unraid-ups-card>`;
+      case "vms":
+        return html`<unraid-vm-card
+          .hass=${this.hass}
+          .config=${{ ...config, type: "custom:unraid-vm-card" }}
+        ></unraid-vm-card>`;
+    }
+  }
+
   protected override render(): TemplateResult {
     const device = this.getActiveDevice();
-    const serverName = this.config.title || device?.name_by_user || device?.name || "Unraid Server";
-
+    const serverName =
+      this.config.title || device?.name_by_user || device?.name || "Unraid Server";
     return html`
-      <ha-card style="gap: 12px;">
+      <ha-card>
         <div class="header">
           <div class="header-main">
             <div class="header-icon">${iconTemplate(mdiServer, 22)}</div>
             <div class="header-titles">
-              <span class="header-title">${serverName} Dashboard</span>
+              <h2 class="header-title">${serverName} Dashboard</h2>
               <span class="header-subtitle">Unified Unraid Control Center</span>
             </div>
           </div>
         </div>
-        <div class="tab-strip">
-          <button
-            class="tab-btn ${this._activeTab === "overview" ? "active" : ""}"
-            @click=${() => (this._activeTab = "overview")}
-          >
-            ${iconTemplate(mdiServer, 14)} Overview
-          </button>
-          <button
-            class="tab-btn ${this._activeTab === "storage" ? "active" : ""}"
-            @click=${() => (this._activeTab = "storage")}
-          >
-            ${iconTemplate(mdiHarddisk, 14)} Storage & Disks
-          </button>
-          <button
-            class="tab-btn ${this._activeTab === "shares" ? "active" : ""}"
-            @click=${() => (this._activeTab = "shares")}
-          >
-            ${iconTemplate(mdiFolder, 14)} Shares
-          </button>
-          <button
-            class="tab-btn ${this._activeTab === "network" ? "active" : ""}"
-            @click=${() => (this._activeTab = "network")}
-          >
-            ${iconTemplate(mdiLanConnect, 14)} Network
-          </button>
-          <button
-            class="tab-btn ${this._activeTab === "docker" ? "active" : ""}"
-            @click=${() => (this._activeTab = "docker")}
-          >
-            ${iconTemplate(mdiDocker, 14)} Docker
-          </button>
-          <button
-            class="tab-btn ${this._activeTab === "ups" ? "active" : ""}"
-            @click=${() => (this._activeTab = "ups")}
-          >
-            ${iconTemplate(mdiFlash, 14)} UPS Power
-          </button>
-          <button
-            class="tab-btn ${this._activeTab === "vms" ? "active" : ""}"
-            @click=${() => (this._activeTab = "vms")}
-          >
-            ${iconTemplate(mdiMonitor, 14)} VMs
-          </button>
+        <div
+          class="tab-strip"
+          role="tablist"
+          aria-label="Unraid sections"
+          @keydown=${this.handleTabKeydown}
+        >
+          ${dashboardTabs.map(
+            (tab) =>
+              html` <button
+                type="button"
+                role="tab"
+                id="tab-${tab.id}"
+                class="tab-btn ${this._activeTab === tab.id ? "active" : ""}"
+                aria-selected=${this._activeTab === tab.id}
+                aria-controls="panel-${tab.id}"
+                .tabIndex=${this._activeTab === tab.id ? 0 : -1}
+                @click=${(event: Event) => {
+                  this._activeTab = tab.id;
+                  for (const button of this.renderRoot.querySelectorAll<HTMLButtonElement>(
+                    'button[role="tab"]'
+                  ))
+                    button.tabIndex = button === event.currentTarget ? 0 : -1;
+                  (event.currentTarget as HTMLElement).scrollIntoView({
+                    block: "nearest",
+                    inline: "nearest",
+                  });
+                }}
+              >
+                ${iconTemplate(tab.icon, 20)} ${tab.label}
+              </button>`
+          )}
         </div>
-        <div>
-          ${this._activeTab === "overview"
-            ? html`<unraid-server-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-server-card", embedded: true }}></unraid-server-card>`
-            : nothing}
-          ${this._activeTab === "storage"
-            ? html`<unraid-storage-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-storage-card", embedded: true }}></unraid-storage-card>`
-            : nothing}
-          ${this._activeTab === "shares"
-            ? html`<unraid-shares-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-shares-card", embedded: true }}></unraid-shares-card>`
-            : nothing}
-          ${this._activeTab === "network"
-            ? html`<unraid-network-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-network-card", embedded: true }}></unraid-network-card>`
-            : nothing}
-          ${this._activeTab === "docker"
-            ? html`<unraid-docker-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-docker-card", embedded: true }}></unraid-docker-card>`
-            : nothing}
-          ${this._activeTab === "ups"
-            ? html`<unraid-ups-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-ups-card", embedded: true }}></unraid-ups-card>`
-            : nothing}
-          ${this._activeTab === "vms"
-            ? html`<unraid-vm-card .hass=${this.hass} .config=${{ ...this.config, type: "custom:unraid-vm-card", embedded: true }}></unraid-vm-card>`
-            : nothing}
-        </div>
+        ${dashboardTabs.map(
+          (tab) =>
+            html` <div
+              role="tabpanel"
+              id="panel-${tab.id}"
+              aria-labelledby="tab-${tab.id}"
+              tabindex="0"
+              ?hidden=${this._activeTab !== tab.id}
+            >
+              ${this._activeTab === tab.id ? this.renderActivePanel() : nothing}
+            </div>`
+        )}
       </ha-card>
     `;
   }
@@ -135,5 +159,6 @@ registerDashboardCard({
   card: UnraidDashboardCard,
   editor: UnraidDashboardCardEditor,
   name: "Unraid Unified Dashboard Card",
-  description: "All-in-one Unraid master card with tabbed overview, storage, docker, UPS, and VM monitoring.",
+  description:
+    "All-in-one Unraid master card with tabbed overview, storage, docker, UPS, and VM monitoring.",
 });

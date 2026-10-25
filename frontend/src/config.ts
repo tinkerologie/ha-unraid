@@ -28,6 +28,9 @@ export interface CardConfig {
   name?: string;
   title?: string;
   view_mode?: "grid" | "list";
+  container_labels?: Record<string, string>;
+  vm_labels?: Record<string, string>;
+  default_filter?: "all" | "running" | "stopped" | "updates";
   show_system_info?: boolean;
   show_motherboard?: boolean;
   show_user_shares?: boolean;

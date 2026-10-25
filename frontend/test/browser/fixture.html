@@ -183,7 +183,7 @@
           "switch.cube_docker_container_plex": {
             entity_id: "switch.cube_docker_container_plex",
             state: "on",
-            attributes: { friendly_name: "plex" },
+            attributes: { friendly_name: "Cube Container plex", container_name: "plex" },
           },
           "sensor.cube_ups_battery": {
             entity_id: "sensor.cube_ups_battery",
@@ -198,7 +198,7 @@
           "switch.cube_virtual_machine_ha": {
             entity_id: "switch.cube_virtual_machine_ha",
             state: "on",
-            attributes: { friendly_name: "Home Assistant" },
+            attributes: { friendly_name: "Cube VM Home Assistant", vm_name: "Home Assistant" },
           },
           "sensor.cube_up_since": {
             entity_id: "sensor.cube_up_since",
@@ -277,9 +277,11 @@
           },
         },
         entities: {},
-        callService: async () => Promise.resolve(),
+        callService: async (...args) => { window.__serviceCalls.push(args); },
       };
 
+      window.__serviceCalls = [];
+      window.workloadSnapshot = await (await fetch("/test/fixtures/workloads.json")).json();
       window.mockHass = mockHass;
 
       const container = document.getElementById("container");
