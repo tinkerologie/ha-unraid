@@ -1682,6 +1682,60 @@ for (const registry of [true, false])
       expect(rows.filter((el) => /Flash/.test(el.textContent!))).toHaveLength(1);
       expect(rows.every((el) => !el.textContent!.includes("usage 2"))).toBe(true);
     });
+    it("replaces an earlier unknown duplicate with its usable reading", async () => {
+      const hass = storageFixture(registry);
+      const stale = "sensor.cube_disk_disk1_usage";
+      const fresh = "sensor.cube_disk_disk1_usage_2";
+      hass.states = { [stale]: hass.states[stale]!, ...hass.states };
+      if (registry)
+        hass.entities = { [stale]: hass.entities![stale]!, ...hass.entities };
+      expect(Object.keys(hass.states).indexOf(stale)).toBeLessThan(
+        Object.keys(hass.states).indexOf(fresh)
+      );
+      const card = await renderMetricCard(UnraidStorageCard, hass);
+      const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+      expect(rows).toHaveLength(6);
+      expect(
+        rows.find((row) => row.textContent!.includes("Disk 1"))!.textContent
+      ).toContain("10%");
+    });
+    it.each(["health-only", "unknown usage-only"])(
+      "keeps %s disks visibly unavailable rather than zero",
+      async (kind) => {
+        const hass = storageFixture(registry);
+        const entity_id =
+          kind === "health-only"
+            ? "binary_sensor.cube_disk_disk3_health"
+            : "sensor.cube_disk_disk3_usage_2";
+        hass.states[entity_id] = {
+          entity_id,
+          state: kind === "health-only" ? "off" : "unknown",
+          attributes: {
+            friendly_name: `Cube Disk disk3 ${kind === "health-only" ? "health" : "usage"}`,
+            device: "sdz",
+            status: "DISK_OK",
+          },
+          last_changed: "",
+          last_updated: "",
+        };
+        if (registry)
+          hass.entities![entity_id] = {
+            entity_id,
+            device_id: "dev_1",
+            platform: "unraid",
+            translation_key: kind === "health-only" ? "disk_health" : "disk_usage",
+          };
+        const card = await renderMetricCard(UnraidStorageCard, hass);
+        const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+        expect(rows).toHaveLength(7);
+        const disk = rows.find((row) => row.textContent!.includes("Disk 3"))!;
+        expect(disk.textContent).toContain("—");
+        expect(disk.textContent).not.toContain("0%");
+        expect(disk.querySelector(".progress-fill")!.getAttribute("style")).toContain(
+          "width: 0%"
+        );
+      }
+    );
     it("joins renamed metric IDs by their unambiguous device attribute", async () => {
       const hass = storageFixture(registry);
       const old = "binary_sensor.cube_disk_disk1_health";
@@ -1889,4 +1943,52 @@ describe("network ownership and displayed rate units", () => {
       expect(server.shadowRoot!.textContent).toContain("Active");
     }
   );
+});
+
+describe("storage name suffixes and fallback parity metadata", () => {
+  afterEach(() => document.body.replaceChildren());
+  it.each([
+    ["disk1_usage_2", "disk1", "Disk 1"],
+    ["cache_pool_2_temperature_3", "cachepool2", "Cache (POOL_2)"],
+    ["parity2_health_3", "parity2", "Parity 2"],
+  ])("removes only the metric collision suffix from %s", (name, token, expected) => {
+    expect(formatDiskName(name, token)).toBe(expected);
+  });
+  it.each(["parity_status", "parity_valid"])(
+    "rejects fallback parity rows explicitly registered as %s",
+    async (translation_key) => {
+      const hass = storageFixture(false);
+      // No disk_health registry matches: discovery reaches fallback with metadata intact.
+      const entity_id = "binary_sensor.cube_disk_phantom_health";
+      hass.states[entity_id] = {
+        entity_id,
+        state: "off",
+        attributes: { friendly_name: "Phantom", device: "sdz" },
+        last_changed: "",
+        last_updated: "",
+      };
+      hass.entities![entity_id] = {
+        entity_id,
+        device_id: "dev_1",
+        platform: "unraid",
+        translation_key,
+      };
+      const card = await renderMetricCard(UnraidStorageCard, hass);
+      expect(card.shadowRoot!.querySelectorAll(".item-list .list-row")).toHaveLength(6);
+      expect(card.shadowRoot!.textContent).not.toContain("Phantom");
+    }
+  );
+  it("retains a parity-health fallback with physical disk attributes", async () => {
+    const hass = storageFixture(false);
+    delete hass.states["binary_sensor.cube_disk_parity_health_3"];
+    const entity_id = "binary_sensor.cube_parity_health";
+    hass.states[entity_id]!.attributes = {
+      friendly_name: "Cube Disk parity health",
+      filesystem: "xfs",
+    };
+    const card = await renderMetricCard(UnraidStorageCard, hass);
+    const rows = [...card.shadowRoot!.querySelectorAll(".item-list .list-row")];
+    expect(rows).toHaveLength(6);
+    expect(rows.filter((row) => /Parity/.test(row.textContent!))).toHaveLength(2);
+  });
 });
