@@ -276,7 +276,7 @@ export class UnraidServerCard extends BaseUnraidCard {
                   >
                     <span class="detail-label">System Health</span>
                     <span class="detail-val">
-                      ${alertCount === null ? this.formatState(alertsState, "No data") : alertCount === 0 ? "Normal • Healthy" : `${alertCount} Active Alerts`}
+                      ${alertCount === null ? (alertsState && ["unknown", "unavailable"].includes(alertsState.state) ? this.formatState(alertsState) : "No data") : alertCount === 0 ? "Normal • Healthy" : `${alertCount} Active Alerts`}
                     </span>
                   </button>
                 </div>

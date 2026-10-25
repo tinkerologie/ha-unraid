@@ -1515,6 +1515,10 @@ describe("system health status", () => {
     ["3", "3 Active Alerts"],
     ["unknown", "Unknown"],
     ["unavailable", "Unavailable"],
+    ["", "No data"],
+    ["-1", "No data"],
+    ["NaN", "No data"],
+    ["Infinity", "No data"],
   ])("renders %s without inventing healthy telemetry", async (state, expected) => {
     const card = new UnraidServerCard();
     const hass = createMockHass();

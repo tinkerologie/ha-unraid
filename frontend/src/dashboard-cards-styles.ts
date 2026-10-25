@@ -418,6 +418,7 @@ export const dashboardCardStyles = [
       font-size: var(--ha-font-size-s, 12px);
     }
     .detail-val {
+      max-inline-size: 100%;
       font-weight: var(--ha-font-weight-medium, 500);
       color: var(--unraid-text);
       overflow: hidden;

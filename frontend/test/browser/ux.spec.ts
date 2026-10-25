@@ -371,3 +371,31 @@ test("keyboard Stop cancellation sends no mocked HA service calls", async ({
     )
   ).toEqual([]);
 });
+
+test("long server detail values stay inside narrow grid cells", async ({ page }) => {
+  await page.evaluate(async () => {
+    const fixture = window as unknown as {
+      mockHass: { states: Record<string, { attributes: Record<string, unknown> }> };
+    };
+    fixture.mockHass.states["sensor.cube_disk_flash_usage"]!.attributes.fs_used =
+      "9".repeat(80) + " GB";
+    const card = document.querySelector("#server-card") as HTMLElement & {
+      hass: unknown;
+      updateComplete: Promise<unknown>;
+    };
+    card.style.width = "300px";
+    card.hass = { ...fixture.mockHass };
+    await card.updateComplete;
+  });
+  const sizes = await page
+    .locator("#server-card .detail-item .detail-val")
+    .evaluateAll((elements) =>
+      elements.map((el) => ({
+        text: el.textContent!.trim().slice(0, 20),
+        width: el.getBoundingClientRect().width,
+        parent: el.parentElement!.clientWidth,
+      }))
+    );
+  expect(sizes.some((row) => row.text.includes("999999"))).toBe(true);
+  expect(sizes.filter((row) => row.width > row.parent)).toEqual([]);
+});

@@ -436,6 +436,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
       font-size: var(--ha-font-size-s, 12px);
     }
     .detail-val {
+      max-inline-size: 100%;
       font-weight: var(--ha-font-weight-medium, 500);
       color: var(--unraid-text);
       overflow: hidden;
@@ -855,7 +856,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                   >
                     <span class="detail-label">System Health</span>
                     <span class="detail-val">
-                      ${g===null?this.formatState(l,`No data`):g===0?`Normal • Healthy`:`${g} Active Alerts`}
+                      ${g===null?l&&[`unknown`,`unavailable`].includes(l.state)?this.formatState(l):`No data`:g===0?`Normal • Healthy`:`${g} Active Alerts`}
                     </span>
                   </button>
                 </div>
