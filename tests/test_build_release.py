@@ -205,6 +205,38 @@ def test_missing_relative_python_module_fails(repo: FakeRepo, tmp_path: Path) ->
     repo.commit()
     message = _problems(repo, tmp_path)
     assert "sensor.py:1 imports .missing, which is not in the package" in message
+    assert "sensor.py:2 imports gone from ., which is not in the package" in message
+
+
+def test_from_dot_import_resolves_names_bound_in_init(
+    repo: FakeRepo, tmp_path: Path
+) -> None:
+    repo.write(
+        "__init__.py",
+        "from .const import DOMAIN\n"
+        "import logging as log\n"
+        "PLATFORMS: list[str] = []\n"
+        "type Alias = int\n"
+        "try:\n    from .const import DOMAIN as ALIAS\nexcept ImportError:\n"
+        "    ALIAS = None\n"
+        "def setup():\n    pass\n"
+        "class Entry:\n    pass\n",
+    )
+    repo.write(
+        "sensor.py",
+        "from . import DOMAIN, log, PLATFORMS, Alias, ALIAS, setup, Entry, const\n",
+    )
+    repo.commit()
+    assert repo.build(tmp_path / "out").is_file()
+
+
+def test_star_import_in_init_cannot_be_resolved_so_passes(
+    repo: FakeRepo, tmp_path: Path
+) -> None:
+    repo.write("__init__.py", "from .const import *\n")
+    repo.write("sensor.py", "from . import DOMAIN\n")
+    repo.commit()
+    assert repo.build(tmp_path / "out").is_file()
 
 
 def test_relative_imports_in_subpackages_resolve(
@@ -305,6 +337,46 @@ def test_external_or_unresolvable_js_specifier_fails(
     repo.write("frontend/cards.js", source)
     repo.commit()
     assert expected in _problems(repo, tmp_path)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        '// Copied from "https://example.com/lit.js"\nexport const a=1;',
+        '/* import "lit"; */export const a=1;',
+        "const s=\"import('lit') from 'x'\";",
+        "const r=/from \"x\"|import('y')/g;",
+        'const t=`a ${b ? `x${c}` : "y"} import("lit")`;',
+        'const half=a/2,q="/";import"./side.js";',
+        "const url=import.meta.url;",
+    ],
+)
+def test_js_comments_strings_and_regexes_are_not_imports(
+    repo: FakeRepo, tmp_path: Path, source: str
+) -> None:
+    repo.write("frontend/cards.js", source)
+    repo.write("frontend/side.js", "")
+    repo.commit()
+    assert repo.build(tmp_path / "out").is_file()
+
+
+@pytest.mark.parametrize(
+    ("source", "unterminated"),
+    [
+        ('const a="open;\n', "string"),
+        ("/* never closed", "comment"),
+        ("const t=`a ${b", "template literal"),
+        ("x=(/ab", "regular expression"),
+    ],
+)
+def test_unscannable_js_fails(
+    repo: FakeRepo, tmp_path: Path, source: str, unterminated: str
+) -> None:
+    repo.write("frontend/cards.js", source)
+    repo.commit()
+    assert f"cannot be scanned for imports: unterminated {unterminated}" in (
+        _problems(repo, tmp_path)
+    )
 
 
 def test_method_named_import_is_not_a_specifier(repo: FakeRepo, tmp_path: Path) -> None:
