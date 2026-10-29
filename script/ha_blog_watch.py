@@ -223,7 +223,8 @@ def code_only(source: str) -> str:
 def _token_patterns(token: str) -> list[re.Pattern[str]]:
     """Return the patterns that find ``token`` in source."""
     if "." not in token:
-        return [re.compile(rf"(?<![\w.])\b{re.escape(token)}\b")]
+        # Bare names also match attribute access: ir.async_create_issue(...).
+        return [re.compile(rf"\b{re.escape(token)}\b")]
     module, _, last = token.rpartition(".")
     patterns = [
         re.compile(rf"\b{re.escape(token)}\b"),

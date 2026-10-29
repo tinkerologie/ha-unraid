@@ -153,6 +153,15 @@ def test_find_matches(package: Path) -> None:
     assert first.text == "async def async_added_to_hass(self) -> None:"
 
 
+def test_bare_names_match_attribute_access(package: Path) -> None:
+    """A post that names ``async_delete_issue`` matches ``ir.async_delete_issue``."""
+    matches = blog.find_matches(["async_delete_issue", "last_states"], package)
+    assert {(m.token, m.line) for m in matches} == {
+        ("async_delete_issue", 8),
+        ("last_states", 9),
+    }
+
+
 def test_find_matches_caps_locations_per_token(package: Path) -> None:
     (package / "many.py").write_text("async_many()\n" * 10)
     matches = blog.find_matches(["async_many"], package)
