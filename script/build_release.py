@@ -64,6 +64,8 @@ UNIX_SYSTEM = 3  # external_attr then carries the Unix file mode
 # expression literals) so that text inside them is never read as an import.
 JS_NAME = re.compile(r"[\w$\u0080-\uffff]+")
 JS_PUNCTUATORS = ("?.", "...")
+# A ")" closing the condition of these statements may be followed by a regex.
+JS_CONDITION_KEYWORDS = frozenset({"for", "if", "while", "with"})
 # A "/" after these keywords starts a regular expression, not a division.
 JS_REGEX_KEYWORDS = frozenset(
     {
@@ -95,12 +97,15 @@ class JsToken:
     One significant JavaScript token.
 
     ``kind`` is ``name``, ``punct``, ``number``, ``string``, ``template`` or
-    ``regex``. A template that contains ``${...}`` has ``interpolated`` set.
+    ``regex``. A template that contains ``${...}`` has ``interpolated`` set; a
+    ``)`` that closes an ``if``/``while``/``for``/``with`` condition has
+    ``closes_condition`` set, because a regular expression may follow it.
     """
 
     kind: str
     value: str
     interpolated: bool = False
+    closes_condition: bool = False
 
 
 class JsScanError(Exception):
@@ -115,7 +120,7 @@ def _regex_allowed(tokens: list[JsToken]) -> bool:
     if last.kind == "name":
         return last.value in JS_REGEX_KEYWORDS
     if last.kind == "punct":
-        return last.value not in {")", "]", "}"}
+        return last.closes_condition or last.value not in {")", "]", "}"}
     return False
 
 
@@ -179,6 +184,8 @@ def js_tokens(source: str) -> list[JsToken]:  # noqa: PLR0912, PLR0915 - one bra
     tokens: list[JsToken] = []
     # One entry per open brace: True when it closes a template substitution.
     braces: list[bool] = []
+    # One entry per open parenthesis: True when it holds a statement condition.
+    parens: list[bool] = []
     i = 0
     while i < len(source):
         char = source[i]
@@ -225,15 +232,40 @@ def js_tokens(source: str) -> list[JsToken]:  # noqa: PLR0912, PLR0915 - one bra
             i = match.end()
         else:
             punct = next((p for p in JS_PUNCTUATORS if source.startswith(p, i)), char)
+            closes_condition = False
             if char == "{":
                 braces.append(False)
             elif char == "}" and braces:
                 braces.pop()
-            tokens.append(JsToken("punct", punct))
+            elif char == "(":
+                last = tokens[-1] if tokens else None
+                parens.append(
+                    last is not None
+                    and last.kind == "name"
+                    and last.value in JS_CONDITION_KEYWORDS
+                )
+            elif char == ")" and parens:
+                closes_condition = parens.pop()
+            tokens.append(JsToken("punct", punct, closes_condition=closes_condition))
             i += len(punct)
     if braces and any(braces):
         raise JsScanError("unterminated template literal")
     return tokens
+
+
+def _matching_paren(tokens: list[JsToken], start: int) -> int | None:
+    """Return the index of the ``)`` matching the ``(`` at ``start``."""
+    depth = 0
+    for index in range(start, len(tokens)):
+        if tokens[index].kind != "punct":
+            continue
+        if tokens[index].value == "(":
+            depth += 1
+        elif tokens[index].value == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
 
 
 def js_import_specifiers(source: str) -> Iterator[JsToken | None]:
@@ -241,24 +273,37 @@ def js_import_specifiers(source: str) -> Iterator[JsToken | None]:
     Yield the specifier token of every import; None for import(expression).
 
     Covers ``import "x"``, ``import ... from "x"``, ``export ... from "x"`` and
-    ``import("x")``. Property access such as ``loader.import(...)`` or
-    ``Array.from(...)``, and ``import.meta``, are not imports.
+    ``import("x")`` (optionally with import attributes). Property access such
+    as ``loader.import(...)`` or ``Array.from(...)``, ``import.meta``, and a
+    method declared as ``import(name) {...}`` are not imports.
     """
     tokens = js_tokens(source)
     literal = {"string", "template"}
+
+    def at(index: int) -> JsToken | None:
+        return tokens[index] if 0 <= index < len(tokens) else None
+
     for index, token in enumerate(tokens):
         if token.kind != "name" or token.value not in {"import", "from"}:
             continue
-        before = tokens[index - 1] if index else None
-        if before is not None and before.value in {".", "?."}:
+        before, after = at(index - 1), at(index + 1)
+        if after is None or (before is not None and before.value in {".", "?."}):
             continue
-        after = tokens[index + 1 : index + 3]
-        if not after:
+        if after.kind in literal:
+            yield after
             continue
-        if after[0].kind in literal:
-            yield after[0]
-        elif token.value == "import" and after[0].value == "(":
-            yield after[1] if len(after) > 1 and after[1].kind in literal else None
+        if token.value != "import" or after.value != "(":
+            continue
+        close = _matching_paren(tokens, index + 1)
+        following = at(close + 1) if close is not None else None
+        if following is not None and following.value == "{":
+            continue  # a method named import
+        argument, end = at(index + 2), at(index + 3)
+        if argument is not None and argument.interpolated:
+            yield argument
+            continue
+        complete = end is not None and end.value in {")", ","}
+        yield argument if argument and argument.kind in literal and complete else None
 
 
 def _git(root: Path, *args: str) -> str:

@@ -329,6 +329,10 @@ def test_imported_tracked_chunks_pass(repo: FakeRepo, tmp_path: Path) -> None:
         ),
         ("import(`./${name}.js`);", "has an interpolated import specifier"),
         ("const m=import(name);", "has a dynamic import() of an expression"),
+        (
+            "import('./side.js' + '.missing');",
+            "has a dynamic import() of an expression",
+        ),
     ],
 )
 def test_external_or_unresolvable_js_specifier_fails(
@@ -349,6 +353,11 @@ def test_external_or_unresolvable_js_specifier_fails(
         'const t=`a ${b ? `x${c}` : "y"} import("lit")`;',
         'const half=a/2,q="/";import"./side.js";',
         "const url=import.meta.url;",
+        "if (ready) /import('lit')/.test(text);",
+        "while(x)/from 'y'/.exec(z);",
+        "class Loader { import(name) { return name; } }",
+        "const o={import(n){return n}};",
+        'import("./side.js", { with: { type: "json" } });',
     ],
 )
 def test_js_comments_strings_and_regexes_are_not_imports(
