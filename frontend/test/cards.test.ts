@@ -15,6 +15,37 @@ import {
   UnraidServerCardEditor,
   UnraidSharesCardEditor,
 } from "../src/dashboard-cards-editor";
+
+// Home Assistant's ha-form, as far as the editors use it.
+class HaFormStub extends HTMLElement {
+  data?: Record<string, unknown>;
+  schema?: { name: string; selector: Record<string, unknown> }[];
+  computeLabel?: (schema: { name: string }) => string;
+  computeHelper?: (schema: { name: string }) => string | undefined;
+}
+customElements.define("ha-form", HaFormStub);
+
+function haForm(editor: HTMLElement): HaFormStub {
+  return editor.shadowRoot!.querySelector("ha-form") as HaFormStub;
+}
+
+function formFields(editor: HTMLElement): string[] {
+  return haForm(editor).schema!.map((field) => field.name);
+}
+
+function selectOptions(editor: HTMLElement, name: string): string[] {
+  const field = haForm(editor).schema!.find((f) => f.name === name)!;
+  return (
+    field.selector.select as { options: { value: string }[] }
+  ).options.map((option) => option.value);
+}
+
+function editForm(editor: HTMLElement, changes: Record<string, unknown>): void {
+  const form = haForm(editor);
+  form.dispatchEvent(
+    new CustomEvent("value-changed", { detail: { value: { ...form.data, ...changes } } })
+  );
+}
 import workloadSnapshot from "./fixtures/workloads.json";
 import storageSnapshot from "./fixtures/storage-suffixed.json";
 import type { HomeAssistant } from "../src/ha-types";
@@ -672,8 +703,14 @@ describe("Unraid Custom Cards", () => {
     document.body.appendChild(editor);
     await editor.updateComplete;
 
-    expect(editor.shadowRoot?.innerHTML).toContain("Unraid Server");
-    expect(editor.shadowRoot?.innerHTML).toContain("Custom Title");
+    expect(formFields(editor)).toEqual(
+      ["server", "title", "show_system_info"]
+    );
+    expect(haForm(editor).data!.title).toBe("My Tower");
+    expect(haForm(editor).computeLabel!({ name: "server" })).toBe("Unraid server");
+    expect(haForm(editor).schema![0]!.selector).toEqual({
+      device: { filter: { integration: "unraid" } },
+    });
     document.body.removeChild(editor);
   });
 
@@ -684,8 +721,14 @@ describe("Unraid Custom Cards", () => {
     document.body.appendChild(editor);
     await editor.updateComplete;
 
-    expect(editor.shadowRoot?.innerHTML).toContain("Unraid Server");
-    expect(editor.shadowRoot?.innerHTML).toContain("Custom Title");
+    expect(formFields(editor)).toEqual(
+      ["server", "title"]
+    );
+    expect(haForm(editor).data!.title).toBe("My Shares");
+    expect(haForm(editor).computeLabel!({ name: "server" })).toBe("Unraid server");
+    expect(haForm(editor).schema![0]!.selector).toEqual({
+      device: { filter: { integration: "unraid" } },
+    });
     document.body.removeChild(editor);
   });
 
@@ -806,8 +849,14 @@ describe("Unraid Custom Cards", () => {
     document.body.appendChild(editor);
     await editor.updateComplete;
 
-    expect(editor.shadowRoot?.innerHTML).toContain("Unraid Server");
-    expect(editor.shadowRoot?.innerHTML).toContain("Custom Title");
+    expect(formFields(editor)).toEqual(
+      ["server", "title"]
+    );
+    expect(haForm(editor).data!.title).toBe("My Network");
+    expect(haForm(editor).computeLabel!({ name: "server" })).toBe("Unraid server");
+    expect(haForm(editor).schema![0]!.selector).toEqual({
+      device: { filter: { integration: "unraid" } },
+    });
     document.body.removeChild(editor);
   });
 });
@@ -1055,11 +1104,8 @@ describe("workload filter editors", () => {
     editor.hass = createMockHass();
     document.body.appendChild(editor);
     await editor.updateComplete;
-    const select =
-      editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!;
-    expect(select).not.toBeNull();
-    expect(select.value).toBe("stopped");
-    expect([...select.options].map((o) => o.value)).toEqual(
+    expect(haForm(editor).data!.default_filter).toBe("stopped");
+    expect(selectOptions(editor, "default_filter")).toEqual(
       spec.updates
         ? ["all", "running", "paused", "stopped", "updates"]
         : ["all", "running", "stopped"]
@@ -1068,8 +1114,7 @@ describe("workload filter editors", () => {
     editor.addEventListener("config-changed", (event) => {
       saved = (event as CustomEvent).detail.config;
     });
-    select.value = "running";
-    select.dispatchEvent(new Event("change"));
+    editForm(editor, { default_filter: "running" });
     expect(saved.default_filter).toBe("running");
     expect(saved.container_labels).toEqual({ plex: "Media" });
     expect(saved.vm_labels).toEqual({ "Home Assistant": "HA" });
@@ -1109,18 +1154,17 @@ describe("Docker filter defaults", () => {
 describe("VM editor filter compatibility", () => {
   afterEach(() => document.body.replaceChildren());
   it.each(["updates", "unknown"])(
-    "shows all for unsupported default %s",
-    async (filter) => {
+    "sends an unsupported default %s to the YAML editor",
+    (filter) => {
+      // Home Assistant shows the YAML editor when setConfig throws, rather
+      // than letting the form silently rewrite the value.
       const editor = new UnraidVmCardEditor();
-      editor.setConfig({
-        type: "custom:unraid-vm-card",
-        default_filter: filter as "updates",
-      });
-      document.body.appendChild(editor);
-      await editor.updateComplete;
-      expect(
-        editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value
-      ).toBe("all");
+      expect(() =>
+        editor.setConfig({
+          type: "custom:unraid-vm-card",
+          default_filter: filter as "updates",
+        })
+      ).toThrow("default_filter");
     }
   );
 });
@@ -1432,15 +1476,18 @@ describe("dashboard accessibility and action safeguards", () => {
     });
     document.body.append(editor);
     await editor.updateComplete;
-    expect(
-      editor.shadowRoot!.querySelector<HTMLSelectElement>("#view_mode")!.value
-    ).toBe("list");
-    expect(
-      editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value
-    ).toBe("updates");
+    expect(haForm(editor).data!.view_mode).toBe("list");
+    expect(haForm(editor).data!.default_filter).toBe("updates");
+    expect(formFields(editor)).toEqual([
+      "server",
+      "title",
+      "view_mode",
+      "default_filter",
+      "show_system_info",
+    ]);
     editor.setConfig({ ...editor._config!, type: "custom:unraid-server-card" });
     await editor.updateComplete;
-    expect(editor.shadowRoot!.querySelector("#view_mode")).toBeNull();
+    expect(formFields(editor)).not.toContain("view_mode");
     expect(editor._config!.vm_labels).toEqual({ Backup: "Spare" });
     expect(editor._config!.view_mode).toBe("list");
   });
@@ -2110,7 +2157,8 @@ describe("Docker paused lifecycle and controls", () => {
     const editor = new Editor() as UnraidDockerCardEditor;
     editor.setConfig({ type: Editor === UnraidDockerCardEditor ? "custom:unraid-docker-card" : "custom:unraid-dashboard-card", default_filter: "paused" });
     document.body.append(editor); await editor.updateComplete;
-    expect(editor.shadowRoot!.querySelector<HTMLSelectElement>("#default_filter")!.value).toBe("paused");
+    expect(haForm(editor).data!.default_filter).toBe("paused");
+    expect(selectOptions(editor, "default_filter")).toContain("paused");
   });
 });
 
@@ -2135,4 +2183,98 @@ it.each(["docker_container_pause", "pause_container"])("keeps pause-prefixed con
   expect(hass.callService).toHaveBeenLastCalledWith("button", "press", { entity_id: `button.cube_${prefix}_pause_container_media` });
   card.remove();
   vi.restoreAllMocks();
+});
+
+describe("card form editor", () => {
+  afterEach(() => document.body.replaceChildren());
+
+  async function openEditor(config: Record<string, unknown>) {
+    const editor = new UnraidDockerCardEditor();
+    editor.setConfig({ type: "custom:unraid-dashboard-card", ...config });
+    document.body.append(editor);
+    await editor.updateComplete;
+    const saved: Record<string, unknown>[] = [];
+    editor.addEventListener("config-changed", (event) =>
+      saved.push((event as CustomEvent).detail.config)
+    );
+    return { editor, saved };
+  }
+
+  it("shows the card's defaults without writing them to the config", async () => {
+    const { editor, saved } = await openEditor({ container_labels: { a: "A" } });
+    expect(haForm(editor).data).toMatchObject({
+      view_mode: "grid",
+      default_filter: "all",
+      show_system_info: true,
+    });
+    editForm(editor, { title: "Rack" });
+    expect(saved.at(-1)).toEqual({
+      type: "custom:unraid-dashboard-card",
+      container_labels: { a: "A" },
+      title: "Rack",
+    });
+  });
+
+  it("stores a changed default and removes a cleared field", async () => {
+    const { editor, saved } = await openEditor({
+      title: "Rack",
+      server: "0123456789abcdef0123456789abcdef",
+    });
+    editForm(editor, { show_system_info: false, title: "", server: undefined });
+    expect(saved.at(-1)).toEqual({
+      type: "custom:unraid-dashboard-card",
+      show_system_info: false,
+    });
+  });
+
+  it("labels fields and explains the optional ones", async () => {
+    const { editor } = await openEditor({});
+    const form = haForm(editor);
+    expect(form.computeLabel!({ name: "show_system_info" })).toBe("Show system details");
+    expect(form.computeLabel!({ name: "other" })).toBe("other");
+    expect(form.computeHelper!({ name: "title" })).toContain("default title");
+    expect(form.computeHelper!({ name: "view_mode" })).toBeUndefined();
+  });
+
+  it.each([
+    [{ server: "Cube" }, "server"],
+    [{ server: 7 }, "server"],
+    [{ title: 3 }, "title"],
+    [{ view_mode: "cards" }, "view_mode"],
+    [{ show_system_info: "yes" }, "show_system_info"],
+  ])("sends %j to the YAML editor", (config, message) => {
+    const editor = new UnraidDockerCardEditor();
+    expect(() =>
+      editor.setConfig({ type: "custom:unraid-dashboard-card", ...config } as never)
+    ).toThrow(message);
+  });
+
+  it("accepts a device ID and options other cards use", () => {
+    const editor = new UnraidServerCardEditor();
+    expect(() =>
+      editor.setConfig({
+        type: "custom:unraid-server-card",
+        server: "0123456789abcdef0123456789abcdef",
+        view_mode: "anything",
+        default_filter: "anything",
+      } as never)
+    ).not.toThrow();
+  });
+
+  it("ignores value changes before it has a config", () => {
+    const editor = new UnraidDockerCardEditor();
+    const events: Event[] = [];
+    editor.addEventListener("config-changed", (event) => events.push(event));
+    (editor as unknown as { _valueChanged: (ev: CustomEvent) => void })._valueChanged(
+      new CustomEvent("value-changed", { detail: { value: { title: "x" } } })
+    );
+    expect(events).toEqual([]);
+  });
+
+  it("renders nothing without a config", async () => {
+    const editor = new UnraidDockerCardEditor();
+    document.body.append(editor);
+    await editor.updateComplete;
+    expect(editor.shadowRoot!.querySelector("ha-form")).toBeNull();
+  });
 });

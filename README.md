@@ -293,6 +293,8 @@ The unified dashboard uses accessible tabs: Left/Right moves focus (following RT
 | `default_filter` | Docker, VM, unified dashboard | `all`, `running`, `stopped`; `paused` and `updates` apply to Docker only |
 | `container_labels`, `vm_labels` | Corresponding card, unified dashboard | YAML only; preserved by the editor |
 
+The visual editor uses Home Assistant's own form controls: a device picker that lists only Unraid servers, a text field, drop-down lists and a switch. It shows each card's defaults without writing them to the card's YAML, and clearing a field returns it to the default. A card whose `server` is a name rather than a picked device, or whose option has a value that card doesn't offer, opens in the code editor instead, so nothing is rewritten silently.
+
 The frontend uses **TypeScript 7.0.2**, pinned in both its package manifest and lockfile. CI installs with `npm ci` and runs `tsc --noEmit`, unit tests, the bundle build and Chromium regression tests. The design follows Home Assistant's [custom-card guidance](https://contributors.home-assistant.io/frontend/custom-ui/card/) and [accessibility foundations](https://contributors.home-assistant.io/design/foundations/accessibility/) with fallbacks for the supported HA 2026.9 baseline.
 
 ### Interactive More-Info Dialogs

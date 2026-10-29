@@ -402,18 +402,20 @@ export const dashboardCardStyles = [
       gap: var(--ha-space-3, 12px);
       font-size: var(--ha-font-size-m, 14px);
     }
+    /* Static and clickable items share one box, so both rows line up. */
     .detail-item {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: var(--ha-space-1, 4px);
       min-width: 0;
-    }
-    button.detail-item {
-      align-items: flex-start;
       min-block-size: var(--ha-space-12, 48px);
       padding: var(--ha-space-1, 4px);
       border: 1px solid transparent;
       border-radius: var(--ha-border-radius-md, 8px);
+      box-sizing: border-box;
+    }
+    button.detail-item {
       background: transparent;
     }
     .detail-label {

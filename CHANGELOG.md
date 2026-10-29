@@ -20,11 +20,13 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - `SHA256SUMS` (in `sha256sum -c` format) replaces `SHA256SUM`, and each `unraid.zip` carries a signed build provenance attestation that `gh attestation verify` checks. Releases are published from a verified draft, so they work with release immutability ([#390](https://github.com/tinkerologie/ha-unraid/issues/390)).
 - On Home Assistant 2026.11 and later, changing the entity ID of the notifications event or a UPS energy sensor updates it in place instead of removing and re-adding it. The re-add fallback goes away in Home Assistant 2027.11 ([#394](https://github.com/tinkerologie/ha-unraid/issues/394)).
 - The manifest lists the `computers_network.nas_servers` category, so the Marketplace and the integrations catalog show Unraid under NAS & servers ([#394](https://github.com/tinkerologie/ha-unraid/issues/394)).
+- The dashboard card editors use Home Assistant's own form: a device picker limited to Unraid servers, text field, drop-down lists and switch, with Home Assistant's theming, keyboard and screen-reader behaviour. Defaults are shown but not written to the card's YAML. A `server` given by name, or an option value the card doesn't offer, opens the code editor instead of being rewritten ([#395](https://github.com/tinkerologie/ha-unraid/issues/395)).
 
 ### Fixed
 
 - `script/hassfest` works with Home Assistant Core 2026.11 and later, which moved the validator into `packages/hassfest`, and repairs existing local Core caches ([#391](https://github.com/tinkerologie/ha-unraid/issues/391)).
 - With more than one Unraid server, each server now gets its own "Authentication Failed" repair issue: one server reconnecting no longer clears another server's issue, and **Fix** reauthenticates the server the issue is about. On Home Assistant 2026.11 the issue belongs to its config entry, and removing the entry removes the issue on every version ([#394](https://github.com/tinkerologie/ha-unraid/issues/394)).
+- The server card's details grid lines up: static and clickable details now share one box, so the right-hand columns and the second row no longer sit lower or indented ([#395](https://github.com/tinkerologie/ha-unraid/issues/395)).
 
 ## [2026.10.5] - 2026-10-25
 
