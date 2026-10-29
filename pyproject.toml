@@ -94,6 +94,14 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
+# Deprecation warnings raised from the integration's own modules are errors.
+# The module field is a regex matched from the start of the warning's module;
+# (\.|$) covers every submodule but not e.g. custom_components.unraidx.
+# Third-party deprecations keep the default action.
+filterwarnings = [
+    'error::DeprecationWarning:custom_components\.unraid(\.|$)',
+    'error::PendingDeprecationWarning:custom_components\.unraid(\.|$)',
+]
 
 [tool.coverage.run]
 branch = true

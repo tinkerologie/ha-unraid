@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+import importlib.util
 import inspect
+import logging
+import subprocess
+import sys
+import warnings
+from pathlib import Path
+from types import ModuleType
 
 import probatio
 import pytest
@@ -12,6 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.unraid import config_flow, repairs, sensor
+from tests.conftest import DEPRECATION_REPORT_PATTERNS, is_deprecation_report
 
 
 def _sensor_classes_with(attr: str, value: object) -> list[tuple[type, object]]:
@@ -291,3 +299,139 @@ async def test_ups_energy_invalid_restored_state_is_ignored(
 
     assert entity._total_energy_kwh == 0.0
     assert "Could not restore UPS energy value" in caplog.text
+
+
+# =============================================================================
+# Deprecation checks (#391)
+# =============================================================================
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+HA_NEXT = REPO_ROOT / "script" / "ha_next.py"
+FORMAT_3 = (
+    "custom_components.unraid.sensor::CpuSensor provides the deprecated "
+    "_attr_unit, this will stop working in Home Assistant 2027.1, use "
+    "_attr_native_unit_of_measurement instead, please report it to the author"
+)
+
+
+def _load_ha_next() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("ha_next", HA_NEXT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_integration_deprecation_warning_is_an_error() -> None:
+    """pyproject.toml turns the integration's own deprecation warnings into errors."""
+    for category in (DeprecationWarning, PendingDeprecationWarning):
+        with pytest.raises(category):
+            warnings.warn_explicit(
+                "old API", category, "sensor.py", 1, "custom_components.unraid.sensor"
+            )
+        with pytest.raises(category):
+            warnings.warn_explicit(
+                "old API", category, "__init__.py", 1, "custom_components.unraid"
+            )
+
+
+def test_other_package_deprecation_warning_is_not_an_error() -> None:
+    """Only the integration matches; custom_components.unraidx keeps the default."""
+    with pytest.warns(DeprecationWarning, match="old API"):
+        warnings.warn_explicit(
+            "old API", DeprecationWarning, "x.py", 1, "custom_components.unraidx.x"
+        )
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        (
+            "Detected that custom integration 'unraid' calls async_get_device at "
+            "custom_components/unraid/cleanup.py, line 10: dr.async_get_device(). "
+            "This will stop working in Home Assistant 2027.8, please report it"
+        ),
+        (
+            "Detected that custom integration 'unraid' accesses hass.data. Please "
+            "report it to the author of the 'unraid' custom integration"
+        ),
+        (
+            "The deprecated constant PERCENTAGE was used from unraid. Use "
+            "UnitOfRatio.PERCENTAGE instead, please report it"
+        ),
+        (
+            "The deprecated function async_get_device was called from unraid. It "
+            "will stop working in Home Assistant 2027.8"
+        ),
+        FORMAT_3,
+        (
+            "custom_components.unraid.sensor::Outer.Inner provides the deprecated "
+            "_attr_x, this will stop working in Home Assistant 2027.1"
+        ),
+        (
+            "custom_components.unraid::UnraidEntity provides the deprecated _attr_x, "
+            "this will stop working in Home Assistant 2027.1"
+        ),
+    ],
+)
+def test_deprecation_report_matches(message: str) -> None:
+    assert is_deprecation_report(message)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Detected that custom integration 'other' calls async_get_device at x",
+        "Detected that integration 'unraid' calls async_get_device at x",
+        "Detected that custom integration 'unraidx' calls async_get_device at x",
+        "The deprecated constant PERCENTAGE was used from other. Use X instead",
+        "The deprecated constant PERCENTAGE was used from unraidx. Use X instead",
+        "custom_components.other.sensor::CpuSensor provides the deprecated _attr_x",
+        "custom_components.unraidx.sensor::CpuSensor provides the deprecated _attr_x",
+        "Could not restore UPS energy value",
+    ],
+)
+def test_deprecation_report_does_not_match(message: str) -> None:
+    assert not is_deprecation_report(message)
+
+
+def test_report_patterns_match_the_import_check() -> None:
+    """tests/conftest.py and script/ha_next.py must use the same three patterns."""
+    ha_next = _load_ha_next()
+    assert [p.pattern for p in DEPRECATION_REPORT_PATTERNS] == [
+        p.pattern for p in ha_next.DEPRECATION_REPORT_PATTERNS
+    ]
+
+
+def test_guard_captures_class_definition_reports(
+    deprecation_report_guard: list[str],
+) -> None:
+    """The guard sees reports from any logger, including the module logger."""
+    logging.getLogger("custom_components.unraid.sensor").warning(FORMAT_3)
+    logging.getLogger("homeassistant.helpers.frame").warning(
+        "Detected that custom integration 'unraid' accesses hass.data. Please x"
+    )
+    assert len(deprecation_report_guard) == 2
+    assert deprecation_report_guard[0].startswith("custom_components.unraid.sensor: ")
+    deprecation_report_guard.clear()  # the synthetic reports must not fail this test
+
+
+def test_import_check_passes_in_a_fresh_interpreter() -> None:
+    """
+    Every module imports with no deprecated use.
+
+    Class-definition reports fire at import time, before any fixture runs, so
+    only a fresh interpreter sees them.
+    """
+    result = subprocess.run(  # noqa: S603 - this interpreter and a repo script
+        [sys.executable, str(HA_NEXT), "import-check"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "No import errors or deprecated use found" in result.stdout

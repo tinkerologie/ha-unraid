@@ -1,0 +1,286 @@
+name: HA Next
+
+# Early warning for upcoming Home Assistant releases, on two channels:
+# - pypi: the newest homeassistant on PyPI, betas included;
+# - dev: the head of Core's dev branch, weeks before the next beta.
+# Each channel imports every module, runs the tests when a matching
+# pytest-homeassistant-custom-component exists, and runs Hassfest from the
+# same Core. It is not a required check: on main each channel opens, updates
+# or closes its own issue labelled ha-next and bug instead.
+on:
+  schedule:
+    - cron: 0 1 * * 1
+      timezone: Australia/Brisbane
+  workflow_dispatch:
+
+permissions: {}
+
+# Never cancel a run that may be updating the channel issues.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check (${{ matrix.channel }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # check out the repository
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [pypi, dev]
+    env:
+      VIRTUAL_ENV: ${{ github.workspace }}/.venv
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@2f29784424ba0f5755e2d0bbc18227082a5daff1 # v10.2.0
+        with:
+          version: 0.12.22
+          enable-cache: true
+
+      - name: Set up Python
+        run: |
+          uv python install 3.14.2
+          uv venv --python 3.14.2
+          echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve Home Assistant
+        id: resolve
+        env:
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          uv pip install packaging
+          python3 script/ha_next.py resolve --channel "$CHANNEL"
+
+      # An exact == pin or the dev archive URL lets uv take a pre-release for
+      # homeassistant only; --prerelease allow would pull them everywhere.
+      - name: Install Home Assistant
+        id: install
+        env:
+          HA_REQUIREMENT: ${{ steps.resolve.outputs.ha_requirement }}
+          HARNESS_VERSION: ${{ steps.resolve.outputs.harness_version }}
+        run: |
+          if [ -n "$HARNESS_VERSION" ]; then
+            uv pip install . ".[test]" "$HA_REQUIREMENT" \
+              "pytest-homeassistant-custom-component==$HARNESS_VERSION"
+          else
+            # Without a matching harness, an older one would pull an older HA.
+            uv pip install . "$HA_REQUIREMENT"
+          fi
+          python3 -c "from homeassistant.const import __version__; print('Installed Home Assistant', __version__)"
+
+      - name: Import every module
+        id: import_check
+        continue-on-error: true
+        run: python3 script/ha_next.py import-check
+
+      - name: Run tests
+        id: pytest
+        if: steps.resolve.outputs.harness_version != ''
+        continue-on-error: true
+        run: pytest --no-cov -q
+
+      - name: Run Hassfest from the same Core
+        id: hassfest
+        continue-on-error: true
+        env:
+          HA_VERSION: ${{ steps.resolve.outputs.hassfest_ref }}
+        run: script/hassfest
+
+      - name: Record result
+        if: always()
+        env:
+          CHANNEL: ${{ matrix.channel }}
+          HA_VERSION: ${{ steps.resolve.outputs.ha_version }}
+          HARNESS_VERSION: ${{ steps.resolve.outputs.harness_version }}
+          NOTE: ${{ steps.resolve.outputs.note }}
+          RESOLVE: ${{ steps.resolve.outcome }}
+          INSTALL: ${{ steps.install.outcome }}
+          IMPORT_CHECK: ${{ steps.import_check.outcome }}
+          PYTEST: ${{ steps.pytest.outcome }}
+          HASSFEST: ${{ steps.hassfest.outcome }}
+        run: |
+          mkdir -p ha-next-result
+          if [ -z "$HARNESS_VERSION" ] && [ "$RESOLVE" = success ]; then
+            PYTEST=skipped
+            if [ "$CHANNEL" = pypi ]; then
+              NOTE="No published pytest-homeassistant-custom-component release matches homeassistant ${HA_VERSION}; pytest skipped. ${NOTE}"
+            fi
+          fi
+          jq -n \
+            --arg channel "$CHANNEL" \
+            --arg ha_version "${HA_VERSION:-unresolved}" \
+            --arg harness_version "$HARNESS_VERSION" \
+            --arg note "$NOTE" \
+            --arg resolve "$RESOLVE" \
+            --arg install "${INSTALL:-not run}" \
+            --arg import_check "${IMPORT_CHECK:-not run}" \
+            --arg pytest "${PYTEST:-not run}" \
+            --arg hassfest "${HASSFEST:-not run}" \
+            '{channel: $channel, ha_version: $ha_version, harness_version: $harness_version,
+              note: $note,
+              outcomes: {resolve: $resolve, install: $install, import_check: $import_check,
+                         pytest: $pytest, hassfest: $hassfest}}' \
+            > ha-next-result/result.json
+          cat ha-next-result/result.json
+          {
+            echo "## HA Next: ${CHANNEL}"
+            echo
+            echo "| Channel | Home Assistant | Harness | Import check | Pytest | Hassfest |"
+            echo "| --- | --- | --- | --- | --- | --- |"
+            echo "| ${CHANNEL} | ${HA_VERSION:-unresolved} | ${HARNESS_VERSION:-none} | ${IMPORT_CHECK:-not run} | ${PYTEST:-not run} | ${HASSFEST:-not run} |"
+            if [ -n "$NOTE" ]; then
+              echo
+              echo "$NOTE"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Matrix legs overwrite each other's job outputs, so results travel as artifacts.
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ha-next-result-${{ matrix.channel }}
+          path: ha-next-result/result.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail on findings
+        if: always()
+        env:
+          RESOLVE: ${{ steps.resolve.outcome }}
+          INSTALL: ${{ steps.install.outcome }}
+          IMPORT_CHECK: ${{ steps.import_check.outcome }}
+          PYTEST: ${{ steps.pytest.outcome }}
+          HASSFEST: ${{ steps.hassfest.outcome }}
+          HARNESS_VERSION: ${{ steps.resolve.outputs.harness_version }}
+        run: |
+          # A check that never ran fails too; only pytest may be skipped, and
+          # only when no matching harness exists.
+          failed=false
+          for outcome in "$RESOLVE" "$INSTALL" "$IMPORT_CHECK" "$HASSFEST"; do
+            [ "$outcome" = success ] || failed=true
+          done
+          if [ -n "$HARNESS_VERSION" ] && [ "$PYTEST" != success ]; then
+            failed=true
+          fi
+          if [ "$failed" = true ]; then
+            echo "::error::The next Home Assistant breaks or deprecates something the integration uses; see the summary."
+            exit 1
+          fi
+
+  report:
+    name: Report (${{ matrix.channel }})
+    needs: check
+    # Only runs on main maintain the issues; a dispatch from a branch just checks.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write # open, comment on and close the channel issue
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [pypi, dev]
+    steps:
+      # Fails when the result is missing, so no issue changes without one.
+      - name: Download result
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ha-next-result-${{ matrix.channel }}
+          path: ha-next-result
+
+      - name: Open, update or close the channel issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHANNEL: ${{ matrix.channel }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("node:fs");
+            const { owner, repo } = context.repo;
+            const channel = process.env.CHANNEL;
+            const result = JSON.parse(fs.readFileSync("ha-next-result/result.json", "utf8"));
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const marker = `<!-- ha-next-channel: ${channel} -->`;
+            const o = result.outcomes;
+            const passed =
+              ["resolve", "install", "import_check", "hassfest"].every((k) => o[k] === "success") &&
+              (o.pytest === "success" || (o.pytest === "skipped" && !result.harness_version));
+
+            const table = [
+              "| Channel | Home Assistant | Harness | Import check | Pytest | Hassfest |",
+              "| --- | --- | --- | --- | --- | --- |",
+              `| ${channel} | ${result.ha_version} | ${result.harness_version || "none"} | ${o.import_check} | ${o.pytest} | ${o.hassfest} |`,
+            ].join("\n");
+            const details = [table, "", result.note, "", `Run: ${runUrl}`].join("\n");
+
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              labels: "ha-next",
+              state: "open",
+              per_page: 100,
+            });
+            const issue = open.find((item) => !item.pull_request && item.body?.includes(marker));
+
+            if (passed) {
+              if (issue) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `Home Assistant ${result.ha_version} passes on the ${channel} channel again.\n\n${details}`,
+                });
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+                core.info(`Closed #${issue.number}`);
+              }
+              return;
+            }
+
+            const failure = [
+              `The HA Next workflow failed on the \`${channel}\` channel against Home Assistant ${result.ha_version}.`,
+              "",
+              details,
+              "",
+              "Fix the integration code rather than weakening the checks; see the deprecation section of `AGENTS.md`.",
+            ].join("\n");
+            if (issue) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: failure });
+              core.info(`Commented on #${issue.number}`);
+              return;
+            }
+
+            // Issues opened with GITHUB_TOKEN never trigger the issue labeler, and
+            // CodeRabbit plans only issues labelled bug or enhancement, so set the
+            // labels at creation, creating any that are missing first.
+            const labels = [
+              { name: "ha-next", color: "fbca04", description: "Breakage or deprecation in the next Home Assistant release" },
+              { name: "bug", color: "d73a4a", description: "Something isn't working" },
+            ];
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, ...label });
+              } catch (error) {
+                if (error.status !== 422) throw error; // 422: already exists
+              }
+            }
+            const { data: created } = await github.rest.issues.create({
+              owner,
+              repo,
+              title: `HA Next (${channel}): compatibility check failed`,
+              labels: labels.map((label) => label.name),
+              body: `${marker}\n${failure}`,
+            });
+            core.info(`Opened #${created.number}`);

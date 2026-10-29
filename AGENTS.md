@@ -331,6 +331,11 @@ tests/
 - Registry behaviour is tested against the real registries from the `hass` fixture (`er.async_get(hass)`, `dr.async_get(hass)`) with `MockConfigEntry.add_to_hass(hass)`; never mock the registries
 - Full-integration tests use `hass.config_entries.async_setup(entry.entry_id)`; setting up the first entry of the domain loads every entry, and `async_register_frontend` / `UnraidWebSocketManager` must be patched
 - Deprecated core APIs raise `RuntimeError` in tests (`report_usage` with no integration frame), so a failing test that mentions "deprecated" means the code, not the test, must change
+- Deprecation checks are blocking (#391):
+  - `pyproject.toml` `filterwarnings` turns `DeprecationWarning` and `PendingDeprecationWarning` raised from `custom_components.unraid` into errors.
+  - The `deprecation_report_guard` fixture (first dependency of the autouse `auto_enable_custom_integrations`) fails a test when Home Assistant logs one of its three reports about `unraid`: `Detected that custom integration 'unraid' …` (frame helper), `The deprecated … was <verb> from unraid.` (deprecation helpers), and `custom_components.unraid.<module>::<Class> provides the deprecated <name>, …` (an entity class defining a deprecated member, HA 2026.11+).
+  - Class-definition reports fire at import time, before any fixture, so `tests/test_deprecation_currency.py` also runs `python3 script/ha_next.py import-check` in a fresh interpreter. Keep the three patterns in `tests/conftest.py` and `script/ha_next.py` identical (a test enforces it).
+  - When a check fires, fix the integration code; never weaken the filter, the patterns or the guard. A test that emits a report on purpose takes `deprecation_report_guard` and clears it.
 - After deploying to a live Home Assistant, search its log for `Detected that custom integration 'unraid'` (the `report_usage` deprecation report) and for `custom_components.unraid` warnings; both must be empty before a PR is opened
 
 ### Running Tests
@@ -415,6 +420,40 @@ an unresolved relative Python import, a missing `CARD_FILES` bundle or an
 unresolved frontend import. CI's `Release zip` job builds twice and compares
 the bytes. Try it locally with
 `python3 script/build_release.py --tag v$(jq -r .version custom_components/unraid/manifest.json)`.
+
+## Watching upcoming Home Assistant releases
+
+Two non-blocking scheduled workflows (both with `workflow_dispatch`) warn before
+a Home Assistant release breaks the integration:
+
+- **`HA Next`** (`ha-next.yml`, weekly) runs a matrix of two channels, resolved by
+  `script/ha_next.py resolve`: `pypi`, the newest `homeassistant` on PyPI
+  including betas (pinned exactly, never `--prerelease allow`), and `dev`, the
+  Core `dev` branch archive. Each channel runs the import check, `pytest` when a
+  matching `pytest-homeassistant-custom-component` exists (never for `dev`;
+  the summary says when it is skipped), and `script/hassfest` from the same
+  Core. On `main`, each channel keeps one open issue, labelled `ha-next` and
+  `bug` and found by its `<!-- ha-next-channel: … -->` marker: a failure opens
+  it or comments on it, a pass comments and closes it.
+- **`HA dev blog watch`** (`ha-dev-blog.yml`, weekly; dispatch takes `days`)
+  runs `script/ha_blog_watch.py scan`. It reads the developer blog feed and
+  takes inline code from paragraphs and list items that announce a change. It
+  searches the integration's code (not comments or strings) for that code and
+  opens one `HA dev blog: <post title>` issue, labelled `ha-dev-blog` and
+  `enhancement`, per post that names code the integration uses. Duplicates are
+  found by the post link in any issue body, open or closed.
+
+Workflow-created issues get `bug` or `enhancement` in the create call because
+issues opened with `GITHUB_TOKEN` never trigger `issue-labeler.yml`, and
+CodeRabbit only writes a coding plan for issues with one of those labels.
+Missing labels are created first.
+
+`script/hassfest` takes `HA_VERSION` (a tag or `dev`) and reconciles its sparse
+Core checkout on every run. From Core 2026.11 the validator lives in
+`packages/hassfest`; the script then runs it through
+`uv run --no-project --with-editable <core>/packages/hassfest`, so `uv` must be
+on `PATH`, and the installed `homeassistant` must match the Core it validates
+against.
 
 ## Debugging
 

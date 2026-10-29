@@ -1,0 +1,162 @@
+name: HA dev blog watch
+
+# Home Assistant announces deprecations and removals on its developer blog,
+# usually weeks before the beta that ships them. Once a week, match the new
+# posts against the integration and open one issue per post that names code
+# the integration uses. Every other post is listed in the job summary only.
+on:
+  schedule:
+    - cron: 0 2 * * 1
+      timezone: Australia/Brisbane
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Look-back window in days
+        required: false
+        default: "7"
+
+permissions: {}
+
+# Never cancel a run that may be opening issues.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Scan recent posts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # read the integration source
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14.2"
+
+      - name: Match recent posts against the integration
+        env:
+          DAYS: ${{ inputs.days || '7' }}
+        run: |
+          mkdir -p blog
+          python3 script/ha_blog_watch.py scan --days "$DAYS" > blog/report.json
+          jq '.posts[] | {title, status, error}' blog/report.json
+
+      - name: Upload report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ha-dev-blog-report
+          path: blog/report.json
+          if-no-files-found: error
+          retention-days: 14
+
+  report:
+    name: Open issues
+    needs: scan
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write # open one issue per matched post
+    steps:
+      - name: Download report
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ha-dev-blog-report
+          path: blog
+
+      - name: Open an issue per matched post
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("node:fs");
+            const { owner, repo } = context.repo;
+            const report = JSON.parse(fs.readFileSync("blog/report.json", "utf8"));
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const matched = report.posts.filter((post) => post.status === "matched");
+
+            // Issues opened with GITHUB_TOKEN never trigger the issue labeler, and
+            // CodeRabbit plans only issues labelled bug or enhancement, so set the
+            // labels at creation, creating any that are missing first.
+            const labels = [
+              { name: "ha-dev-blog", color: "fbca04", description: "Home Assistant developer blog change that affects the integration" },
+              { name: "enhancement", color: "a2eeef", description: "New feature or request" },
+            ];
+            if (matched.length) {
+              for (const label of labels) {
+                try {
+                  await github.rest.issues.createLabel({ owner, repo, ...label });
+                } catch (error) {
+                  if (error.status !== 422) throw error; // 422: already exists
+                }
+              }
+            }
+
+            // Deduplicate on the post link in any issue body, open or closed. The
+            // list endpoint is read directly; the search index can lag new issues.
+            const existing = matched.length
+              ? (await github.paginate(github.rest.issues.listForRepo, {
+                  owner,
+                  repo,
+                  state: "all",
+                  per_page: 100,
+                })).filter((item) => !item.pull_request)
+              : [];
+
+            const rows = [];
+            for (const post of matched) {
+              const duplicate = existing.find((item) => item.body?.includes(post.link));
+              if (duplicate) {
+                rows.push([`[${post.title}](${post.link})`, `#${duplicate.number} (existing)`]);
+                continue;
+              }
+              const uses = post.matches.map(
+                (m) => `- \`${m.token}\`: \`${m.file}:${m.line}\` \`${m.text.replaceAll("`", "'")}\``,
+              );
+              const body = [
+                `Home Assistant's developer blog announced a change on ${post.pub_date.slice(0, 10)} that names code the integration uses:`,
+                "",
+                `**[${post.title}](${post.link})**`,
+                "",
+                `Announced code: ${post.tokens.map((t) => `\`${t}\``).join(", ")}`,
+                "",
+                "Where the integration uses it:",
+                "",
+                ...uses,
+                "",
+                "Read the post, decide whether the integration needs a change and from which Home Assistant release, then fix it or close this issue with the reason.",
+                "",
+                "--------",
+                `Opened by the HA dev blog watch workflow: ${runUrl}`,
+              ].join("\n");
+              const { data: created } = await github.rest.issues.create({
+                owner,
+                repo,
+                title: `HA dev blog: ${post.title}`,
+                labels: labels.map((label) => label.name),
+                body,
+              });
+              rows.push([`[${post.title}](${post.link})`, `#${created.number} (new)`]);
+            }
+
+            const others = report.posts.filter((post) => post.status !== "matched");
+            const summary = core.summary.addHeading(`Developer blog, last ${report.days} days`, 2);
+            if (rows.length) {
+              summary.addTable([[{ data: "Matched post", header: true }, { data: "Issue", header: true }], ...rows]);
+            } else {
+              summary.addRaw("No post names code the integration uses.", true);
+            }
+            summary.addHeading("Other posts", 3);
+            summary.addList(
+              others.map((post) => `<a href="${post.link}">${post.title}</a>${post.error ? ` (could not be read: ${post.error})` : ""}`),
+            );
+            await summary.write();
+
+            const failed = report.posts.filter((post) => post.error);
+            if (failed.length) {
+              core.setFailed(`${failed.length} post page(s) could not be read; see the summary.`);
+            }

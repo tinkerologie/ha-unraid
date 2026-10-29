@@ -85,6 +85,18 @@ Look devices up per config entry (`dev_reg.async_get_device_by_identifier(
 (DOMAIN, uuid), entry.entry_id)`). Deprecated core APIs raise `RuntimeError`
 under pytest because there is no integration frame, so fix the code, not the test.
 
+## Deprecation Checks
+
+Every test fails when the integration raises a `DeprecationWarning` or
+`PendingDeprecationWarning` (`filterwarnings` in `pyproject.toml`), or when Home
+Assistant logs a deprecation report about `unraid` (the autouse
+`deprecation_report_guard` fixture in `conftest.py`). Fix the integration; never
+weaken the filter, the three report patterns or the guard. A test that emits a
+report on purpose requests `deprecation_report_guard` and clears it. Import-time
+reports are caught by `script/ha_next.py import-check`, which
+`test_deprecation_currency.py` runs in a fresh interpreter; keep its patterns
+identical to `conftest.py`.
+
 ## Full-Integration Setup
 
 `await hass.config_entries.async_setup(entry.entry_id)` loads the integration

@@ -67,6 +67,9 @@ ignore = [
     "D103",    # Docstrings not required in CLI script helpers
     "INP001",  # Implicit namespace package (scripts aren't packages)
 ]
+# CI helpers that read public PyPI and developer-blog data, never the Unraid
+# server; every other file keeps the unraid-api network ban below.
+"script/{ha_next,ha_blog_watch}.py" = ["T201", "D103", "INP001", "TID251"]
 
 # Banned imports — all Unraid server I/O must go through UnraidClient (unraid-api).
 # If the needed feature is missing, open an issue at https://github.com/tinkerologie/unraid-api
