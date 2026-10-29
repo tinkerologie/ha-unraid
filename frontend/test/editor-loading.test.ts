@@ -32,7 +32,7 @@ describe("loading Home Assistant's form", () => {
     expect(editor.shadowRoot!.querySelector("ha-form")).not.toBeNull();
 
     // Once defined, later editors render the form straight away.
-    await expect(loadHaForm()).resolves.toBeUndefined();
+    await expect(loadHaForm()).resolves.toBe(true);
     const next = new UnraidServerCardEditor();
     next.setConfig({ type: "custom:unraid-server-card" });
     document.body.append(next);

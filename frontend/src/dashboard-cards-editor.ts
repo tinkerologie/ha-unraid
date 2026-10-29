@@ -144,6 +144,7 @@ export function assertCardConfig(config: CardConfig): void {
 
 let haFormLoading: Promise<void> | undefined;
 
+
 /**
  * Make sure Home Assistant's `ha-form` is defined.
  *
@@ -151,27 +152,33 @@ let haFormLoading: Promise<void> | undefined;
  * imports it, so asking for that editor loads it (the approach community
  * cards such as Mushroom use).
  */
-export function loadHaForm(): Promise<void> {
-  if (customElements.get("ha-form")) return Promise.resolve();
+export async function loadHaForm(): Promise<boolean> {
+  if (customElements.get("ha-form")) return true;
   haFormLoading ??= (async () => {
     const buttonCard = customElements.get("hui-button-card") as
       | (CustomElementConstructor & { getConfigElement?: () => Promise<unknown> })
       | undefined;
     await buttonCard?.getConfigElement?.();
-  })().catch(() => undefined);
-  return haFormLoading;
+  })()
+    .catch(() => undefined)
+    .finally(() => {
+      // A failed attempt (e.g. a dropped connection) is retried next time.
+      if (!customElements.get("ha-form")) haFormLoading = undefined;
+    });
+  await haFormLoading;
+  return Boolean(customElements.get("ha-form"));
 }
 
 export class UnraidCardEditor extends LitElement {
   static override properties = {
     hass: { attribute: false },
     _config: { state: true },
-    _formReady: { state: true },
+    _formState: { state: true },
   };
 
   declare hass?: HomeAssistant;
   declare _config?: CardConfig;
-  declare _formReady: boolean;
+  declare _formState: "loading" | "ready" | "failed";
   /** What the form showed: the config plus the defaults the card applies. */
   private _shown: Record<string, unknown> = {};
 
@@ -184,14 +191,15 @@ export class UnraidCardEditor extends LitElement {
 
   constructor() {
     super();
-    this._formReady = Boolean(customElements.get("ha-form"));
+    this._formState = customElements.get("ha-form") ? "ready" : "loading";
   }
 
   override connectedCallback(): void {
     super.connectedCallback();
-    if (!this._formReady) {
-      void loadHaForm().then(() => {
-        this._formReady = Boolean(customElements.get("ha-form"));
+    if (this._formState !== "ready") {
+      this._formState = "loading";
+      void loadHaForm().then((loaded) => {
+        this._formState = loaded ? "ready" : "failed";
       });
     }
   }
@@ -227,8 +235,12 @@ export class UnraidCardEditor extends LitElement {
 
   protected override render(): TemplateResult {
     if (!this._config) return html``;
-    if (!this._formReady) {
-      return html`<p class="unavailable">Loading the editor…</p>`;
+    if (this._formState !== "ready") {
+      return html`<p class="unavailable">
+        ${this._formState === "loading"
+          ? "Loading the editor…"
+          : "The visual editor could not load. Use the code editor, or reopen this card's editor to try again."}
+      </p>`;
     }
     const schema = cardFormSchema(this._config.type);
     const data: Record<string, unknown> = { ...this._config };
