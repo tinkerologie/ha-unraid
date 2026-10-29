@@ -151,10 +151,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      # actions/setup-python has no 3.14.2 build for the Ubuntu 26.04 runner;
+      # install it with uv, as the Test job does.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@2f29784424ba0f5755e2d0bbc18227082a5daff1 # v10.2.0
         with:
-          python-version: "3.14.2"
+          version: 0.12.22
+
+      - name: Set up Python
+        run: uv python install 3.14.2
 
       - name: Resolve tag and timestamp
         id: release
@@ -170,8 +175,8 @@ jobs:
         run: |
           # The builder refuses to write a zip with a broken layout; building
           # twice proves the same commit always gives the same bytes.
-          python3 script/build_release.py --tag "$TAG" --output-dir build/a
-          python3 script/build_release.py --tag "$TAG" --output-dir build/b
+          uv run --no-project --python 3.14.2 script/build_release.py --tag "$TAG" --output-dir build/a
+          uv run --no-project --python 3.14.2 script/build_release.py --tag "$TAG" --output-dir build/b
           cmp build/a/unraid.zip build/b/unraid.zip
           cmp build/a/SHA256SUMS build/b/SHA256SUMS
           (cd build/a && sha256sum -c SHA256SUMS)
