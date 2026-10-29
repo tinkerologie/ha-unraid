@@ -92,6 +92,22 @@ async def test_auth_failure_raises_an_issue_for_the_entry(
     assert ir.async_get(hass).async_get_issue(DOMAIN, REPAIR_AUTH_FAILED) is None
 
 
+async def test_auth_failure_replaces_the_legacy_shared_issue(
+    hass: HomeAssistant, client: MagicMock
+) -> None:
+    """After an upgrade with the key still revoked, only the entry's issue remains."""
+    entry = _entry("tower")
+    entry.add_to_hass(hass)
+    _raise_legacy_issue(hass)
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await async_setup_entry(hass, entry)
+
+    registry = ir.async_get(hass)
+    assert registry.async_get_issue(DOMAIN, REPAIR_AUTH_FAILED) is None
+    assert registry.async_get_issue(DOMAIN, auth_failed_issue_id(entry.entry_id))
+
+
 async def test_config_entry_id_is_passed_only_when_supported(
     hass: HomeAssistant, client: MagicMock
 ) -> None:

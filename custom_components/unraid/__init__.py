@@ -354,6 +354,9 @@ def _async_create_auth_issue(
         data={"entry_id": entry.entry_id},
         **belongs_to,
     )
+    # The shared issue from before #394 would duplicate it and could
+    # reauthenticate the wrong server.
+    ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
 
 
 @callback
