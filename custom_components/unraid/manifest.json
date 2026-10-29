@@ -2,6 +2,7 @@
   "domain": "unraid",
   "name": "Unraid",
   "after_dependencies": ["http", "frontend", "lovelace"],
+  "categories": ["computers_network.nas_servers"],
   "codeowners": ["@ruaan-deysel"],
   "config_flow": true,
   "dependencies": [],

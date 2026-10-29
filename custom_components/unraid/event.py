@@ -14,7 +14,7 @@ from .coordinator import (
     UnraidNotificationEventData,
     UnraidSystemCoordinator,
 )
-from .entity import UnraidBaseEntity
+from .entity import UnraidBaseEntity, async_delegate_entity_id_changed
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -64,6 +64,10 @@ class UnraidNotificationsEventEntity(
         )
         self._attr_translation_key = self.entity_description.translation_key
         self._attr_event_types = self.entity_description.event_types or []
+
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Change the entity ID in place; the listener is not keyed on it."""
+        async_delegate_entity_id_changed(super(), old_entity_id)
 
     async def async_added_to_hass(self) -> None:
         """Register coordinator event listener when added to Home Assistant."""

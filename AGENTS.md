@@ -283,6 +283,24 @@ them raise `RuntimeError` through `report_usage`:
 | `data_entry_flow.FlowResult` as a step return type | `ConfigFlowResult` / `RepairsFlowResult` | 2024.x |
 | `"%"`, `"GiB"` and other unit string literals | `UnitOfRatio.PERCENTAGE`, `UnitOfInformation.GIBIBYTES`, ... | 2026.7 |
 
+Home Assistant 2026.11 follow-ups (#394), keep them when touching these areas:
+
+- An entity class that overrides `async_added_to_hass`, `async_will_remove_from_hass`
+  or `async_prepare_to_add_to_hass` must also define `async_entity_id_changed`
+  that calls `async_delegate_entity_id_changed(super(), old_entity_id)`
+  (`entity.py`). Otherwise 2026.11 removes and re-adds it on an entity ID change,
+  and 2027.11 drops that fallback. `tests/test_entity.py` fails on a class that
+  misses it.
+- Repair issues that concern one config entry put the entry ID in the issue ID
+  (`auth_failed_issue_id(entry_id)`), carry `data={"entry_id": ...}`, and pass
+  `config_entry_id=` only where `ir.async_create_issue` accepts it (2026.11+;
+  see `_ISSUES_TAKE_CONFIG_ENTRY`). `async_remove_entry` deletes them for older releases.
+- `manifest.json` has `categories` (`computers_network.nas_servers`). Hassfest
+  from a Core older than 2026.11 rejects the key, so validate locally with
+  `HA_VERSION=2026.11.0b1` or later; CI's Hassfest image accepts it.
+- Every `async_show_form`/`async_show_menu`/`async_show_progress` passes
+  `step_id` (required from 2027.5).
+
 Still current and expected: `cv.config_entry_only_config_schema`, `ConfigType`,
 frozen `EntityDescription` dataclasses, `UpdateFailed(retry_after=...)`,
 `ServiceValidationError`, `ir.async_create_issue`, `er.async_migrate_entries` /

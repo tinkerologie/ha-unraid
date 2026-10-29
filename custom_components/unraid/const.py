@@ -139,7 +139,14 @@ WS_REFRESH_DEBOUNCE_SECONDS: Final = 10  # seconds
 # =============================================================================
 # Repair Issue IDs
 # =============================================================================
+# Also the translation key, and the ID of the shared issue used before #394.
 REPAIR_AUTH_FAILED: Final = "auth_failed"
+
+
+def auth_failed_issue_id(entry_id: str) -> str:
+    """Return the ID of a config entry's authentication repair issue."""
+    return f"{REPAIR_AUTH_FAILED}_{entry_id}"
+
 
 # =============================================================================
 # Network Interface Filters

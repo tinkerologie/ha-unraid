@@ -9,7 +9,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.unraid.const import DOMAIN, REPAIR_AUTH_FAILED
+from custom_components.unraid.const import (
+    DOMAIN,
+    REPAIR_AUTH_FAILED,
+    auth_failed_issue_id,
+)
 from custom_components.unraid.repairs import (
     AuthFailedRepairFlow,
     async_create_fix_flow,
@@ -65,7 +69,7 @@ async def test_auth_failed_repair_flow_confirm_starts_reauth(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
 ) -> None:
-    """Test auth failed repair flow starts reauth when user submits."""
+    """The legacy shared issue names no entry, so the first entry reauthenticates."""
     mock_config_entry.add_to_hass(hass)
 
     flow = AuthFailedRepairFlow()
@@ -86,14 +90,56 @@ async def test_auth_failed_repair_flow_confirm_starts_reauth(
     assert call_kwargs[1]["context"]["entry_id"] == mock_config_entry.entry_id
 
 
-async def test_auth_failed_repair_flow_confirm_no_entries(
+async def test_auth_failed_repair_flow_reauthenticates_its_own_entry(
     hass: HomeAssistant,
 ) -> None:
-    """Test auth failed repair flow handles no config entries gracefully."""
-    flow = AuthFailedRepairFlow()
+    """A per-entry issue reauthenticates the entry it names, not the first one."""
+    first = MockConfigEntry(domain=DOMAIN, title="first", data={"host": "a"})
+    second = MockConfigEntry(domain=DOMAIN, title="second", data={"host": "b"})
+    first.add_to_hass(hass)
+    second.add_to_hass(hass)
+
+    flow = await async_create_fix_flow(
+        hass, auth_failed_issue_id(second.entry_id), {"entry_id": second.entry_id}
+    )
+    flow.hass = hass
+
+    with patch.object(
+        hass.config_entries.flow, "async_init", return_value={"flow_id": "test"}
+    ) as mock_init:
+        result = await flow.async_step_confirm(user_input={})
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    mock_init.assert_called_once()
+    assert mock_init.call_args[1]["context"]["entry_id"] == second.entry_id
+
+
+@pytest.mark.parametrize(
+    ("issue_id", "data"),
+    [
+        (auth_failed_issue_id("gone"), {"entry_id": "gone"}),
+        (REPAIR_AUTH_FAILED, None),
+    ],
+    ids=["entry_removed", "legacy_without_entries"],
+)
+async def test_auth_failed_repair_flow_aborts_without_entry(
+    hass: HomeAssistant, issue_id: str, data: dict | None
+) -> None:
+    """With no matching entry there is nothing to reauthenticate."""
+    flow = await async_create_fix_flow(hass, issue_id, data)
     flow.hass = hass
 
     result = await flow.async_step_confirm(user_input={})
 
-    # Should still create entry even with no config entries
-    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "entry_not_found"
+
+
+async def test_fix_flow_ignores_non_string_entry_id(hass: HomeAssistant) -> None:
+    """Malformed issue data falls back to the legacy behaviour."""
+    flow = await async_create_fix_flow(
+        hass, auth_failed_issue_id("x"), {"entry_id": 123}
+    )
+    assert isinstance(flow, AuthFailedRepairFlow)
+    assert flow._entry_id is None

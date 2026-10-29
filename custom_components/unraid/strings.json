@@ -88,6 +88,9 @@
             "title": "Reauthenticate Unraid",
             "description": "The API key for {host} is no longer valid. Click submit to enter a new API key."
           }
+        },
+        "abort": {
+          "entry_not_found": "This Unraid server is no longer configured."
         }
       }
     }
