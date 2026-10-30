@@ -82,9 +82,12 @@ export const dashboardCardStyles = [
       justify-content: space-between;
       gap: var(--ha-space-3, 12px);
     }
+    /* The title's natural width is the basis, so the badge stays beside it
+       until both no longer fit; only then does the header wrap (e.g. a long
+       Shares badge), and the title is never clipped to make room. */
     .header-main {
       display: flex;
-      flex: 1;
+      flex: 1 1 auto;
       align-items: center;
       gap: var(--ha-space-3, 12px);
       min-width: 0;
@@ -495,9 +498,6 @@ export const dashboardCardStyles = [
       gap: var(--ha-space-2, 8px);
     }
     @container (max-width: 360px) {
-      .header-main {
-        flex-basis: 100%;
-      }
       .list-row {
         flex-wrap: wrap;
       }
