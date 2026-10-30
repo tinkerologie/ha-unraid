@@ -98,7 +98,29 @@ mypy custom_components
 
 # Run all pre-commit hooks across all files
 pre-commit run --all-files
+
+# Import every module with deprecations recorded (also part of pytest)
+python3 script/ha_next.py import-check
+
+# Validate with Hassfest; HA_VERSION selects the Core tag or dev (needs uv for 2026.11+)
+HA_VERSION=2026.11.0b1 ./script/hassfest
 ```
+
+### Deprecation checks
+
+`pytest` fails when the integration raises a `DeprecationWarning` or
+`PendingDeprecationWarning`, or when Home Assistant logs a deprecation report
+naming `unraid` (`Detected that custom integration 'unraid' …`, `The deprecated
+… was used from unraid.`, `custom_components.unraid.<module>::<Class> provides
+the deprecated …`). Fix the code; don't weaken the checks.
+
+Two scheduled workflows warn about the next release early and can be started by
+hand from the Actions tab (**Run workflow**):
+
+- **HA Next** checks the newest Home Assistant on PyPI (betas included) and Core
+  `dev`, and keeps one `ha-next` issue per channel.
+- **HA dev blog watch** (optional `days` input) opens a `ha-dev-blog` issue for
+  each developer blog post that names code the integration uses.
 
 ---
 

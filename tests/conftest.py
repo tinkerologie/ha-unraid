@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
@@ -246,14 +248,79 @@ def make_infra_data(
     )
 
 
+# =============================================================================
+# Home Assistant deprecation reports
+# =============================================================================
+
+# Home Assistant logs deprecated use by an integration instead of raising
+# DeprecationWarning, so a passing test would hide it. In order: the frame
+# helper (report_usage); the deprecation helpers for constants, aliases and
+# functions (logged through the deprecated object's module logger); an entity
+# class that still defines a deprecated member (logged at class definition).
+# Keep these three patterns identical to DEPRECATION_REPORT_PATTERNS in
+# script/ha_next.py, which catches the import-time reports this guard can't see.
+DEPRECATION_REPORT_PATTERNS = (
+    re.compile(r"Detected that custom integration 'unraid' "),
+    re.compile(r"The deprecated .+ was \w+ from unraid\."),
+    re.compile(r"custom_components\.unraid(?:\.\w+)*::[\w.]+ provides the deprecated "),
+)
+
+
+def is_deprecation_report(message: str) -> bool:
+    """Return whether a log message reports deprecated use by this integration."""
+    return any(pattern.search(message) for pattern in DEPRECATION_REPORT_PATTERNS)
+
+
+class _DeprecationReportCollector(logging.Handler):
+    """Root-logger handler that keeps Home Assistant deprecation reports."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.reports: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        message = record.getMessage()
+        if is_deprecation_report(message):
+            self.reports.append(f"{record.name}: {message}")
+
+
+@pytest.fixture
+def deprecation_report_guard() -> Generator[list[str]]:
+    """
+    Fail the test when Home Assistant reports deprecated use by ``unraid``.
+
+    The handler sits on the root logger from setup to teardown, so reports from
+    fixtures, the test and ``hass`` shutdown are all seen, and ``caplog.clear()``
+    cannot remove them. Fix the integration code; don't weaken this guard.
+    """
+    collector = _DeprecationReportCollector()
+    root = logging.getLogger()
+    root.addHandler(collector)
+    try:
+        yield collector.reports
+    finally:
+        root.removeHandler(collector)
+    if collector.reports:
+        pytest.fail(
+            "Home Assistant reported deprecated use by unraid:\n"
+            + "\n".join(collector.reports),
+            pytrace=False,
+        )
+
+
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
+def auto_enable_custom_integrations(
+    deprecation_report_guard: list[str], enable_custom_integrations: None
+) -> None:
     """
     Enable custom integrations for all tests.
 
     This fixture uses the enable_custom_integrations fixture from
     pytest-homeassistant-custom-component to allow Home Assistant
     to load custom components from the custom_components directory.
+
+    ``deprecation_report_guard`` comes first, so it is set up before ``hass``
+    and torn down after the ``hass`` cleanup.
     """
     return
 

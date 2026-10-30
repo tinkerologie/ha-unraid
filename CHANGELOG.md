@@ -7,10 +7,21 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Added
+
+- Catch Home Assistant deprecations in CI ([#391](https://github.com/tinkerologie/ha-unraid/issues/391)):
+  - The test suite fails when the integration raises a deprecation warning or Home Assistant logs a deprecation report about it, including the class-definition report added in 2026.11. A fresh-interpreter import check of every module runs as part of the tests.
+  - A weekly, non-blocking **HA Next** workflow tests the newest Home Assistant on PyPI (betas included) and Core `dev`, and keeps one `ha-next` issue per channel open while it fails.
+  - A weekly **HA dev blog watch** opens a `ha-dev-blog` issue for each developer blog post that announces a change to code the integration uses.
+
 ### Changed
 
 - Releases ship `unraid.zip` with the integration's files at the zip root, built reproducibly from the files Git tracks and checked before publishing (manifest version, Python and frontend imports, card bundles). `hacs.json` sets `zip_release` and `filename`, so HACS and the Marketplace install this zip and show its download count. Releases published before this change don't carry the zip and can fail to download through HACS or the Marketplace ([#390](https://github.com/tinkerologie/ha-unraid/issues/390)).
 - `SHA256SUMS` (in `sha256sum -c` format) replaces `SHA256SUM`, and each `unraid.zip` carries a signed build provenance attestation that `gh attestation verify` checks. Releases are published from a verified draft, so they work with release immutability ([#390](https://github.com/tinkerologie/ha-unraid/issues/390)).
+
+### Fixed
+
+- `script/hassfest` works with Home Assistant Core 2026.11 and later, which moved the validator into `packages/hassfest`, and repairs existing local Core caches ([#391](https://github.com/tinkerologie/ha-unraid/issues/391)).
 
 ## [2026.10.5] - 2026-10-25
 
