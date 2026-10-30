@@ -24,6 +24,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Fixed
 
+- In narrow dashboard cards, the header status badge (such as the VM card's "1 Running") stays beside the title when it fits, instead of always dropping onto its own line. A long badge still wraps ([#400](https://github.com/tinkerologie/ha-unraid/issues/400)).
 - With Unraid API 4.37.8 or later, a stopped Docker or VM service (array stopped, Docker disabled, VM manager off) no longer makes every system entity unavailable, and VM switches, sensors and diagnostics show the VM UUID again. Requires `unraid-api` 1.14.1 ([#398](https://github.com/tinkerologie/ha-unraid/issues/398), [unraid-api#135](https://github.com/tinkerologie/unraid-api/issues/135)).
 - `script/hassfest` works with Home Assistant Core 2026.11 and later, which moved the validator into `packages/hassfest`, and repairs existing local Core caches ([#391](https://github.com/tinkerologie/ha-unraid/issues/391)).
 - With more than one Unraid server, each server now gets its own "Authentication Failed" repair issue: one server reconnecting no longer clears another server's issue, and **Fix** reauthenticates the server the issue is about. On Home Assistant 2026.11 the issue belongs to its config entry, and removing the entry removes the issue on every version ([#394](https://github.com/tinkerologie/ha-unraid/issues/394)).

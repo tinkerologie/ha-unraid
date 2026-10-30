@@ -636,3 +636,33 @@ for (const mode of ["grid", "list"]) {
     await expect(card.getByRole("button", { name: /Show details for sleeping/ })).toBeVisible();
   });
 }
+
+test("header badges stay beside the title until they no longer fit", async ({ page }) => {
+  const layout = await page.evaluate(async () => {
+    const result: Record<string, { wrapped: boolean; clipped: boolean }> = {};
+    for (const [id, width] of [
+      ["vm-card", 340],
+      ["shares-card", 300],
+    ] as const) {
+      const card = document.getElementById(id) as HTMLElement & {
+        updateComplete: Promise<unknown>;
+      };
+      card.style.width = `${width}px`;
+      await card.updateComplete;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const root = card.shadowRoot!;
+      const main = root.querySelector(".header-main")!.getBoundingClientRect();
+      const badge = root.querySelector(".header-actions")!.getBoundingClientRect();
+      const title = root.querySelector<HTMLElement>(".header-title")!;
+      result[id] = {
+        wrapped: badge.top >= main.bottom - 2,
+        clipped: title.scrollWidth > title.clientWidth,
+      };
+    }
+    return result;
+  });
+  // A short badge fits beside the title in a narrow (one-third) column.
+  expect(layout["vm-card"]).toEqual({ wrapped: false, clipped: false });
+  // A long badge wraps instead of squeezing the title.
+  expect(layout["shares-card"]).toEqual({ wrapped: true, clipped: false });
+});
