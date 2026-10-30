@@ -131,11 +131,22 @@ test("reduced motion removes card transitions", async ({ page }) => {
   ).toBe(true);
 });
 
-test("editors only expose system-details settings where they apply", async ({
+test("editors load Home Assistant's form and only show the fields that apply", async ({
   page,
 }) => {
-  const settings = await page.evaluate(async () => {
-    const rows: boolean[] = [];
+  const fields = await page.evaluate(async () => {
+    // Stand-ins for Home Assistant: its button card's editor import defines ha-form.
+    class HaForm extends HTMLElement {
+      schema?: { name: string }[];
+    }
+    class ButtonCard extends HTMLElement {
+      static async getConfigElement(): Promise<void> {
+        customElements.define("ha-form", HaForm);
+      }
+    }
+    customElements.define("hui-button-card", ButtonCard);
+
+    const result: Record<string, string[]> = {};
     for (const type of ["docker", "vm", "server", "dashboard"]) {
       const editor = document.createElement(
         `unraid-${type}-card-editor`
@@ -145,13 +156,23 @@ test("editors only expose system-details settings where they apply", async ({
       };
       editor.setConfig({ type: `custom:unraid-${type}-card` });
       document.body.append(editor);
-      await editor.updateComplete;
-      rows.push(Boolean(editor.shadowRoot!.querySelector('input[type="checkbox"]')));
+      let form: HaForm | null = null;
+      for (let i = 0; i < 50 && !form; i++) {
+        await editor.updateComplete;
+        form = editor.shadowRoot!.querySelector<HaForm>("ha-form");
+        if (!form) await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      result[type] = form?.schema?.map((field) => field.name) ?? [];
       editor.remove();
     }
-    return rows;
+    return result;
   });
-  expect(settings).toEqual([false, false, true, true]);
+  expect(fields).toEqual({
+    docker: ["server", "title", "view_mode", "default_filter"],
+    vm: ["server", "title", "default_filter"],
+    server: ["server", "title", "show_system_info"],
+    dashboard: ["server", "title", "view_mode", "default_filter", "show_system_info"],
+  });
 });
 
 for (const [theme, variables] of Object.entries({
