@@ -3,5 +3,7 @@
     "render_readme": true,
     "country": [],
     "homeassistant": "2026.9.0",
-    "hacs": "2.0.1"
+    "hacs": "2.0.1",
+    "zip_release": true,
+    "filename": "unraid.zip"
   }

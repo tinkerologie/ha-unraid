@@ -7,6 +7,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Changed
+
+- Releases ship `unraid.zip` with the integration's files at the zip root, built reproducibly from the files Git tracks and checked before publishing (manifest version, Python and frontend imports, card bundles). `hacs.json` sets `zip_release` and `filename`, so HACS and the Marketplace install this zip and show its download count. Releases published before this change don't carry the zip and can fail to download through HACS or the Marketplace ([#390](https://github.com/tinkerologie/ha-unraid/issues/390)).
+- `SHA256SUMS` (in `sha256sum -c` format) replaces `SHA256SUM`, and each `unraid.zip` carries a signed build provenance attestation that `gh attestation verify` checks. Releases are published from a verified draft, so they work with release immutability ([#390](https://github.com/tinkerologie/ha-unraid/issues/390)).
+
 ## [2026.10.5] - 2026-10-25
 
 ### Security

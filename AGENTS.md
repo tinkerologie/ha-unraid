@@ -396,6 +396,26 @@ Longer explanation if needed.
 
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`
 
+## Releases
+
+A manifest version bump on `main` with a matching `## [VERSION]` CHANGELOG
+section makes `release.yml` tag `vVERSION`, then build and publish in the same run:
+
+- **`build`** (read-only, `id-token`/`attestations: write`) checks out the tag
+  and runs `script/build_release.py --tag vVERSION`. It packages the files Git
+  tracks under `custom_components/unraid/` **at the zip root** as `unraid.zip`
+  (HACS and the Marketplace extract it straight into `custom_components/unraid/`),
+  writes `SHA256SUMS`, and attests the zip.
+- **`publish`** (`contents: write`) verifies the checksum and attestation,
+  uploads to a draft, then publishes, so release immutability works.
+
+`hacs.json` sets `zip_release: true` and `filename: "unraid.zip"`; never rename
+the asset or nest it in a folder. The builder fails on a manifest/tag mismatch,
+an unresolved relative Python import, a missing `CARD_FILES` bundle or an
+unresolved frontend import. CI's `Release zip` job builds twice and compares
+the bytes. Try it locally with
+`python3 script/build_release.py --tag v$(jq -r .version custom_components/unraid/manifest.json)`.
+
 ## Debugging
 
 ```yaml

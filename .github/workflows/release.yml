@@ -13,6 +13,14 @@ on:
 permissions:
   contents: read # jobs request only what they need
 
+# Runs for the same commit (and so the same tag and draft) are serialised and
+# never cancelled: a run must not delete or publish a draft another run is still
+# filling. Keyed by commit because GitHub keeps only one pending run per group,
+# so a shared group could drop a waiting release for another version.
+concurrency:
+  group: release-${{ github.sha }}
+  cancel-in-progress: false
+
 jobs:
   auto_tag:
     name: Tag Release
@@ -136,7 +144,7 @@ jobs:
             echo "Move the \`[Unreleased]\` notes under a \`## [$VERSION]\` heading and push the change together with a manifest.json update to trigger the release." >> $GITHUB_STEP_SUMMARY
           else
             echo "Created and pushed tag $TAG from manifest.json version." >> $GITHUB_STEP_SUMMARY
-            echo "The release job in this workflow run will now build and publish the release." >> $GITHUB_STEP_SUMMARY
+            echo "The build and publish jobs in this workflow run will now build, attest and publish the release." >> $GITHUB_STEP_SUMMARY
           fi
 
   # Runs in two ways:
@@ -146,8 +154,12 @@ jobs:
   #      a separate tag-triggered run would never start.
   #   2. Directly from a manually pushed v* tag (auto_tag is skipped; the
   #      `!cancelled()` keeps this job eligible despite the skipped dependency).
-  release:
-    name: Release
+  #
+  # build has no write access to the repository: it builds unraid.zip from the
+  # tag commit and signs a build provenance attestation. publish only verifies
+  # and uploads those exact bytes.
+  build:
+    name: Build and attest
     needs: auto_tag
     if: >-
       !cancelled() && (
@@ -156,116 +168,94 @@ jobs:
       )
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read # check out the tag
+      id-token: write # mint the OIDC token that signs the attestation
+      attestations: write # store the build provenance attestation
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+      commit: ${{ steps.commit.outputs.sha }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Determine version
-        id: version
+      - name: Resolve tag
+        id: tag
         env:
           AUTO_TAG_VERSION: ${{ needs.auto_tag.outputs.version }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            # Triggered by a manually pushed tag (e.g., v2025.12.0 -> 2025.12.0)
-            VERSION=${GITHUB_REF#refs/tags/v}
+            # Triggered by a manually pushed tag (e.g. refs/tags/v2026.10.5)
+            TAG="${GITHUB_REF#refs/tags/}"
           else
             # Same-run release after auto_tag created the tag
-            VERSION="${AUTO_TAG_VERSION}"
+            TAG="v${AUTO_TAG_VERSION}"
           fi
 
-          if [ -z "$VERSION" ]; then
-            echo "ERROR: could not determine release version"
+          if [ "$TAG" = "v" ]; then
+            echo "ERROR: could not determine release tag"
             exit 1
           fi
 
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          VERSION="${TAG#v}"
+          {
+            echo "tag=$TAG"
+            echo "ref=refs/tags/$TAG"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+          echo "Tag: $TAG"
 
           # Check if this is a pre-release
           if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
             echo "This is a pre-release"
           else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
             echo "This is a stable release"
           fi
 
-      - name: Verify manifest.json version matches tag
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.tag.outputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Record tag commit
+        id: commit
         env:
-          VERSION_VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          MANIFEST_VERSION=$(python3 -c "import json; print(json.load(open('custom_components/unraid/manifest.json'))['version'])")
-          TAG_VERSION="${VERSION_VERSION}"
+          SHA=$(git rev-parse "${TAG}^{commit}")
+          # Zip timestamps come from the tag commit, so the tag rebuilds byte-identically.
+          EPOCH=$(git log -1 --format=%ct "$SHA")
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "epoch=$EPOCH" >> "$GITHUB_OUTPUT"
+          echo "Commit: $SHA (SOURCE_DATE_EPOCH=$EPOCH)"
 
-          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
-            echo "ERROR: manifest.json version ($MANIFEST_VERSION) does not match tag ($TAG_VERSION)"
-            exit 1
-          fi
+      # actions/setup-python has no 3.14.2 build for the Ubuntu 26.04 runner;
+      # install it with uv, as the Test job does.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@2f29784424ba0f5755e2d0bbc18227082a5daff1 # v10.2.0
+        with:
+          version: 0.12.22
 
-          echo "✅ manifest.json version matches tag: $TAG_VERSION"
+      - name: Set up Python
+        run: uv python install 3.14.2
 
-      - name: Build release package
+      - name: Build release zip
         env:
-          VERSION_VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          SOURCE_DATE_EPOCH: ${{ steps.commit.outputs.epoch }}
         run: |
-          echo "Building release package..."
-
-          # Create build directory
-          mkdir -p build
-
-          # Create the integration package (zip file for HACS compatibility)
-          PACKAGE_FILE="build/unraid-${VERSION_VERSION}.zip"
-
-          # Package the custom_components directory
-          cd custom_components
-          zip -r "../$PACKAGE_FILE" unraid/ \
-            -x "*.pyc" \
-            -x "*__pycache__*" \
-            -x "*.git*" \
-            -x "*.DS_Store"
-          cd ..
-
-          # Verify the package was created
-          if [ ! -f "$PACKAGE_FILE" ]; then
-            echo "ERROR: Package file not found: $PACKAGE_FILE"
-            ls -la build/
-            exit 1
-          fi
-
-          echo "✅ Package created: $PACKAGE_FILE"
-          ls -lh "$PACKAGE_FILE"
-
-          # Show package contents
-          echo ""
-          echo "Package contents:"
-          unzip -l "$PACKAGE_FILE" | head -20
-
-      - name: Calculate SHA256 checksum
-        id: checksum
-        env:
-          VERSION_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          PACKAGE_FILE="build/unraid-${VERSION_VERSION}.zip"
-
-          # Calculate SHA256 checksum
-          SHA256=$(sha256sum "$PACKAGE_FILE" | awk '{print $1}')
-
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
-          echo "✅ SHA256 checksum: $SHA256"
-
-          # Save checksum to file for release notes
-          echo "$SHA256" > build/SHA256SUM
+          # Fails before writing anything if manifest.json does not match the tag
+          # or a file the integration imports is not tracked.
+          uv run --no-project --python 3.14.2 script/build_release.py --tag "$TAG" --output-dir build
+          unzip -l build/unraid.zip
+          cat build/SHA256SUMS
 
       - name: Extract release notes from CHANGELOG
-        id: changelog
         env:
-          VERSION_VERSION: ${{ steps.version.outputs.version }}
-          CHECKSUM_SHA256: ${{ steps.checksum.outputs.sha256 }}
+          VERSION_VERSION: ${{ steps.tag.outputs.version }}
         run: |
           VERSION="${VERSION_VERSION}"
 
@@ -288,8 +278,6 @@ jobs:
               if [ -z "$NOTES" ]; then
                 echo "⚠️  No release notes found for version $VERSION in CHANGELOG.md"
                 NOTES="See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for details."
-              else
-                echo "✅ Extracted release notes for version $VERSION"
               fi
             else
               echo "⚠️  Version $VERSION not found in CHANGELOG.md"
@@ -307,86 +295,184 @@ jobs:
           fi
 
           # Add installation instructions
-          echo "" >> build/RELEASE_NOTES.md
-          echo "---" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-          echo "## 📦 Installation" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-          echo "### Via HACS (Recommended)" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-          echo "1. Open HACS in Home Assistant" >> build/RELEASE_NOTES.md
-          echo "2. Go to **Integrations**" >> build/RELEASE_NOTES.md
-          echo "3. Click the **⋮** menu → **Custom repositories**" >> build/RELEASE_NOTES.md
-          echo "4. Add this repository: \`https://github.com/${GITHUB_REPOSITORY}\`" >> build/RELEASE_NOTES.md
-          echo "5. Category: **Integration**" >> build/RELEASE_NOTES.md
-          echo "6. Click **Add**" >> build/RELEASE_NOTES.md
-          echo "7. Search for **Unraid**" >> build/RELEASE_NOTES.md
-          echo "8. Click **Download**" >> build/RELEASE_NOTES.md
-          echo "9. Restart Home Assistant" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-          echo "### Manual Installation" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-          echo "1. Download \`unraid-$VERSION.zip\`" >> build/RELEASE_NOTES.md
-          echo "2. Extract to \`config/custom_components/\`" >> build/RELEASE_NOTES.md
-          echo "3. Restart Home Assistant" >> build/RELEASE_NOTES.md
-          echo "4. Add the integration via **Settings** → **Devices & Services** → **Add Integration**" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-
-          # Add SHA256 checksum to release notes
-          echo "---" >> build/RELEASE_NOTES.md
-          echo "" >> build/RELEASE_NOTES.md
-          echo "**SHA256 Checksum:**" >> build/RELEASE_NOTES.md
-          echo "\`\`\`" >> build/RELEASE_NOTES.md
-          echo "${CHECKSUM_SHA256}  unraid-$VERSION.zip" >> build/RELEASE_NOTES.md
-          echo "\`\`\`" >> build/RELEASE_NOTES.md
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 📦 Installation"
+            echo ""
+            echo "### Via HACS (Recommended)"
+            echo ""
+            echo "1. Open HACS in Home Assistant"
+            echo "2. Go to **Integrations**"
+            echo "3. Click the **⋮** menu → **Custom repositories**"
+            echo "4. Add this repository: \`https://github.com/${GITHUB_REPOSITORY}\`"
+            echo "5. Category: **Integration**"
+            echo "6. Click **Add**"
+            echo "7. Search for **Unraid**"
+            echo "8. Click **Download**"
+            echo "9. Restart Home Assistant"
+            echo ""
+            echo "### Manual Installation"
+            echo ""
+            echo "1. Download \`unraid.zip\`"
+            echo "2. Extract it into \`config/custom_components/unraid/\` (the integration's files are at the root of the zip)"
+            echo "3. Restart Home Assistant"
+            echo "4. Add the integration via **Settings** → **Devices & Services** → **Add Integration**"
+            echo ""
+            echo "---"
+            echo ""
+            echo "**SHA256SUMS:**"
+            echo "\`\`\`"
+            cat build/SHA256SUMS
+            echo "\`\`\`"
+            echo ""
+            echo "**Verify the download** (in the folder with \`unraid.zip\` and \`SHA256SUMS\`):"
+            echo "\`\`\`sh"
+            echo "sha256sum -c SHA256SUMS"
+            echo "gh attestation verify unraid.zip --repo ${GITHUB_REPOSITORY} --signer-workflow ${GITHUB_REPOSITORY}/.github/workflows/release.yml"
+            echo "\`\`\`"
+          } >> build/RELEASE_NOTES.md
 
           cat build/RELEASE_NOTES.md
 
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION_VERSION: ${{ steps.version.outputs.version }}
-          VERSION_PRERELEASE: ${{ steps.version.outputs.prerelease }}
-        run: |
-          TAG="v${VERSION_VERSION}"
-          PRE_FLAG=""
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: build/unraid.zip
 
-          if [ "${VERSION_PRERELEASE}" = "true" ]; then
-            PRE_FLAG="--prerelease"
+      - name: Stage release assets
+        run: cp CHANGELOG.md build/CHANGELOG.md
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: |
+            build/unraid.zip
+            build/SHA256SUMS
+            build/RELEASE_NOTES.md
+            build/CHANGELOG.md
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the draft, upload assets and publish the release
+      attestations: read # verify the build attestation before publishing
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.build.outputs.tag }}
+      COMMIT: ${{ needs.build.outputs.commit }}
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release
+
+      - name: Verify checksum and provenance
+        working-directory: release
+        run: |
+          sha256sum -c SHA256SUMS
+          # The command the README gives users, also bound to the tag commit.
+          gh attestation verify unraid.zip \
+            --repo "$GH_REPO" \
+            --signer-workflow "$GH_REPO/.github/workflows/release.yml" \
+            --source-digest "$COMMIT"
+
+      - name: Remove a stale draft
+        run: |
+          # A rerun after a failed publish finds the earlier run's draft for this
+          # tag: delete it (the tag stays) so the rerun starts from one clean
+          # draft. Never touch a published release; its assets may be immutable.
+          if ! STATE=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            echo "No release exists for $TAG"
+          elif [ "$STATE" = "true" ]; then
+            echo "Deleting the stale draft release for $TAG"
+            gh release delete "$TAG" --yes
+          else
+            echo "::error::A published release already exists for $TAG; refusing to replace its assets."
+            exit 1
           fi
 
+      - name: Create draft release with assets
+        working-directory: release
+        env:
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          PRE_FLAG=()
+          if [ "$PRERELEASE" = "true" ]; then
+            PRE_FLAG=(--prerelease)
+          fi
+
+          # Immutable releases lock assets on publish, so upload to a draft first.
           gh release create "$TAG" \
-            build/unraid-${VERSION_VERSION}.zip \
-            build/SHA256SUM \
+            unraid.zip \
+            SHA256SUMS \
             CHANGELOG.md \
+            --draft \
+            --verify-tag \
             --title "$TAG" \
-            --notes-file build/RELEASE_NOTES.md \
-            $PRE_FLAG
+            --notes-file RELEASE_NOTES.md \
+            "${PRE_FLAG[@]}"
+
+      - name: Publish release
+        run: gh release edit "$TAG" --draft=false
+
+      - name: Verify the immutable release
+        working-directory: release
+        run: |
+          IMMUTABLE=$(gh release view "$TAG" --json isImmutable --jq .isImmutable)
+          if [ "$IMMUTABLE" != "true" ]; then
+            echo "::warning::$TAG is not immutable. Enable Settings → General → Releases → Enable release immutability so releases get a release attestation."
+            exit 0
+          fi
+          # GitHub creates the release attestation shortly after publication,
+          # so retry for about a minute before failing.
+          for attempt in $(seq 1 12); do
+            if gh release verify "$TAG"; then
+              break
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "::error::No release attestation for immutable release $TAG."
+              exit 1
+            fi
+            echo "Release attestation not available yet (attempt $attempt/12); retrying in 5 seconds."
+            sleep 5
+          done
+          gh release verify-asset "$TAG" unraid.zip
 
       - name: Release Summary
+        working-directory: release
         env:
-          VERSION_VERSION: ${{ steps.version.outputs.version }}
-          CHECKSUM_SHA256: ${{ steps.checksum.outputs.sha256 }}
-          VERSION_PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
         run: |
-          echo "## 🎉 v${VERSION_VERSION} Released Successfully!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Package:** \`unraid-${VERSION_VERSION}.zip\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**SHA256 Checksum:** \`${CHECKSUM_SHA256}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release URL:** https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION_VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${VERSION_PRERELEASE}" == "true" ]; then
-            echo "**Type:** Pre-release" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**Type:** Stable release" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Release created and package uploaded" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ HACS users can now update to v${VERSION_VERSION}" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Manual installation package available for download" >> $GITHUB_STEP_SUMMARY
+          CHECKSUM=$(awk '{print $1}' SHA256SUMS)
+          {
+            echo "## 🎉 ${TAG} Released Successfully!"
+            echo ""
+            echo "**Package:** \`unraid.zip\` (built and attested from \`${COMMIT}\`)"
+            echo ""
+            echo "**SHA256 Checksum:** \`${CHECKSUM}\`"
+            echo ""
+            echo "**Release URL:** https://github.com/${GH_REPO}/releases/tag/${TAG}"
+            echo ""
+            if [ "${PRERELEASE}" == "true" ]; then
+              echo "**Type:** Pre-release"
+            else
+              echo "**Type:** Stable release"
+            fi
+            echo ""
+            echo "### 📋 Next Steps"
+            echo ""
+            echo "- ✅ Release created and package uploaded"
+            echo "- ✅ HACS and Marketplace users can now update to ${TAG} (they install \`unraid.zip\`)"
+            echo "- ✅ Manual installation package available for download"
+          } >> "$GITHUB_STEP_SUMMARY"

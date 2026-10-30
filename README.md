@@ -80,10 +80,33 @@ Docker update entities provide a release-notes panel with cached image details, 
 
 ### Manual Installation
 
-1. Download this repository as ZIP
-2. Extract the `custom_components/unraid` folder
-3. Copy it to your Home Assistant `config/custom_components/` directory
+1. Download `unraid.zip` from the [latest release](https://github.com/tinkerologie/ha-unraid/releases/latest)
+2. Create `config/custom_components/unraid/` in your Home Assistant configuration directory
+3. Extract `unraid.zip` into that folder. The integration's files (`manifest.json`, `__init__.py`, ...) are at the root of the zip, so they land directly in `custom_components/unraid/`
 4. Restart Home Assistant
+
+HACS and the Home Assistant Marketplace install the same `unraid.zip`, and the
+"Downloaded N times" figure they show is that asset's download count on the
+latest release. Releases published before the zip was introduced (2026.10.5 and
+earlier) don't carry `unraid.zip`, so choosing one of them in HACS or the
+Marketplace can fail to download.
+
+#### Verify the download
+
+Each release ships `unraid.zip`, a `SHA256SUMS` file and a signed build
+provenance attestation. In the folder holding both files:
+
+```sh
+# The checksum matches the release
+sha256sum -c SHA256SUMS
+
+# The zip was built by this repository's release workflow
+gh attestation verify unraid.zip --repo tinkerologie/ha-unraid \
+  --signer-workflow tinkerologie/ha-unraid/.github/workflows/release.yml
+
+# Immutable releases only: the asset belongs to the published release
+gh release verify-asset <tag> unraid.zip --repo tinkerologie/ha-unraid
+```
 
 ## Configuration
 
