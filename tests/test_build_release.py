@@ -358,6 +358,7 @@ def test_external_or_unresolvable_js_specifier_fails(
         "class Loader { import(name) { return name; } }",
         "const o={import(n){return n}};",
         'import("./side.js", { with: { type: "json" } });',
+        "let n=1;const half=n++/2,rest=n--/2;import'./side.js';",
     ],
 )
 def test_js_comments_strings_and_regexes_are_not_imports(

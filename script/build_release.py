@@ -63,7 +63,7 @@ UNIX_SYSTEM = 3  # external_attr then carries the Unix file mode
 # JavaScript is tokenized (comments, strings, template literals and regular
 # expression literals) so that text inside them is never read as an import.
 JS_NAME = re.compile(r"[\w$\u0080-\uffff]+")
-JS_PUNCTUATORS = ("?.", "...")
+JS_PUNCTUATORS = ("?.", "...", "++", "--")
 # A ")" closing the condition of these statements may be followed by a regex.
 JS_CONDITION_KEYWORDS = frozenset({"for", "if", "while", "with"})
 # A "/" after these keywords starts a regular expression, not a division.
@@ -120,7 +120,8 @@ def _regex_allowed(tokens: list[JsToken]) -> bool:
     if last.kind == "name":
         return last.value in JS_REGEX_KEYWORDS
     if last.kind == "punct":
-        return last.closes_condition or last.value not in {")", "]", "}"}
+        # A "/" after a postfix ++ or -- is a division: count++ / 2.
+        return last.closes_condition or last.value not in {")", "]", "}", "++", "--"}
     return False
 
 

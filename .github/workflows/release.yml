@@ -13,10 +13,12 @@ on:
 permissions:
   contents: read # jobs request only what they need
 
-# One release run at a time, never cancelled: a run must not delete or publish
-# a draft that another run is still filling.
+# Runs for the same commit (and so the same tag and draft) are serialised and
+# never cancelled: a run must not delete or publish a draft another run is still
+# filling. Keyed by commit because GitHub keeps only one pending run per group,
+# so a shared group could drop a waiting release for another version.
 concurrency:
-  group: release
+  group: release-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
