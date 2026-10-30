@@ -65,6 +65,8 @@ jobs:
   report:
     name: Open issues
     needs: scan
+    # Only runs on main open issues; a dispatch from a branch just scans.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       issues: write # open one issue per matched post
