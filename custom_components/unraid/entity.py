@@ -36,6 +36,22 @@ type UnraidCoordinator = (
 )
 
 
+def async_delegate_entity_id_changed(parent: Any, old_entity_id: str) -> None:
+    """
+    Run the parent's ``async_entity_id_changed``, when Home Assistant has one.
+
+    Home Assistant 2026.11 changes an entity ID in place, but still removes and
+    adds again an entity of a custom integration whose own class overrides an
+    add or remove hook, unless that class also defines
+    ``async_entity_id_changed``; Home Assistant 2027.11 drops that fallback.
+    Such a class defines the hook and passes ``super()`` here, so Home
+    Assistant's own bookkeeping (restore state, groups) still runs. Before
+    2026.11 the parent has no hook to call.
+    """
+    if (hook := getattr(parent, "async_entity_id_changed", None)) is not None:
+        hook(old_entity_id)
+
+
 @dataclass(frozen=True, kw_only=True)
 class UnraidEntityDescription(EntityDescription):
     """

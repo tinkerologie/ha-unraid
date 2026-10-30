@@ -44,6 +44,7 @@ from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
     async_add_dynamic_resource_entities,
+    async_delegate_entity_id_changed,
     deduplicate_disks,
 )
 
@@ -2052,6 +2053,10 @@ class UPSEnergySensor(UnraidSensorEntity[UnraidSystemCoordinator], RestoreEntity
             name="UPS Energy",
         )
         self._attr_translation_placeholders = {"name": self._ups_name}
+
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Change the entity ID in place; restore state moves with it."""
+        async_delegate_entity_id_changed(super(), old_entity_id)
 
     async def async_added_to_hass(self) -> None:
         """Restore previous energy value when entity is added."""

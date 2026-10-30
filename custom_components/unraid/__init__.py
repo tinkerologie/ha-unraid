@@ -7,9 +7,10 @@ Provides monitoring and control for system metrics, storage, Docker, and VMs.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.const import (
     CONF_API_KEY,
@@ -42,6 +43,7 @@ from .const import (
     DEFAULT_PORT,
     DOMAIN,
     REPAIR_AUTH_FAILED,
+    auth_failed_issue_id,
     is_placeholder_uuid,
 )
 from .coordinator import (
@@ -325,8 +327,49 @@ def _normalize_ssl_config(
     return use_ssl, ignore_ssl, not ignore_ssl
 
 
+# Home Assistant 2026.11 can tie a repair issue to its config entry and deletes
+# it with the entry; earlier releases don't accept the argument.
+_ISSUES_TAKE_CONFIG_ENTRY: Final = (
+    "config_entry_id" in inspect.signature(ir.async_create_issue).parameters
+)
+
+
+@callback
+def _async_create_auth_issue(
+    hass: HomeAssistant, entry: ConfigEntry, host: str
+) -> None:
+    """Raise this entry's authentication repair issue."""
+    belongs_to: dict[str, Any] = {}
+    if _ISSUES_TAKE_CONFIG_ENTRY:
+        belongs_to["config_entry_id"] = entry.entry_id
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        auth_failed_issue_id(entry.entry_id),
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=REPAIR_AUTH_FAILED,
+        translation_placeholders={"host": host},
+        data={"entry_id": entry.entry_id},
+        **belongs_to,
+    )
+    # The shared issue from before #394 would duplicate it and could
+    # reauthenticate the wrong server.
+    ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
+
+
+@callback
+def async_delete_auth_issue(hass: HomeAssistant, entry_id: str) -> None:
+    """Delete an entry's authentication repair issue and the legacy shared one."""
+    ir.async_delete_issue(hass, DOMAIN, auth_failed_issue_id(entry_id))
+    # Before #394 one issue, keyed only by domain, covered every server.
+    ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
+
+
 async def _async_connect_and_get_server_info(
     hass: HomeAssistant,
+    entry: ConfigEntry,
     api_client: UnraidClient,
     host: str,
     port: int,
@@ -336,20 +379,11 @@ async def _async_connect_and_get_server_info(
         await api_client.test_connection()
         info = await api_client.get_server_info()
         _LOGGER.debug("Initial connectivity test succeeded for %s:%s", host, port)
-        ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
+        async_delete_auth_issue(hass, entry.entry_id)
         return info
     except UnraidAuthenticationError as err:
         await api_client.close()
-        ir.async_create_issue(
-            hass,
-            DOMAIN,
-            REPAIR_AUTH_FAILED,
-            is_fixable=True,
-            is_persistent=True,
-            severity=ir.IssueSeverity.ERROR,
-            translation_key="auth_failed",
-            translation_placeholders={"host": host},
-        )
+        _async_create_auth_issue(hass, entry, host)
         _LOGGER.warning(
             "Authentication failed for Unraid server %s:%s: %s",
             host,
@@ -475,7 +509,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bo
         verify_ssl=verify_ssl,
         session=session,
     )
-    info = await _async_connect_and_get_server_info(hass, api_client, host, port)
+    info = await _async_connect_and_get_server_info(hass, entry, api_client, host, port)
 
     # Build server info using helper function
     server_info = _build_server_info(info, host, use_ssl)
@@ -588,6 +622,11 @@ async def async_remove_config_entry_device(
     """
     server_uuid = entry.runtime_data.server_info.get("uuid", "unknown")
     return (DOMAIN, server_uuid) not in device_entry.identifiers
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> None:
+    """Delete the entry's repair issue; 2026.11 does it for issues it owns."""
+    async_delete_auth_issue(hass, entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bool:

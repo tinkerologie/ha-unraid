@@ -12,7 +12,6 @@ from homeassistant import config_entries
 from homeassistant.config_entries import OptionsFlowWithReload
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from unraid_api import MIN_API_VERSION, UnraidClient
 from unraid_api.exceptions import (
@@ -22,6 +21,7 @@ from unraid_api.exceptions import (
     UnraidTimeoutError,
 )
 
+from . import async_delete_auth_issue
 from .const import (
     CONF_ENABLE_CONTAINER_UPDATES,
     CONF_IGNORE_SSL,
@@ -32,7 +32,6 @@ from .const import (
     DEFAULT_UPS_CAPACITY_VA,
     DEFAULT_UPS_NOMINAL_POWER,
     DOMAIN,
-    REPAIR_AUTH_FAILED,
     is_placeholder_uuid,
 )
 
@@ -401,8 +400,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 await self._test_connection(test_input)
 
-                # Clear auth repair issue
-                ir.async_delete_issue(self.hass, DOMAIN, REPAIR_AUTH_FAILED)
+                # Clear this entry's auth repair issue
+                async_delete_auth_issue(self.hass, reauth_entry.entry_id)
 
                 return self.async_update_reload_and_abort(
                     reauth_entry,

@@ -3,8 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
+from homeassistant.helpers import entity as entity_helper
+
+from custom_components.unraid import (
+    binary_sensor,
+    button,
+    entity,
+    event,
+    sensor,
+    switch,
+    update,
+)
 from custom_components.unraid.const import DOMAIN
 from custom_components.unraid.coordinator import (
     UnraidStorageCoordinator,
@@ -14,7 +26,10 @@ from custom_components.unraid.entity import (
     UnraidBaseEntity,
     UnraidEntity,
     UnraidEntityDescription,
+    async_delegate_entity_id_changed,
 )
+from custom_components.unraid.event import UnraidNotificationsEventEntity
+from custom_components.unraid.sensor import UPSEnergySensor
 from tests.conftest import make_storage_data, make_system_data
 
 # =============================================================================
@@ -524,3 +539,68 @@ def test_deduplicate_disks() -> None:
 
     # Non-iterable or unsupported input
     assert deduplicate_disks(123) == []  # type: ignore[arg-type]
+
+
+# =============================================================================
+# In-place entity ID changes (#394)
+# =============================================================================
+
+
+@pytest.mark.parametrize(
+    "entity_class", [UnraidNotificationsEventEntity, UPSEnergySensor]
+)
+def test_entities_with_add_hooks_opt_in_to_in_place_entity_id_changes(
+    entity_class: type,
+) -> None:
+    """Classes overriding an add or remove hook also define the 2026.11 hook."""
+    assert "async_added_to_hass" in entity_class.__dict__
+    assert "async_entity_id_changed" in entity_class.__dict__
+    requires_readd = getattr(entity_helper, "_entity_class_requires_readd", None)
+    if requires_readd is not None:  # Home Assistant 2026.11+
+        assert not requires_readd(entity_class)
+
+
+def test_no_other_integration_class_overrides_an_add_or_remove_hook() -> None:
+    """A new override needs the opt-in too, or 2026.11 removes and re-adds it."""
+    hooks = (
+        "async_prepare_to_add_to_hass",
+        "async_added_to_hass",
+        "async_will_remove_from_hass",
+    )
+    offenders = []
+    for module in (binary_sensor, button, event, sensor, switch, update, entity):
+        for cls in vars(module).values():
+            if not isinstance(cls, type) or cls.__module__ != module.__name__:
+                continue
+            if any(h in cls.__dict__ for h in hooks) and (
+                "async_entity_id_changed" not in cls.__dict__
+            ):
+                offenders.append(cls.__qualname__)
+    assert offenders == []
+
+
+def test_delegate_calls_the_parent_hook_when_it_exists() -> None:
+    """On 2026.11 the parent hook runs; before it there is none to run."""
+    parent = MagicMock()
+    async_delegate_entity_id_changed(parent, "sensor.old")
+    parent.async_entity_id_changed.assert_called_once_with("sensor.old")
+    async_delegate_entity_id_changed(object(), "sensor.old")  # no hook: no error
+
+
+@pytest.mark.parametrize(
+    "entity_class", [UnraidNotificationsEventEntity, UPSEnergySensor]
+)
+def test_entity_id_changed_hook_runs_on_every_version(entity_class: type) -> None:
+    """The hook is a no-op before 2026.11 and reaches the core hook after it."""
+    instance = object.__new__(entity_class)
+    calls: list[str] = []
+    core_hook = getattr(entity_helper.Entity, "async_entity_id_changed", None)
+    with patch.object(
+        entity_helper.Entity,
+        "async_entity_id_changed",
+        lambda _self, old: calls.append(old),
+        create=core_hook is None,
+    ):
+        instance.async_entity_id_changed("sensor.old_id")
+    assert calls == ["sensor.old_id"]
+    instance.async_entity_id_changed("sensor.old_id")  # unpatched: no error
