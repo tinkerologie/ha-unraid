@@ -19,7 +19,7 @@ Refer to `AGENTS.md` for full project documentation.
   "documentation": "https://github.com/tinkerologie/ha-unraid",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/tinkerologie/ha-unraid/issues",
-  "requirements": ["unraid-api>=1.6.0"],
+  "requirements": ["unraid-api>=1.14.1"],
   "ssdp": [],
   "zeroconf": [],
   "version": "YYYY.M.P"
