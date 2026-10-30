@@ -81,6 +81,25 @@ apply_sparse_patterns() {
         /script/ /homeassistant/ /packages/hassfest/ /pyproject.toml
 }
 
+# HA_VERSION is "dev", a release tag, or a 40-character commit (HA Next pins
+# Core dev to one commit so the installed Home Assistant and Hassfest match).
+is_commit() {
+    [[ "$HA_VERSION_TAG" =~ ^[0-9a-f]{40}$ ]]
+}
+
+fetch_revision() {
+    if [ "$HA_VERSION_TAG" = "dev" ]; then
+        git -C "$HA_CORE_DIR" fetch --depth 1 --filter=blob:none origin dev >/dev/null 2>&1
+        git -C "$HA_CORE_DIR" checkout dev >/dev/null 2>&1
+    elif is_commit; then
+        git -C "$HA_CORE_DIR" fetch --depth 1 --filter=blob:none origin "$HA_VERSION_TAG" >/dev/null 2>&1
+        git -C "$HA_CORE_DIR" checkout --detach FETCH_HEAD >/dev/null 2>&1
+    else
+        git -C "$HA_CORE_DIR" fetch --depth 1 --filter=blob:none origin tag "$HA_VERSION_TAG" >/dev/null 2>&1
+        git -C "$HA_CORE_DIR" checkout "$HA_VERSION_TAG" >/dev/null 2>&1
+    fi
+}
+
 log_header "Home Assistant hassfest validation"
 log_info "Target version: $HA_VERSION_TAG"
 
@@ -99,32 +118,24 @@ if [ ! -d "$HA_CORE_DIR" ]; then
     cd "$HA_CORE_DIR"
 
     # Fetch the specific version (shallow clone + blobless for minimal size)
-    if [ "$HA_VERSION_TAG" = "dev" ]; then
-        git fetch --depth 1 --filter=blob:none origin dev 2>&1 | grep -E "(Receiving|Resolving|Fetching)" || true
-        git checkout dev >/dev/null 2>&1
-    else
-        git fetch --depth 1 --filter=blob:none origin tag "$HA_VERSION_TAG" 2>&1 | grep -E "(Receiving|Resolving|Fetching)" || true
-        git checkout "$HA_VERSION_TAG" >/dev/null 2>&1
-    fi
+    cd - >/dev/null
+    fetch_revision
+    cd "$HA_CORE_DIR"
     cd - >/dev/null
     echo ""
 else
     # Check if we need to update to match current HA version
     cd "$HA_CORE_DIR"
-    CURRENT_VERSION=$(git describe --tags --exact-match 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+    if is_commit; then
+        CURRENT_VERSION=$(git rev-parse HEAD 2>/dev/null || true)
+    else
+        CURRENT_VERSION=$(git describe --tags --exact-match 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+    fi
     cd - >/dev/null
 
     if [ "$UPDATE_CORE" = true ] || [ "$CURRENT_VERSION" != "$HA_VERSION_TAG" ]; then
         log_info "Updating to version $HA_VERSION_TAG..."
-        cd "$HA_CORE_DIR"
-        if [ "$HA_VERSION_TAG" = "dev" ]; then
-            git fetch --depth 1 --filter=blob:none origin dev >/dev/null 2>&1
-            git checkout dev >/dev/null 2>&1
-        else
-            git fetch --depth 1 --filter=blob:none origin tag "$HA_VERSION_TAG" >/dev/null 2>&1
-            git checkout "$HA_VERSION_TAG" >/dev/null 2>&1
-        fi
-        cd - >/dev/null
+        fetch_revision
         apply_sparse_patterns
     else
         log_info "Using cached version $CURRENT_VERSION"

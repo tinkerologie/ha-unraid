@@ -37,6 +37,7 @@ import logging
 import os
 import pkgutil
 import re
+import subprocess
 import sys
 import traceback
 import urllib.request
@@ -65,7 +66,8 @@ PYPI_JSON = "https://pypi.org/pypi/{project}/json"
 PYPI_RELEASE_JSON = "https://pypi.org/pypi/{project}/{version}/json"
 HA_PROJECT = "homeassistant"
 HARNESS_PROJECT = "pytest-homeassistant-custom-component"
-DEV_ARCHIVE = "https://github.com/home-assistant/core/archive/refs/heads/dev.tar.gz"
+CORE_REPO = "https://github.com/home-assistant/core"
+DEV_ARCHIVE = CORE_REPO + "/archive/{commit}.tar.gz"
 DEV_NOTE = "The test harness does not track Core dev; pytest skipped."
 DEFAULT_PYTHON = "3.14.2"
 HARNESS_LOOKUPS = 40  # releases to inspect before giving up on a harness
@@ -239,13 +241,30 @@ def matching_harness(ha_version: str) -> str:
     return ""
 
 
+def dev_commit() -> str:
+    """Return the commit at the head of Core's dev branch."""
+    result = subprocess.run(  # noqa: S603 - fixed Git arguments, no shell
+        ["git", "ls-remote", CORE_REPO, "refs/heads/dev"],  # noqa: S607
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT,
+    )
+    commit = result.stdout.split("\t", 1)[0].strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise LookupError(f"Cannot resolve the head of Core dev: {result.stdout!r}")
+    return commit
+
+
 def resolve(channel: str, python: str) -> dict[str, str]:
     """Return the install requirement and versions for one channel."""
     if channel == "dev":
+        # Pin one commit, so the install and Hassfest test the same Core.
+        commit = dev_commit()
         return {
-            "ha_requirement": f"{HA_PROJECT} @ {DEV_ARCHIVE}",
-            "hassfest_ref": "dev",
-            "ha_version": "dev",
+            "ha_requirement": f"{HA_PROJECT} @ {DEV_ARCHIVE.format(commit=commit)}",
+            "hassfest_ref": commit,
+            "ha_version": f"dev@{commit[:12]}",
             "harness_version": "",
             "note": DEV_NOTE,
         }
@@ -293,7 +312,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return import_check()
     try:
         outputs = resolve(args.channel, args.python)
-    except (OSError, LookupError, KeyError, ValueError) as err:
+    except (
+        OSError,
+        LookupError,
+        KeyError,
+        ValueError,
+        subprocess.SubprocessError,
+    ) as err:
         print(f"Cannot resolve the {args.channel} channel: {err}", file=sys.stderr)
         return 1
     write_outputs(outputs)

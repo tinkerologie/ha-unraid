@@ -20,7 +20,7 @@ Prints one JSON document; the ``HA dev blog watch`` workflow opens one issue
 per matched post from it. Standard library only.
 
 Usage:
-    python3 script/ha_blog_watch.py scan [--days 7]
+    python3 script/ha_blog_watch.py scan [--days 22]
 
 Exit 0 = scanned, Exit 1 = the feed could not be read or had no posts.
 """
@@ -341,7 +341,7 @@ def main(argv: Sequence[str] | None = None, *, fetch: Fetch = fetch_url) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     commands = parser.add_subparsers(dest="command", required=True)
     scan_parser = commands.add_parser("scan", help="scan the recent posts")
-    scan_parser.add_argument("--days", type=int, default=7, help="Look-back window")
+    scan_parser.add_argument("--days", type=int, default=22, help="Look-back window")
     args = parser.parse_args(argv)
 
     now = datetime.now(UTC)

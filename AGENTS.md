@@ -429,14 +429,16 @@ a Home Assistant release breaks the integration:
 - **`HA Next`** (`ha-next.yml`, weekly) runs a matrix of two channels, resolved by
   `script/ha_next.py resolve`: `pypi`, the newest `homeassistant` on PyPI
   including betas (pinned exactly, never `--prerelease allow`), and `dev`, the
-  Core `dev` branch archive. Each channel runs the import check, `pytest` when a
+  head of Core's `dev` branch pinned to one commit (`git ls-remote`), so the
+  install and Hassfest test the same Core. Each channel runs the import check, `pytest` when a
   matching `pytest-homeassistant-custom-component` exists (never for `dev`;
   the summary says when it is skipped), and `script/hassfest` from the same
   Core. On `main`, each channel keeps one open issue, labelled `ha-next` and
   `bug` and found by its `<!-- ha-next-channel: … -->` marker: a failure opens
   it or comments on it, a pass comments and closes it.
-- **`HA dev blog watch`** (`ha-dev-blog.yml`, weekly; dispatch takes `days`)
-  runs `script/ha_blog_watch.py scan`. It reads the developer blog feed and
+- **`HA dev blog watch`** (`ha-dev-blog.yml`, weekly, looking back 22 days so a
+  failed or late run is covered; dispatch takes `days`) runs
+  `script/ha_blog_watch.py scan`. It reads the developer blog feed and
   takes inline code from paragraphs and list items that announce a change. It
   searches the integration's code (not comments or strings) for that code and
   opens one `HA dev blog: <post title>` issue, labelled `ha-dev-blog` and
@@ -448,7 +450,7 @@ issues opened with `GITHUB_TOKEN` never trigger `issue-labeler.yml`, and
 CodeRabbit only writes a coding plan for issues with one of those labels.
 Missing labels are created first.
 
-`script/hassfest` takes `HA_VERSION` (a tag or `dev`) and reconciles its sparse
+`script/hassfest` takes `HA_VERSION` (a tag, `dev`, or a 40-character Core commit) and reconciles its sparse
 Core checkout on every run. From Core 2026.11 the validator lives in
 `packages/hassfest`; the script then runs it through
 `uv run --no-project --with-editable <core>/packages/hassfest`, so `uv` must be

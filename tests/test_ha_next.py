@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import logging
+import subprocess
 import sys
 import warnings
 from pathlib import Path
@@ -154,19 +155,66 @@ def test_harness_pin_ignores_markers_and_invalid_lines() -> None:
     )
 
 
-def test_resolve_dev_does_not_query_pypi(pypi: dict[str, Any]) -> None:
+COMMIT = "7c678df5c6a62c4d1a0334f7c9b6050f1926025b"
+
+
+@pytest.fixture
+def ls_remote(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
+    """Answer git ls-remote with a fixed dev head."""
+    calls: list[list[str]] = []
+
+    def run(args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, f"{COMMIT}\trefs/heads/dev\n", "")
+
+    monkeypatch.setattr(ha_next.subprocess, "run", run)
+    return calls
+
+
+def test_resolve_dev_pins_one_commit(
+    pypi: dict[str, Any], ls_remote: list[list[str]]
+) -> None:
+    """Install and Hassfest use the same Core commit, without querying PyPI."""
     assert ha_next.resolve("dev", "3.14.2") == {
-        "ha_requirement": f"homeassistant @ {ha_next.DEV_ARCHIVE}",
-        "hassfest_ref": "dev",
-        "ha_version": "dev",
+        "ha_requirement": (
+            "homeassistant @ https://github.com/home-assistant/core/archive/"
+            f"{COMMIT}.tar.gz"
+        ),
+        "hassfest_ref": COMMIT,
+        "ha_version": f"dev@{COMMIT[:12]}",
         "harness_version": "",
         "note": ha_next.DEV_NOTE,
     }
+    assert ls_remote == [["git", "ls-remote", ha_next.CORE_REPO, "refs/heads/dev"]]
     assert pypi["_fetched"] == []
+
+
+def test_resolve_dev_rejects_an_unexpected_answer(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        ha_next.subprocess,
+        "run",
+        lambda args, **_: subprocess.CompletedProcess(args, 0, "", ""),
+    )
+    assert ha_next.main(["resolve", "--channel", "dev"]) == 1
+    assert "Cannot resolve the head of Core dev" in capsys.readouterr().err
+
+
+def test_resolve_dev_reports_git_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fail(args: list[str], **_kwargs: Any) -> None:
+        raise subprocess.CalledProcessError(128, args)
+
+    monkeypatch.setattr(ha_next.subprocess, "run", fail)
+    assert ha_next.main(["resolve", "--channel", "dev"]) == 1
+    assert "Cannot resolve the dev channel" in capsys.readouterr().err
 
 
 def test_main_writes_github_output(
     pypi: dict[str, Any],
+    ls_remote: list[list[str]],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -177,7 +225,7 @@ def test_main_writes_github_output(
     assert ha_next.main(["resolve", "--channel", "dev"]) == 0
     written = output.read_text()
     assert written.startswith("existing=1\nha_requirement=homeassistant @ ")
-    assert "hassfest_ref=dev\n" in written
+    assert f"hassfest_ref={COMMIT}\n" in written
     assert "ha_version=dev" in capsys.readouterr().out
 
 
