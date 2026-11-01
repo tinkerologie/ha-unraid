@@ -79,6 +79,37 @@ def test_quiet_period_restarts_when_stats_become_expected() -> None:
         assert manager.docker_stats_stalled() is False
 
 
+def test_confirmed_stall_survives_an_outage() -> None:
+    """An outage does not clear a stall, but statistics or idle containers do."""
+    manager = _manager((True,))
+    start = manager._stats_quiet_since
+    with patch(_MONOTONIC, return_value=start + WS_STATS_STALL_SECONDS):
+        assert manager.docker_stats_stalled() is True
+    coordinator = manager._system_coordinator
+    coordinator.last_update_success = False
+    with patch(_MONOTONIC, return_value=start + WS_STATS_STALL_SECONDS + 60):
+        assert manager.docker_stats_stalled() is None
+    coordinator.last_update_success = True
+    with patch(_MONOTONIC, return_value=start + WS_STATS_STALL_SECONDS + 120):
+        assert manager.docker_stats_stalled() is True
+    coordinator.data.containers[0].is_running = False
+    with patch(_MONOTONIC, return_value=start + WS_STATS_STALL_SECONDS + 180):
+        assert manager.docker_stats_stalled() is False
+
+
+async def test_event_clears_a_confirmed_stall() -> None:
+    """A statistics event ends a confirmed stall."""
+
+    async def events() -> AsyncGenerator[MagicMock]:
+        yield MagicMock(id=None)
+
+    manager = _manager((True,))
+    manager._api_client.subscribe_container_stats = events
+    assert _stalled_after(manager, WS_STATS_STALL_SECONDS) is True
+    await manager._handle_container_stats()
+    assert manager.docker_stats_stalled() is False
+
+
 def test_no_data_gives_no_evidence() -> None:
     """A coordinator without data cannot report a stall."""
     manager = _manager((True,))
@@ -125,6 +156,7 @@ async def test_issue_follows_the_stream_per_entry(
     assert issue.severity is ir.IssueSeverity.WARNING
     assert issue.translation_key == REPAIR_DOCKER_STATS_STALLED
     assert issue.translation_placeholders == {"server": "tower"}
+    assert issue.data == {"entry_id": tower.entry_id}
 
     tower.runtime_data.websocket_manager.docker_stats_stalled.return_value = False
     _async_update_docker_stats_issue(hass, tower)

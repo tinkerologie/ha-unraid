@@ -82,6 +82,8 @@ class UnraidWebSocketManager:
         self._last_array_state: str | None = None
         # When the statistics stream was last known to be fine, or not expected
         self._stats_quiet_since: float = time.monotonic()
+        # A confirmed stall lasts until statistics return or nothing is running
+        self._stats_stalled = False
 
     async def async_start(self) -> None:
         """Start all WebSocket subscriptions as background tasks."""
@@ -89,6 +91,7 @@ class UnraidWebSocketManager:
             return
         self._running = True
         self._stats_quiet_since = time.monotonic()
+        self._stats_stalled = False
         _LOGGER.info("Starting WebSocket subscriptions for %s", self._server_name)
 
         self._tasks = [
@@ -209,8 +212,11 @@ class UnraidWebSocketManager:
             return None
         if not any(container.is_running for container in data.containers):
             self._stats_quiet_since = now
+            self._stats_stalled = False
             return False
-        return now - self._stats_quiet_since >= WS_STATS_STALL_SECONDS
+        if now - self._stats_quiet_since >= WS_STATS_STALL_SECONDS:
+            self._stats_stalled = True
+        return self._stats_stalled
 
     def _should_trigger_refresh(self, last_refresh_time: float) -> bool:
         """Return True if enough time has elapsed since the last refresh."""
@@ -222,6 +228,7 @@ class UnraidWebSocketManager:
             if not self._running:
                 break
             self._stats_quiet_since = time.monotonic()
+            self._stats_stalled = False
             if stats.id is None:
                 continue
             container_id = _ANSI_ESCAPE_RE.sub("", stats.id)

@@ -10,7 +10,7 @@ from __future__ import annotations
 import inspect
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.const import (
@@ -43,6 +43,7 @@ from .cleanup import async_cleanup_stale_entities
 from .const import (
     CONF_IGNORE_SSL,
     DEFAULT_PORT,
+    DOCKER_STATS_CHECK_INTERVAL,
     DOMAIN,
     REPAIR_AUTH_FAILED,
     REPAIR_DOCKER_STATS_STALLED,
@@ -331,8 +332,6 @@ def _normalize_ssl_config(
     return use_ssl, ignore_ssl, not ignore_ssl
 
 
-DOCKER_STATS_CHECK_INTERVAL: Final = timedelta(minutes=1)
-
 # Home Assistant 2026.11 can tie a repair issue to its config entry and deletes
 # it with the entry; earlier releases don't accept the argument.
 _ISSUES_TAKE_CONFIG_ENTRY: Final = (
@@ -396,6 +395,7 @@ def _async_update_docker_stats_issue(
         severity=ir.IssueSeverity.WARNING,
         translation_key=REPAIR_DOCKER_STATS_STALLED,
         translation_placeholders={"server": entry.title},
+        data={"entry_id": entry.entry_id},
         **belongs_to,
     )
 

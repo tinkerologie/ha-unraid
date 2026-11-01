@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 from typing import Final
 
 # =============================================================================
@@ -137,6 +138,7 @@ WS_REFRESH_DEBOUNCE_SECONDS: Final = 10  # seconds
 
 # Running containers with no statistics event for this long means the stream stopped
 WS_STATS_STALL_SECONDS: Final = 300  # seconds (5 minutes)
+DOCKER_STATS_CHECK_INTERVAL: Final = timedelta(minutes=1)
 
 
 # =============================================================================
