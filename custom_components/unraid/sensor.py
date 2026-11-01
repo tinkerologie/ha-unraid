@@ -3183,8 +3183,7 @@ class ParityElapsedSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
         data: UnraidStorageData | None = self.coordinator.data
         if data is None or data.parity_status is None:
             return None
-        # Return 0 when no check is running (elapsed is None)
-        return data.parity_status.elapsed or 0
+        return data.parity_status.elapsed
 
 
 class ParityEstimatedSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
@@ -3218,8 +3217,7 @@ class ParityEstimatedSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
         data: UnraidStorageData | None = self.coordinator.data
         if data is None or data.parity_status is None:
             return None
-        # Return 0 when no check is running (estimated is None)
-        return data.parity_status.estimated or 0
+        return data.parity_status.estimated
 
 
 # =============================================================================

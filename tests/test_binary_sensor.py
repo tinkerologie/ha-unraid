@@ -21,6 +21,7 @@ from unraid_api.models import (
     DockerContainer,
     InfoNetworkInterface,
     ParityCheck,
+    ParityHistoryEntry,
     PluginInstallOperation,
     RemoteAccess,
     Service,
@@ -419,7 +420,7 @@ def test_parity_status_init(mock_storage_coordinator):
 
 
 def test_parity_status_is_on_running(mock_storage_coordinator):
-    """Test is_on returns True when parity check running."""
+    """Test is_on returns False when parity check running without errors."""
     mock_storage_coordinator.data = make_storage_data(
         array_state="STARTED",
         parity_status=ParityCheck(status="RUNNING", progress=50, errors=0),
@@ -429,14 +430,56 @@ def test_parity_status_is_on_running(mock_storage_coordinator):
         server_uuid="test-uuid",
         server_name="tower",
     )
-    assert sensor.is_on is True
+    assert sensor.is_on is False
 
 
 def test_parity_status_is_on_paused(mock_storage_coordinator):
-    """Test is_on returns True when parity check paused."""
+    """Test is_on returns False when parity check paused without errors."""
     mock_storage_coordinator.data = make_storage_data(
         array_state="STARTED",
         parity_status=ParityCheck(status="PAUSED", progress=50, errors=0),
+    )
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is False
+
+
+def test_parity_status_is_on_failed(mock_storage_coordinator):
+    """Test is_on returns True when parity check failed."""
+    mock_storage_coordinator.data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status="FAILED", progress=50, errors=0),
+    )
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is True
+
+
+def test_parity_status_is_on_running_with_errors(mock_storage_coordinator):
+    """Test is_on returns True when parity check running with errors."""
+    mock_storage_coordinator.data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status="RUNNING", progress=50, errors=3),
+    )
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is True
+
+
+def test_parity_status_is_on_completed_with_errors(mock_storage_coordinator):
+    """Test is_on returns True when parity check completed with errors."""
+    mock_storage_coordinator.data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status="COMPLETED", progress=100, errors=1),
     )
     sensor = ParityStatusBinarySensor(
         coordinator=mock_storage_coordinator,
@@ -458,6 +501,49 @@ def test_parity_status_is_on_completed(mock_storage_coordinator):
         server_name="tower",
     )
     assert sensor.is_on is False
+
+
+@pytest.mark.parametrize(
+    ("status", "history_errors", "expected"),
+    [
+        ("RUNNING", [0], None),
+        ("PAUSED", [3], None),
+        ("CANCELLED", [], None),
+        ("COMPLETED", [None], None),
+        ("CANCELLED", [0, 5], False),
+        ("COMPLETED", [2, 0], True),
+    ],
+)
+def test_parity_status_is_on_errors_unavailable(
+    mock_storage_coordinator, status, history_errors, expected
+):
+    """Test a missing live error count never reports a false healthy state."""
+    data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status=status, progress=50, errors=None),
+    )
+    data.parity_history = [ParityHistoryEntry(errors=e) for e in history_errors]
+    mock_storage_coordinator.data = data
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is expected
+
+
+def test_parity_status_is_on_failed_without_error_count(mock_storage_coordinator):
+    """Test FAILED reports a problem even when the error count is unavailable."""
+    mock_storage_coordinator.data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status="FAILED", errors=None),
+    )
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is True
 
 
 def test_parity_status_is_on_no_data(mock_storage_coordinator):
