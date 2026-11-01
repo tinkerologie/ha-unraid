@@ -21,6 +21,7 @@ from unraid_api.models import (
     DockerContainer,
     InfoNetworkInterface,
     ParityCheck,
+    ParityHistoryEntry,
     PluginInstallOperation,
     RemoteAccess,
     Service,
@@ -500,6 +501,49 @@ def test_parity_status_is_on_completed(mock_storage_coordinator):
         server_name="tower",
     )
     assert sensor.is_on is False
+
+
+@pytest.mark.parametrize(
+    ("status", "history_errors", "expected"),
+    [
+        ("RUNNING", [0], None),
+        ("PAUSED", [3], None),
+        ("CANCELLED", [], None),
+        ("COMPLETED", [None], None),
+        ("CANCELLED", [0, 5], False),
+        ("COMPLETED", [2, 0], True),
+    ],
+)
+def test_parity_status_is_on_errors_unavailable(
+    mock_storage_coordinator, status, history_errors, expected
+):
+    """Test a missing live error count never reports a false healthy state."""
+    data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status=status, progress=50, errors=None),
+    )
+    data.parity_history = [ParityHistoryEntry(errors=e) for e in history_errors]
+    mock_storage_coordinator.data = data
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is expected
+
+
+def test_parity_status_is_on_failed_without_error_count(mock_storage_coordinator):
+    """Test FAILED reports a problem even when the error count is unavailable."""
+    mock_storage_coordinator.data = make_storage_data(
+        array_state="STARTED",
+        parity_status=ParityCheck(status="FAILED", errors=None),
+    )
+    sensor = ParityStatusBinarySensor(
+        coordinator=mock_storage_coordinator,
+        server_uuid="test-uuid",
+        server_name="tower",
+    )
+    assert sensor.is_on is True
 
 
 def test_parity_status_is_on_no_data(mock_storage_coordinator):
