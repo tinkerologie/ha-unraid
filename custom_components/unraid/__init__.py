@@ -10,6 +10,7 @@ from __future__ import annotations
 import inspect
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.const import (
@@ -27,6 +28,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from unraid_api import ServerInfo, UnraidClient
 from unraid_api.exceptions import (
     UnraidAPIError,
@@ -41,9 +43,12 @@ from .cleanup import async_cleanup_stale_entities
 from .const import (
     CONF_IGNORE_SSL,
     DEFAULT_PORT,
+    DOCKER_STATS_CHECK_INTERVAL,
     DOMAIN,
     REPAIR_AUTH_FAILED,
+    REPAIR_DOCKER_STATS_STALLED,
     auth_failed_issue_id,
+    docker_stats_stalled_issue_id,
     is_placeholder_uuid,
 )
 from .coordinator import (
@@ -367,6 +372,34 @@ def async_delete_auth_issue(hass: HomeAssistant, entry_id: str) -> None:
     ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
 
 
+@callback
+def _async_update_docker_stats_issue(
+    hass: HomeAssistant, entry: UnraidConfigEntry
+) -> None:
+    """Raise or clear this entry's Docker statistics repair issue."""
+    issue_id = docker_stats_stalled_issue_id(entry.entry_id)
+    stalled = entry.runtime_data.websocket_manager.docker_stats_stalled()
+    if stalled is None:
+        return
+    if not stalled:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    belongs_to: dict[str, Any] = {}
+    if _ISSUES_TAKE_CONFIG_ENTRY:
+        belongs_to["config_entry_id"] = entry.entry_id
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=REPAIR_DOCKER_STATS_STALLED,
+        translation_placeholders={"server": entry.title},
+        data={"entry_id": entry.entry_id},
+        **belongs_to,
+    )
+
+
 async def _async_connect_and_get_server_info(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -572,6 +605,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bo
         hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP,
             _async_stop_websocket_on_hass_stop,
+        )
+    )
+
+    @callback
+    def _async_check_docker_stats(_now: datetime) -> None:
+        """Check the Docker statistics stream."""
+        _async_update_docker_stats_issue(hass, entry)
+
+    entry.async_on_unload(
+        async_track_time_interval(
+            hass, _async_check_docker_stats, DOCKER_STATS_CHECK_INTERVAL
+        )
+    )
+    entry.async_on_unload(
+        lambda: ir.async_delete_issue(
+            hass, DOMAIN, docker_stats_stalled_issue_id(entry.entry_id)
         )
     )
 
