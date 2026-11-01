@@ -5417,7 +5417,7 @@ def test_parity_elapsed_sensor_none_parity() -> None:
 
 
 def test_parity_elapsed_sensor_none_elapsed() -> None:
-    """Test ParityElapsedSensor returns 0 when elapsed is None (no check running)."""
+    """Test ParityElapsedSensor returns None when elapsed is None."""
     coordinator = MagicMock(spec=UnraidStorageCoordinator)
     coordinator.data = make_storage_data(parity_status=ParityCheck(running=False))
     sensor = ParityElapsedSensor(
@@ -5425,7 +5425,7 @@ def test_parity_elapsed_sensor_none_elapsed() -> None:
         server_uuid="test-uuid",
         server_name="tower",
     )
-    assert sensor.native_value == 0
+    assert sensor.native_value is None
 
 
 # =============================================================================
@@ -5476,7 +5476,7 @@ def test_parity_estimated_sensor_none_data() -> None:
 
 
 def test_parity_estimated_sensor_none_estimated() -> None:
-    """Test ParityEstimatedSensor returns 0 when estimated is None."""
+    """Test ParityEstimatedSensor returns None when estimated is None."""
     coordinator = MagicMock(spec=UnraidStorageCoordinator)
     coordinator.data = make_storage_data(parity_status=ParityCheck(running=False))
     sensor = ParityEstimatedSensor(
@@ -5484,7 +5484,7 @@ def test_parity_estimated_sensor_none_estimated() -> None:
         server_uuid="test-uuid",
         server_name="tower",
     )
-    assert sensor.native_value == 0
+    assert sensor.native_value is None
 
 
 # =============================================================================

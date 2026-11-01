@@ -188,8 +188,8 @@ class ParityStatusBinarySensor(UnraidBinarySensorEntity[UnraidStorageCoordinator
     """
     Parity check status binary sensor.
 
-    ON = Parity check is running or has issues (RUNNING, PAUSED, FAILED)
-    OFF = Parity check completed or never run (COMPLETED, NEVER_RUN, CANCELLED)
+    ON = Parity check has problems (FAILED status or errors > 0)
+    OFF = Parity check healthy or completed without errors
     """
 
     _attr_translation_key = "parity_status"
@@ -213,14 +213,14 @@ class ParityStatusBinarySensor(UnraidBinarySensorEntity[UnraidStorageCoordinator
 
     @property
     def is_on(self) -> bool | None:
-        """Return True if parity check is in progress or has issues."""
+        """Return True if parity check has issues (failed or errors)."""
         data: UnraidStorageData | None = self.coordinator.data
         if data is None or data.parity_status is None:
             return None
         parity = data.parity_status
         if parity.status is None:
             return None
-        return parity.is_running or parity.has_problem
+        return parity.has_problem
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
