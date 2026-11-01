@@ -192,9 +192,10 @@ class ParityStatusBinarySensor(UnraidBinarySensorEntity[UnraidStorageCoordinator
     OFF = Parity check is healthy, with a known error count of zero
     UNKNOWN = The error count is unavailable
 
-    Current Unraid API versions leave parityCheckStatus.errors empty. An idle
-    server falls back to the latest parity history entry. A running check has
-    no such record, so it stays unknown rather than reporting a false OK.
+    unraid-api supplies the count from Unraid's sync error counter. If that is
+    unavailable, an idle server falls back to the latest parity history entry.
+    A running check has no such record, so it stays unknown rather than
+    reporting a false OK.
     """
 
     _attr_translation_key = "parity_status"
