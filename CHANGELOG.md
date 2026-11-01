@@ -9,6 +9,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### Added
 
+- A repair notice appears when running containers send no Docker statistics for 5 minutes, explaining that the Docker sensors are frozen or Unknown and that `unraid-api restart` usually restores them. It clears on its own ([#406](https://github.com/tinkerologie/ha-unraid/issues/406)).
 - Catch Home Assistant deprecations in CI ([#391](https://github.com/tinkerologie/ha-unraid/issues/391)):
   - The test suite fails when the integration raises a deprecation warning or Home Assistant logs a deprecation report about it, including the class-definition report added in 2026.11. A fresh-interpreter import check of every module runs as part of the tests.
   - A weekly, non-blocking **HA Next** workflow tests the newest Home Assistant on PyPI (betas included) and Core `dev`, and keeps one `ha-next` issue per channel open while it fails.

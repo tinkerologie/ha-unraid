@@ -135,6 +135,9 @@ WS_RETRY_BACKOFF_FACTOR: Final = 2.0
 # within this window are suppressed to prevent refresh storms.
 WS_REFRESH_DEBOUNCE_SECONDS: Final = 10  # seconds
 
+# Running containers with no statistics event for this long means the stream stopped
+WS_STATS_STALL_SECONDS: Final = 300  # seconds (5 minutes)
+
 
 # =============================================================================
 # Repair Issue IDs
@@ -146,6 +149,14 @@ REPAIR_AUTH_FAILED: Final = "auth_failed"
 def auth_failed_issue_id(entry_id: str) -> str:
     """Return the ID of a config entry's authentication repair issue."""
     return f"{REPAIR_AUTH_FAILED}_{entry_id}"
+
+
+REPAIR_DOCKER_STATS_STALLED: Final = "docker_stats_stalled"
+
+
+def docker_stats_stalled_issue_id(entry_id: str) -> str:
+    """Return the ID of a config entry's Docker statistics repair issue."""
+    return f"{REPAIR_DOCKER_STATS_STALLED}_{entry_id}"
 
 
 # =============================================================================

@@ -22,6 +22,7 @@ from .const import (
     WS_MAX_RETRY_DELAY,
     WS_REFRESH_DEBOUNCE_SECONDS,
     WS_RETRY_BACKOFF_FACTOR,
+    WS_STATS_STALL_SECONDS,
 )
 
 if TYPE_CHECKING:
@@ -79,12 +80,15 @@ class UnraidWebSocketManager:
         # refresh storage data only on actual state transitions (see
         # _handle_array_updates for why this matters for spun-down disks).
         self._last_array_state: str | None = None
+        # When the statistics stream was last known to be fine, or not expected
+        self._stats_quiet_since: float = time.monotonic()
 
     async def async_start(self) -> None:
         """Start all WebSocket subscriptions as background tasks."""
         if self._running:
             return
         self._running = True
+        self._stats_quiet_since = time.monotonic()
         _LOGGER.info("Starting WebSocket subscriptions for %s", self._server_name)
 
         self._tasks = [
@@ -183,6 +187,31 @@ class UnraidWebSocketManager:
                 return
             retry_delay = min(retry_delay * WS_RETRY_BACKOFF_FACTOR, WS_MAX_RETRY_DELAY)
 
+    def docker_stats_stalled(self) -> bool | None:
+        """
+        Return whether running containers have sent no statistics for too long.
+
+        Returns None when the server gives no evidence either way: it is
+        unreachable, or its Docker inventory failed to refresh. The quiet period
+        only counts while the stream should be publishing, so neither those
+        times nor a server with nothing running can report a stall.
+        """
+        now = time.monotonic()
+        coordinator = self._system_coordinator
+        data = coordinator.data
+        if (
+            not self._running
+            or not coordinator.last_update_success
+            or data is None
+            or not coordinator.optional_query_status["containers"]
+        ):
+            self._stats_quiet_since = now
+            return None
+        if not any(container.is_running for container in data.containers):
+            self._stats_quiet_since = now
+            return False
+        return now - self._stats_quiet_since >= WS_STATS_STALL_SECONDS
+
     def _should_trigger_refresh(self, last_refresh_time: float) -> bool:
         """Return True if enough time has elapsed since the last refresh."""
         return time.monotonic() - last_refresh_time >= WS_REFRESH_DEBOUNCE_SECONDS
@@ -192,6 +221,7 @@ class UnraidWebSocketManager:
         async for stats in self._api_client.subscribe_container_stats():
             if not self._running:
                 break
+            self._stats_quiet_since = time.monotonic()
             if stats.id is None:
                 continue
             container_id = _ANSI_ESCAPE_RE.sub("", stats.id)
