@@ -3,8 +3,8 @@ name: HA Next
 # Early warning for upcoming Home Assistant releases, on two channels:
 # - pypi: the newest homeassistant on PyPI, betas included;
 # - dev: the head of Core's dev branch, weeks before the next beta.
-# Each channel imports every module, runs the tests when a matching
-# pytest-homeassistant-custom-component exists, and runs Hassfest from the
+# Each channel imports every module, runs the full suite with the official
+# pytest plugin from the same Core commit, and runs Hassfest from the
 # same Core. It is not a required check: on main each channel opens, updates
 # or closes its own issue labelled ha-next and bug instead.
 on:
@@ -64,15 +64,12 @@ jobs:
         id: install
         env:
           HA_REQUIREMENT: ${{ steps.resolve.outputs.ha_requirement }}
-          HARNESS_VERSION: ${{ steps.resolve.outputs.harness_version }}
+          PLUGIN_REQUIREMENT: ${{ steps.resolve.outputs.plugin_requirement }}
         run: |
-          if [ -n "$HARNESS_VERSION" ]; then
-            uv pip install . ".[test]" "$HA_REQUIREMENT" \
-              "pytest-homeassistant-custom-component==$HARNESS_VERSION"
-          else
-            # Without a matching harness, an older one would pull an older HA.
-            uv pip install . "$HA_REQUIREMENT"
-          fi
+          overrides=$(mktemp)
+          trap 'rm -f "$overrides"' EXIT
+          printf '%s\n' "$HA_REQUIREMENT" "$PLUGIN_REQUIREMENT" > "$overrides"
+          uv pip install --no-sources . ".[test]" --override "$overrides"
           python3 -c "from homeassistant.const import __version__; print('Installed Home Assistant', __version__)"
 
       - name: Import every module
@@ -82,7 +79,6 @@ jobs:
 
       - name: Run tests
         id: pytest
-        if: steps.resolve.outputs.harness_version != ''
         continue-on-error: true
         run: pytest --no-cov -q
 
@@ -98,7 +94,7 @@ jobs:
         env:
           CHANNEL: ${{ matrix.channel }}
           HA_VERSION: ${{ steps.resolve.outputs.ha_version }}
-          HARNESS_VERSION: ${{ steps.resolve.outputs.harness_version }}
+          PLUGIN_REF: ${{ steps.resolve.outputs.plugin_ref }}
           NOTE: ${{ steps.resolve.outputs.note }}
           RESOLVE: ${{ steps.resolve.outcome }}
           INSTALL: ${{ steps.install.outcome }}
@@ -107,23 +103,17 @@ jobs:
           HASSFEST: ${{ steps.hassfest.outcome }}
         run: |
           mkdir -p ha-next-result
-          if [ -z "$HARNESS_VERSION" ] && [ "$RESOLVE" = success ]; then
-            PYTEST=skipped
-            if [ "$CHANNEL" = pypi ]; then
-              NOTE="No published pytest-homeassistant-custom-component release matches homeassistant ${HA_VERSION}; pytest skipped. ${NOTE}"
-            fi
-          fi
           jq -n \
             --arg channel "$CHANNEL" \
             --arg ha_version "${HA_VERSION:-unresolved}" \
-            --arg harness_version "$HARNESS_VERSION" \
+            --arg plugin_ref "$PLUGIN_REF" \
             --arg note "$NOTE" \
             --arg resolve "$RESOLVE" \
             --arg install "${INSTALL:-not run}" \
             --arg import_check "${IMPORT_CHECK:-not run}" \
             --arg pytest "${PYTEST:-not run}" \
             --arg hassfest "${HASSFEST:-not run}" \
-            '{channel: $channel, ha_version: $ha_version, harness_version: $harness_version,
+            '{channel: $channel, ha_version: $ha_version, plugin_ref: $plugin_ref,
               note: $note,
               outcomes: {resolve: $resolve, install: $install, import_check: $import_check,
                          pytest: $pytest, hassfest: $hassfest}}' \
@@ -132,9 +122,9 @@ jobs:
           {
             echo "## HA Next: ${CHANNEL}"
             echo
-            echo "| Channel | Home Assistant | Harness | Import check | Pytest | Hassfest |"
+            echo "| Channel | Home Assistant | Plugin Core ref | Import check | Pytest | Hassfest |"
             echo "| --- | --- | --- | --- | --- | --- |"
-            echo "| ${CHANNEL} | ${HA_VERSION:-unresolved} | ${HARNESS_VERSION:-none} | ${IMPORT_CHECK:-not run} | ${PYTEST:-not run} | ${HASSFEST:-not run} |"
+            echo "| ${CHANNEL} | ${HA_VERSION:-unresolved} | ${PLUGIN_REF:-unresolved} | ${IMPORT_CHECK:-not run} | ${PYTEST:-not run} | ${HASSFEST:-not run} |"
             if [ -n "$NOTE" ]; then
               echo
               echo "$NOTE"
@@ -159,17 +149,12 @@ jobs:
           IMPORT_CHECK: ${{ steps.import_check.outcome }}
           PYTEST: ${{ steps.pytest.outcome }}
           HASSFEST: ${{ steps.hassfest.outcome }}
-          HARNESS_VERSION: ${{ steps.resolve.outputs.harness_version }}
         run: |
-          # A check that never ran fails too; only pytest may be skipped, and
-          # only when no matching harness exists.
+          # Every check must run and pass on both channels.
           failed=false
-          for outcome in "$RESOLVE" "$INSTALL" "$IMPORT_CHECK" "$HASSFEST"; do
+          for outcome in "$RESOLVE" "$INSTALL" "$IMPORT_CHECK" "$PYTEST" "$HASSFEST"; do
             [ "$outcome" = success ] || failed=true
           done
-          if [ -n "$HARNESS_VERSION" ] && [ "$PYTEST" != success ]; then
-            failed=true
-          fi
           if [ "$failed" = true ]; then
             echo "::error::The next Home Assistant breaks or deprecates something the integration uses; see the summary."
             exit 1
@@ -210,13 +195,12 @@ jobs:
             const marker = `<!-- ha-next-channel: ${channel} -->`;
             const o = result.outcomes;
             const passed =
-              ["resolve", "install", "import_check", "hassfest"].every((k) => o[k] === "success") &&
-              (o.pytest === "success" || (o.pytest === "skipped" && !result.harness_version));
+              ["resolve", "install", "import_check", "pytest", "hassfest"].every((k) => o[k] === "success");
 
             const table = [
-              "| Channel | Home Assistant | Harness | Import check | Pytest | Hassfest |",
+              "| Channel | Home Assistant | Plugin Core ref | Import check | Pytest | Hassfest |",
               "| --- | --- | --- | --- | --- | --- |",
-              `| ${channel} | ${result.ha_version} | ${result.harness_version || "none"} | ${o.import_check} | ${o.pytest} | ${o.hassfest} |`,
+              `| ${channel} | ${result.ha_version} | ${result.plugin_ref || "unresolved"} | ${o.import_check} | ${o.pytest} | ${o.hassfest} |`,
             ].join("\n");
             const details = [table, "", result.note, "", `Run: ${runUrl}`].join("\n");
 

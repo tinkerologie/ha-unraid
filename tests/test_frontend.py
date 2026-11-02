@@ -82,9 +82,7 @@ def http(hass: HomeAssistant):
     return mock
 
 
-async def test_registers_bundle_once(
-    hass: HomeAssistant, http: MagicMock, enable_custom_integrations: None
-) -> None:
+async def test_registers_bundle_once(hass: HomeAssistant, http: MagicMock) -> None:
     """The static path and the Lovelace module resources register once."""
     expected = _expected_urls()
     with (
@@ -106,7 +104,7 @@ async def test_registers_bundle_once(
 
 
 async def test_updates_resource_when_bundle_changes(
-    hass: HomeAssistant, http: MagicMock, enable_custom_integrations: None
+    hass: HomeAssistant, http: MagicMock
 ) -> None:
     """Resource entries are updated when digest differs."""
     stale_url = f"{FRONTEND_URL_BASE}/unraid-cards.js?v=old"
@@ -121,7 +119,7 @@ async def test_updates_resource_when_bundle_changes(
 
 
 async def test_deletes_stale_bundle_resources_on_upgrade(
-    hass: HomeAssistant, http: MagicMock, enable_custom_integrations: None
+    hass: HomeAssistant, http: MagicMock
 ) -> None:
     """Stale individual bundle entries from earlier releases are deleted."""
     stale_resources = [
@@ -172,7 +170,7 @@ async def test_skips_when_http_or_frontend_missing(hass: HomeAssistant) -> None:
 
 
 async def test_falls_back_to_extra_js_url_in_yaml_mode(
-    hass: HomeAssistant, http: MagicMock, enable_custom_integrations: None
+    hass: HomeAssistant, http: MagicMock
 ) -> None:
     """YAML mode falls back to add_extra_js_url."""
     hass.data[LOVELACE_DATA] = SimpleNamespace(resources=None)
@@ -185,7 +183,6 @@ async def test_falls_back_to_extra_js_url_in_yaml_mode(
 async def test_logs_error_on_exception(
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
-    enable_custom_integrations: None,
 ) -> None:
     """Exceptions are logged and do not raise."""
     hass.config.components.update({"http", "frontend"})
@@ -220,7 +217,7 @@ def test_frontend_digest_helper(tmp_path: Path) -> None:
 
 
 async def test_async_setup_registers_frontend(
-    hass: HomeAssistant, http: MagicMock, enable_custom_integrations: None
+    hass: HomeAssistant, http: MagicMock
 ) -> None:
     """async_setup invokes async_register_frontend."""
     with patch("custom_components.unraid.async_register_frontend") as mock_reg:

@@ -1,0 +1,14 @@
+# serializer version: 1
+# name: test_official_snapshot_extension
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Unraid test',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.unraid_test',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '42',
+  })
+# ---

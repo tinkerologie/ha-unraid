@@ -94,7 +94,7 @@ The only sanctioned data flow is:
 
 The scripts activate `.local/ha-venv`. If a tool is missing there, install it with
 `uv pip install --python .venv/bin/python <tool>`; CI installs fresh with
-`uv pip install . ".[dev]" homeassistant` on Python 3.14.2, so the lock file is
+`uv pip install . ".[dev]"` on Python 3.14.2, so the lock file is
 for local reproducibility only.
 
 ## Architecture
@@ -318,10 +318,17 @@ the current month before touching registries, config flows or device info.
 ### Setup
 
 ```bash
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 # or
 ./script/setup
 ```
+
+The test extra pins Home Assistant separately from the runtime minimum. Until
+`pytest-home-assistant` is published on PyPI, `[tool.uv.sources]` pins its Core
+commit. To update the test baseline, change the HA test pin and plugin commit
+together, run `uv lock`, and run the full suite. Use uv for installation so the
+source pin is respected. `script/setup/bootstrap` removes the retired plugin
+from existing environments; the two plugins must not be installed together.
 
 ### Structure
 
@@ -343,7 +350,7 @@ tests/
 
 ### Patterns
 
-- Use `pytest-homeassistant-custom-component` for HA test infrastructure
+- Use the official `pytest-home-assistant` plugin; import helpers from `pytest_homeassistant.common`
 - Mock `UnraidClient` methods, not HTTP calls
 - Use `pytest-asyncio` with `asyncio_mode = "auto"`
 - Fixtures provide pre-built coordinator data classes
@@ -353,7 +360,7 @@ tests/
 - Deprecated core APIs raise `RuntimeError` in tests (`report_usage` with no integration frame), so a failing test that mentions "deprecated" means the code, not the test, must change
 - Deprecation checks are blocking (#391):
   - `pyproject.toml` `filterwarnings` turns `DeprecationWarning` and `PendingDeprecationWarning` raised from `custom_components.unraid` into errors.
-  - The `deprecation_report_guard` fixture (first dependency of the autouse `auto_enable_custom_integrations`) fails a test when Home Assistant logs one of its three reports about `unraid`: `Detected that custom integration 'unraid' …` (frame helper), `The deprecated … was <verb> from unraid.` (deprecation helpers), and `custom_components.unraid.<module>::<Class> provides the deprecated <name>, …` (an entity class defining a deprecated member, HA 2026.11+).
+  - The autouse `deprecation_report_guard` fixture (set up before `hass` and torn down after it) fails a test when Home Assistant logs one of its three reports about `unraid`: `Detected that custom integration 'unraid' …` (frame helper), `The deprecated … was <verb> from unraid.` (deprecation helpers), and `custom_components.unraid.<module>::<Class> provides the deprecated <name>, …` (an entity class defining a deprecated member, HA 2026.11+).
   - Class-definition reports fire at import time, before any fixture, so `tests/test_deprecation_currency.py` also runs `python3 script/ha_next.py import-check` in a fresh interpreter. Keep the three patterns in `tests/conftest.py` and `script/ha_next.py` identical (a test enforces it).
   - When a check fires, fix the integration code; never weaken the filter, the patterns or the guard. A test that emits a report on purpose takes `deprecation_report_guard` and clears it.
 - After deploying to a live Home Assistant, search its log for `Detected that custom integration 'unraid'` (the `report_usage` deprecation report) and for `custom_components.unraid` warnings; both must be empty before a PR is opened
@@ -450,10 +457,9 @@ a Home Assistant release breaks the integration:
   `script/ha_next.py resolve`: `pypi`, the newest `homeassistant` on PyPI
   including betas (pinned exactly, never `--prerelease allow`), and `dev`, the
   head of Core's `dev` branch pinned to one commit (`git ls-remote`), so the
-  install and Hassfest test the same Core. Each channel runs the import check, `pytest` when a
-  matching `pytest-homeassistant-custom-component` exists (never for `dev`;
-  the summary says when it is skipped), and `script/hassfest` from the same
-  Core. On `main`, each channel keeps one open issue, labelled `ha-next` and
+  install and Hassfest test the same Core. Each channel runs the import check,
+  the full pytest suite with the official plugin from that Core commit, and
+  `script/hassfest`. All five outcomes, including pytest, must succeed. On `main`, each channel keeps one open issue, labelled `ha-next` and
   `bug` and found by its `<!-- ha-next-channel: … -->` marker: a failure opens
   it or comments on it, a pass comments and closes it.
 - **`HA dev blog watch`** (`ha-dev-blog.yml`, weekly, looking back 22 days so a

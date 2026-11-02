@@ -3,7 +3,7 @@
 # script/upgrade: Upgrade all dependencies to their latest versions
 #
 # This script upgrades all project dependencies, ensuring the dev environment
-# always uses the latest versions of Home Assistant, the unraid-api, and other
+# uses the aligned Home Assistant test baseline, the unraid-api, and other
 # dependencies. It's designed to be called on dev container startup to maintain
 # a fresh development environment.
 #
@@ -36,21 +36,15 @@ if [[ -z ${VIRTUAL_ENV:-} ]]; then
     fi
 fi
 
-log_header "Upgrading all dependencies to latest versions"
-log_info "This ensures Home Assistant and other packages are always current"
+log_header "Upgrading development dependencies"
+log_info "Home Assistant and the official pytest plugin move together through pyproject.toml"
 
-# Upgrade all core dependencies
-uv pip install --upgrade homeassistant aiohttp pydantic unraid-api
+if uv pip show pytest-homeassistant-custom-component >/dev/null 2>&1; then
+    uv pip uninstall pytest-homeassistant-custom-component
+fi
+uv pip install --upgrade -e ".[dev,test]"
 
-# Upgrade all dev/test dependencies
-uv pip install --upgrade \
-    ruff \
-    pytest pytest-asyncio pytest-cov pytest-homeassistant-custom-component pytest-timeout syrupy \
-    mypy \
-    pre-commit \
-    colorlog
-
-log_success "All dependencies upgraded to latest versions"
+log_success "Development dependencies updated with the aligned HA test baseline"
 
 # Show updated Home Assistant version
 log_header "Verification"

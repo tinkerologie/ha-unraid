@@ -182,7 +182,7 @@ async def test_entry_forms_schema_is_probatio(
     from unittest.mock import patch
 
     from homeassistant.const import CONF_API_KEY, CONF_HOST
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     from custom_components.unraid.const import DOMAIN
 
@@ -211,7 +211,7 @@ async def test_options_form_schema_is_probatio(hass: HomeAssistant) -> None:
     from unittest.mock import patch
 
     from homeassistant.const import CONF_API_KEY, CONF_HOST
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     from custom_components.unraid.const import DOMAIN
 
@@ -239,7 +239,7 @@ async def test_repair_flow_submit_returns_typed_create_entry(
     from unittest.mock import patch
 
     from homeassistant.const import CONF_API_KEY, CONF_HOST
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     from custom_components.unraid.const import DOMAIN
 

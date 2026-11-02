@@ -26,12 +26,10 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest>=9.0.3",
-    "pytest-asyncio>=1.4.0",
+    "homeassistant==2026.11.0b1",
+    "pytest-home-assistant",
     "pytest-cov>=7.0.0",
-    "pytest-homeassistant-custom-component>=0.13.322",
     "pytest-timeout>=2.4.0",
-    "syrupy>=5.5.3",
 ]
 dev = [
     # Testing (shared with the `test` extra)
@@ -78,6 +76,7 @@ ignore = [
 "tests/*" = ["S101"]      # Allow assert in tests
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -85,6 +84,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
+    "-p", "no:respx",
     "--strict-markers",
     "--strict-config",
     "--cov=custom_components.unraid",
@@ -171,6 +171,10 @@ override-dependencies = [
     "pygments>=2.20.0",
     "pillow>=13.0.0",
 ]
+
+# Core 2026.11.0b1: update the test HA pin and plugin commit together.
+[tool.uv.sources]
+pytest-home-assistant = { git = "https://github.com/home-assistant/core.git", rev = "6cfd47af9851a1552ad6f58c926b5814689a9f1d", subdirectory = "packages/pytest-home-assistant" }
 
 [tool.bandit]
 targets = ["custom_components/unraid"]

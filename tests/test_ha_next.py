@@ -46,30 +46,17 @@ HA_RELEASES = {
 }
 
 
-def _harness_index(pins: dict[str, str | None]) -> dict[str, Any]:
-    pages: dict[str, Any] = {
-        ha_next.PYPI_JSON.format(project=ha_next.HARNESS_PROJECT): {
-            "releases": {version: [_file()] for version in [*pins, "bogus", "0.13.300"]}
-            | {"0.13.300": [_file(yanked=True)]}
-        }
-    }
-    for version, pin in pins.items():
-        requires = ["pytest>=9"] + ([pin] if pin else [])
-        pages[
-            ha_next.PYPI_RELEASE_JSON.format(
-                project=ha_next.HARNESS_PROJECT, version=version
-            )
-        ] = {"info": {"requires_dist": requires}}
-    return pages
+COMMIT = "7c678df5c6a62c4d1a0334f7c9b6050f1926025b"
+TAG_OBJECT = "1" * 40
 
 
 @pytest.fixture
 def pypi(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
-    """Serve fake PyPI JSON documents and record the URLs fetched."""
-    pages: dict[str, Any] = {
+    """Serve the Home Assistant release index and record requests."""
+    pages = {
         ha_next.PYPI_JSON.format(project=ha_next.HA_PROJECT): {"releases": HA_RELEASES}
     }
-    fetched: list[str] = []
+    fetched = []
 
     def fetch_json(url: str) -> dict[str, Any]:
         fetched.append(url)
@@ -80,6 +67,19 @@ def pypi(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setattr(ha_next, "fetch_json", fetch_json)
     pages["_fetched"] = fetched
     return pages
+
+
+@pytest.fixture
+def ls_remote(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
+    """Resolve the requested branch or peeled tag to one immutable commit."""
+    calls = []
+
+    def run(args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, f"{COMMIT}\t{args[-1]}\n", "")
+
+    monkeypatch.setattr(ha_next.subprocess, "run", run)
+    return calls
 
 
 def test_newest_homeassistant_includes_betas_and_skips_unusable() -> None:
@@ -94,111 +94,101 @@ def test_newest_homeassistant_without_candidates() -> None:
 
 
 def test_invalid_requires_python_is_ignored() -> None:
-    releases = {"2026.11.0": [_file("not a spec")], "2026.10.0": [_file(None)]}
-    assert ha_next.newest_homeassistant(releases, "3.14.2") == (
-        "2026.10.0",
-        ["2026.11.0"],
-    )
+    assert ha_next.newest_homeassistant(
+        {"2026.11.0": [_file("not a spec")], "2026.10.0": [_file(None)]}, "3.14.2"
+    ) == ("2026.10.0", ["2026.11.0"])
 
 
-def test_resolve_pypi_with_matching_harness(pypi: dict[str, Any]) -> None:
-    pypi.update(
-        _harness_index(
-            {
-                "0.13.380": "homeassistant==2026.11.0",
-                "0.13.379": "homeassistant==2026.11.0b1",
-                "0.13.378": "homeassistant==2026.11.0b0",
-            }
-        )
-    )
-    outputs = ha_next.resolve("pypi", "3.14.2")
-    assert outputs == {
+def test_resolve_pypi_uses_plugin_from_selected_tag(
+    pypi: dict[str, Any], ls_remote: list[list[str]]
+) -> None:
+    assert ha_next.resolve("pypi", "3.14.2") == {
         "ha_requirement": "homeassistant==2026.11.0b1",
         "hassfest_ref": "2026.11.0b1",
         "ha_version": "2026.11.0b1",
-        "harness_version": "0.13.379",
+        "plugin_requirement": (
+            f"pytest-home-assistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
+            "#subdirectory=packages/pytest-home-assistant"
+        ),
+        "plugin_ref": COMMIT[:12],
         "note": (
             "Newer homeassistant release(s) 2026.12.0b1, 2026.12.0b0 do not "
             "support Python 3.14.2."
         ),
     }
-    # The search stops at the first match.
-    assert not any("0.13.378" in url for url in pypi["_fetched"])
+    assert ls_remote == [
+        [
+            "git",
+            "ls-remote",
+            ha_next.CORE_REPO,
+            "refs/tags/2026.11.0b1",
+            "refs/tags/2026.11.0b1^{}",
+        ]
+    ]
+    assert pypi["_fetched"] == [ha_next.PYPI_JSON.format(project=ha_next.HA_PROJECT)]
 
 
-def test_resolve_pypi_without_harness_stops_at_older_pins(
-    pypi: dict[str, Any],
-) -> None:
-    pypi.update(
-        _harness_index(
-            {
-                "0.13.376": None,  # no homeassistant requirement
-                "0.13.375": "homeassistant==2026.10.4",
-                "0.13.374": "homeassistant==2026.10.3",
-            }
-        )
+@pytest.mark.parametrize("annotated", [False, True])
+def test_core_tag_resolution(monkeypatch: pytest.MonkeyPatch, annotated: bool) -> None:
+    ref = "refs/tags/2026.11.0b1"
+    output = f"{COMMIT}\t{ref}\n"
+    if annotated:
+        output = f"{TAG_OBJECT}\t{ref}\n{COMMIT}\t{ref}^{{}}\n"
+    monkeypatch.setattr(
+        ha_next.subprocess,
+        "run",
+        lambda args, **_: subprocess.CompletedProcess(args, 0, output, ""),
     )
-    assert ha_next.resolve("pypi", "3.14.2")["harness_version"] == ""
-    assert not any("0.13.374" in url for url in pypi["_fetched"])
+    assert ha_next.core_commit("2026.11.0b1") == COMMIT
 
 
-def test_harness_pin_ignores_markers_and_invalid_lines() -> None:
-    assert ha_next.harness_pin(None) is None
-    assert (
-        ha_next.harness_pin(
-            ["homeassistant==1; extra == 'x'", "not a requirement !!", "other==1"]
-        )
-        is None
-    )
-    assert str(ha_next.harness_pin(["homeassistant==2026.11.0b1"]).specifier) == (
-        "==2026.11.0b1"
-    )
-
-
-COMMIT = "7c678df5c6a62c4d1a0334f7c9b6050f1926025b"
-
-
-@pytest.fixture
-def ls_remote(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
-    """Answer git ls-remote with a fixed dev head."""
-    calls: list[list[str]] = []
-
-    def run(args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append(args)
-        return subprocess.CompletedProcess(args, 0, f"{COMMIT}\trefs/heads/dev\n", "")
-
-    monkeypatch.setattr(ha_next.subprocess, "run", run)
-    return calls
-
-
-def test_resolve_dev_pins_one_commit(
+def test_resolve_dev_pins_core_and_plugin(
     pypi: dict[str, Any], ls_remote: list[list[str]]
 ) -> None:
-    """Install and Hassfest use the same Core commit, without querying PyPI."""
     assert ha_next.resolve("dev", "3.14.2") == {
         "ha_requirement": (
-            "homeassistant @ https://github.com/home-assistant/core/archive/"
-            f"{COMMIT}.tar.gz"
+            f"homeassistant @ {ha_next.CORE_REPO}/archive/{COMMIT}.tar.gz"
         ),
         "hassfest_ref": COMMIT,
         "ha_version": f"dev@{COMMIT[:12]}",
-        "harness_version": "",
-        "note": ha_next.DEV_NOTE,
+        "plugin_requirement": (
+            f"pytest-home-assistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
+            "#subdirectory=packages/pytest-home-assistant"
+        ),
+        "plugin_ref": COMMIT[:12],
+        "note": "",
     }
     assert ls_remote == [["git", "ls-remote", ha_next.CORE_REPO, "refs/heads/dev"]]
     assert pypi["_fetched"] == []
 
 
-def test_resolve_dev_rejects_an_unexpected_answer(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize(
+    "output", ["", "not-a-sha\trefs/heads/dev\n", f"{COMMIT}\trefs/heads/wrong\n"]
+)
+def test_resolve_dev_rejects_invalid_ref(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], output: str
+) -> None:
+    monkeypatch.setattr(
+        ha_next.subprocess,
+        "run",
+        lambda args, **_: subprocess.CompletedProcess(args, 0, output, ""),
+    )
+    assert ha_next.main(["resolve", "--channel", "dev"]) == 1
+    assert "Cannot resolve Core ref dev" in capsys.readouterr().err
+
+
+def test_missing_release_tag_fails(
+    pypi: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(
         ha_next.subprocess,
         "run",
         lambda args, **_: subprocess.CompletedProcess(args, 0, "", ""),
     )
-    assert ha_next.main(["resolve", "--channel", "dev"]) == 1
-    assert "Cannot resolve the head of Core dev" in capsys.readouterr().err
+    assert ha_next.main(["resolve", "--channel", "pypi"]) == 1
+    assert "Cannot resolve Core ref 2026.11.0b1" in capsys.readouterr().err
 
 
 def test_resolve_dev_reports_git_failure(
@@ -213,7 +203,6 @@ def test_resolve_dev_reports_git_failure(
 
 
 def test_main_writes_github_output(
-    pypi: dict[str, Any],
     ls_remote: list[list[str]],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -226,13 +215,18 @@ def test_main_writes_github_output(
     written = output.read_text()
     assert written.startswith("existing=1\nha_requirement=homeassistant @ ")
     assert f"hassfest_ref={COMMIT}\n" in written
+    assert (
+        f"plugin_requirement=pytest-home-assistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
+        in written
+    )
+    assert f"plugin_ref={COMMIT[:12]}\n" in written
     assert "ha_version=dev" in capsys.readouterr().out
 
 
 def test_main_reports_resolve_failure(
     pypi: dict[str, Any], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    pypi.pop(ha_next.PYPI_JSON.format(project=ha_next.HA_PROJECT))
+    pypi.clear()
     assert ha_next.main(["resolve", "--channel", "pypi"]) == 1
     assert "Cannot resolve the pypi channel" in capsys.readouterr().err
 

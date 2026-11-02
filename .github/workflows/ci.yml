@@ -37,7 +37,7 @@ jobs:
         run: |
           uv venv --python 3.14.2
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
-          uv pip install . ".[dev]" homeassistant
+          uv pip install . ".[dev]"
 
       - name: Check API boundary
         run: python3 script/check_api_boundary.py

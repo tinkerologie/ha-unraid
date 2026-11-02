@@ -119,12 +119,12 @@ fi
 
 log_header "Installing all dependencies"
 log_info "Using pyproject.toml extras: dev + test"
+if uv pip show pytest-homeassistant-custom-component >/dev/null 2>&1; then
+    uv pip uninstall pytest-homeassistant-custom-component
+fi
 uv pip install -e ".[dev,test]"
 
-# Ensure Home Assistant is always upgraded to the latest version
-# This guarantees the devcontainer always uses the most recent HA release
-log_header "Upgrading Home Assistant to latest available version"
-uv pip install --upgrade homeassistant
+log_info "Home Assistant and the official pytest plugin use the aligned pyproject.toml pins"
 
 # Only install pre-commit hooks in local development, not in CI
 # GITHUB_ACTIONS is always set to "true" in GitHub Actions environments
