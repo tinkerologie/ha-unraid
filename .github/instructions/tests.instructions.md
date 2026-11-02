@@ -22,6 +22,7 @@ tests/
 ├── fixtures/                   # JSON API response fixtures
 ├── snapshots/                  # Syrupy snapshots from the official HA extension
 ├── test_harness.py             # Plugin, guard ordering and snapshot checks
+├── test_environment.py         # Development-environment downgrade protection
 ├── test_init.py                # Setup/teardown
 ├── test_identity_migration.py  # Server identity + registry migration (#351)
 ├── test_config_flow.py         # Config flow paths

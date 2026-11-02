@@ -329,6 +329,8 @@ commit. To update the test baseline, change the HA test pin and plugin commit
 together, run `uv lock`, and run the full suite. Use uv for installation so the
 source pin is respected. `script/setup/bootstrap` removes the retired plugin
 from existing environments; the two plugins must not be installed together.
+Bootstrap, upgrade, develop and automatic test setup refuse to downgrade a newer
+installed HA to the test pin. Use a separate test virtual environment in that case.
 
 ### Structure
 

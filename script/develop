@@ -34,6 +34,9 @@ if [[ -z ${VIRTUAL_ENV:-} ]]; then
     fi
 fi
 
+# Check before stopping a running instance or changing its dependencies.
+python "$SCRIPT_DIR/check_test_baseline.py"
+
 # Kill any existing Home Assistant and debugpy processes
 log_header "Cleaning up existing processes"
 if pkill -f "hass --config.*${PWD}/config"; then
@@ -48,8 +51,7 @@ sleep 1  # Give processes time to terminate
 # Uses minimal mode to avoid deleting useful caches
 "$SCRIPT_DIR/clean" --minimal
 
-# Upgrade dependencies to latest versions
-# This ensures Home Assistant and all dependencies are always current
+# Install dependencies aligned with the selected test baseline.
 log_header "Checking for dependency updates"
 "$SCRIPT_DIR/upgrade"
 

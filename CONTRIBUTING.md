@@ -87,6 +87,8 @@ extra pins HA and `[tool.uv.sources]` pins the matching Core plugin commit;
 update both together and regenerate `uv.lock`. Use uv to honor that source.
 Bootstrap removes the retired custom-component plugin from existing environments.
 The runtime HA minimum is unchanged by the test baseline.
+Bootstrap, upgrade, develop and automatic test setup stop before downgrading a
+newer installed HA; use a separate test virtual environment to preserve recorder data.
 
 ### Validation Commands
 
