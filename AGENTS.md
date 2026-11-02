@@ -274,6 +274,8 @@ them raise `RuntimeError` through `report_usage`:
 | `DeviceEntry.config_entries`, `primary_config_entry` | `DeviceEntry.config_entry_id` (a device has one entry) | 2026.8 / reports 2026.10 |
 | `async_update_device(add_config_entry_id= / remove_config_entry_id= / merge_identifiers=)` | `new_config_entry_id=`, `new_identifiers=` | 2026.8 |
 | `DeviceInfo(via_device=...)` | `via_device_id=` | 2026.8 |
+| Mapping construction or dictionary operations on `DeviceInfo` (`[]`, `.get()`, `.update()`, `.copy()`, iteration, `\|`, truthiness) | Construct with keyword arguments; use attributes for fields and full `DeviceInfo(...)` equality in tests supporting older HA | dataclass from 2026.11; dictionary compatibility will be removed later |
+| `DeviceInfo` fields `created_at`, `modified_at`, `default_manufacturer`, `default_model`, `default_name` | Use `manufacturer`, `model`, `name`; leave registry timestamps to HA | removed 2027.9 |
 | Returning `False` from `async_migrate_entry` | raise `ConfigEntryNotReady` / `ConfigEntryError` | 2026.10 |
 | `CONCENTRATION_*` constants; `PERCENTAGE` as a unit | `UnitOfDensity`, `UnitOfRatio.PERCENTAGE` | 2026.7 |
 | `FlowHandler.show_advanced_options` | remove the check (always true) | 2026.6 (removed 2027.6) |
