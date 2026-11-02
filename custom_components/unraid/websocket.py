@@ -84,6 +84,7 @@ class UnraidWebSocketManager:
         self._stats_quiet_since: float = time.monotonic()
         # A confirmed stall lasts until statistics return or nothing is running
         self._stats_stalled = False
+        self._stats_consumers_enabled = True
 
     async def async_start(self) -> None:
         """Start all WebSocket subscriptions as background tasks."""
@@ -92,6 +93,7 @@ class UnraidWebSocketManager:
         self._running = True
         self._stats_quiet_since = time.monotonic()
         self._stats_stalled = False
+        self._stats_consumers_enabled = True
         _LOGGER.info("Starting WebSocket subscriptions for %s", self._server_name)
 
         self._tasks = [
@@ -190,7 +192,7 @@ class UnraidWebSocketManager:
                 return
             retry_delay = min(retry_delay * WS_RETRY_BACKOFF_FACTOR, WS_MAX_RETRY_DELAY)
 
-    def docker_stats_stalled(self) -> bool | None:
+    def docker_stats_stalled(self, *, consumers_enabled: bool = True) -> bool | None:
         """
         Return whether running containers have sent no statistics for too long.
 
@@ -198,8 +200,20 @@ class UnraidWebSocketManager:
         unreachable, or its Docker inventory failed to refresh. The quiet period
         only counts while the stream should be publishing, so neither those
         times nor a server with nothing running can report a stall.
+
+        With no enabled statistics consumers, clear any stall and reset the
+        baseline. The first enabled evaluation starts a fresh observation
+        period, so time spent disabled never counts towards a new stall.
         """
         now = time.monotonic()
+        if not consumers_enabled:
+            self._stats_consumers_enabled = False
+            self._stats_quiet_since = now
+            self._stats_stalled = False
+            return False
+        if not self._stats_consumers_enabled:
+            self._stats_quiet_since = now
+            self._stats_consumers_enabled = True
         coordinator = self._system_coordinator
         data = coordinator.data
         if (

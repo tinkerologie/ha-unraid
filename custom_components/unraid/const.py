@@ -139,6 +139,17 @@ WS_REFRESH_DEBOUNCE_SECONDS: Final = 10  # seconds
 # Running containers with no statistics event for this long means the stream stopped
 WS_STATS_STALL_SECONDS: Final = 300  # seconds (5 minutes)
 DOCKER_STATS_CHECK_INTERVAL: Final = timedelta(minutes=1)
+DOCKER_STATS_AGGREGATE_RESOURCES: Final = frozenset(
+    {"docker_total_cpu", "docker_total_memory_pct", "docker_total_memory_bytes"}
+)
+DOCKER_STATS_CONTAINER_PREFIX: Final = "container_"
+DOCKER_STATS_CONTAINER_SUFFIXES: Final = (
+    "cpu",
+    "memory",
+    "memory_pct",
+    "memory_used",
+    "memory_limit",
+)
 
 
 # =============================================================================

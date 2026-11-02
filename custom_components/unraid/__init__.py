@@ -43,7 +43,10 @@ from .cleanup import async_cleanup_stale_entities
 from .const import (
     CONF_IGNORE_SSL,
     DEFAULT_PORT,
+    DOCKER_STATS_AGGREGATE_RESOURCES,
     DOCKER_STATS_CHECK_INTERVAL,
+    DOCKER_STATS_CONTAINER_PREFIX,
+    DOCKER_STATS_CONTAINER_SUFFIXES,
     DOMAIN,
     REPAIR_AUTH_FAILED,
     REPAIR_DOCKER_STATS_STALLED,
@@ -373,12 +376,44 @@ def async_delete_auth_issue(hass: HomeAssistant, entry_id: str) -> None:
 
 
 @callback
+def _docker_stats_consumers_enabled(
+    hass: HomeAssistant, entry: UnraidConfigEntry
+) -> bool:
+    """Return whether this entry has an enabled Docker statistics sensor."""
+    prefix = f"{entry.runtime_data.server_info['uuid']}_"
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            entity.domain != "sensor"
+            or entity.platform != DOMAIN
+            or entity.disabled_by is not None
+            or not entity.unique_id.startswith(prefix)
+        ):
+            continue
+        resource = entity.unique_id.removeprefix(prefix)
+        if resource in DOCKER_STATS_AGGREGATE_RESOURCES:
+            return True
+        if not resource.startswith(DOCKER_STATS_CONTAINER_PREFIX):
+            continue
+        container_resource = resource.removeprefix(DOCKER_STATS_CONTAINER_PREFIX)
+        if any(
+            container_resource.endswith(f"_{suffix}")
+            and len(container_resource) > len(suffix) + 1
+            for suffix in DOCKER_STATS_CONTAINER_SUFFIXES
+        ):
+            return True
+    return False
+
+
+@callback
 def _async_update_docker_stats_issue(
     hass: HomeAssistant, entry: UnraidConfigEntry
 ) -> None:
     """Raise or clear this entry's Docker statistics repair issue."""
     issue_id = docker_stats_stalled_issue_id(entry.entry_id)
-    stalled = entry.runtime_data.websocket_manager.docker_stats_stalled()
+    stalled = entry.runtime_data.websocket_manager.docker_stats_stalled(
+        consumers_enabled=_docker_stats_consumers_enabled(hass, entry)
+    )
     if stalled is None:
         return
     if not stalled:
