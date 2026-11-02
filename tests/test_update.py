@@ -426,7 +426,7 @@ async def test_install_raises_on_api_error() -> None:
     with pytest.raises(HomeAssistantError) as exc_info:
         await entity.async_install(version=None, backup=False)
 
-    assert "container_update_failed" in str(exc_info.value)
+    assert exc_info.value.translation_key == "container_update_failed"
 
 
 async def test_install_clears_in_progress_on_error() -> None:

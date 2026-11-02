@@ -9,15 +9,14 @@ Subcommands:
     fail on an import error, on a ``DeprecationWarning`` or
     ``PendingDeprecationWarning`` raised from the integration's own files, or on
     a Home Assistant deprecation report that names the integration. It runs
-    against a Home Assistant the test harness cannot use yet (a beta, or Core
-    ``dev``), and from ``tests/test_deprecation_currency.py`` in a fresh
-    interpreter, because class-definition reports fire at import time, before
+    on every HA Next channel and from ``tests/test_deprecation_currency.py``
+    in a fresh interpreter, because class-definition reports fire at import time, before
     any test fixture runs. Standard library only; Home Assistant is not started.
 
 ``resolve --channel pypi|dev``
     Resolve what the ``HA Next`` workflow installs: the newest ``homeassistant``
     on PyPI (betas included) with the matching
-    ``pytest-homeassistant-custom-component`` release, or Core's ``dev`` branch.
+    official pytest plugin from the same Core commit, or Core's ``dev`` branch.
     Writes ``key=value`` lines to ``$GITHUB_OUTPUT``, or to stdout when it is not
     set. Needs ``packaging``.
 
@@ -63,14 +62,10 @@ DEPRECATION_REPORT_PATTERNS = (
 )
 
 PYPI_JSON = "https://pypi.org/pypi/{project}/json"
-PYPI_RELEASE_JSON = "https://pypi.org/pypi/{project}/{version}/json"
 HA_PROJECT = "homeassistant"
-HARNESS_PROJECT = "pytest-homeassistant-custom-component"
 CORE_REPO = "https://github.com/home-assistant/core"
 DEV_ARCHIVE = CORE_REPO + "/archive/{commit}.tar.gz"
-DEV_NOTE = "The test harness does not track Core dev; pytest skipped."
 DEFAULT_PYTHON = "3.14.2"
-HARNESS_LOOKUPS = 40  # releases to inspect before giving up on a harness
 TIMEOUT = 30
 
 
@@ -196,77 +191,50 @@ def newest_homeassistant(
     raise LookupError(f"No {HA_PROJECT} release supports Python {python}")
 
 
-def harness_pin(requires_dist: list[str] | None) -> Any:
-    """Return the ``homeassistant`` requirement of a harness release, if any."""
-    from packaging.requirements import InvalidRequirement, Requirement
-
-    for line in requires_dist or []:
-        try:
-            requirement = Requirement(line)
-        except InvalidRequirement:
-            continue
-        if requirement.name == HA_PROJECT and requirement.marker is None:
-            return requirement
-    return None
-
-
-def matching_harness(ha_version: str) -> str:
-    """Return the newest harness release that accepts ``ha_version``, or ''."""
-    from packaging.version import InvalidVersion, Version
-
-    target = Version(ha_version)
-    releases = fetch_json(PYPI_JSON.format(project=HARNESS_PROJECT))["releases"]
-    candidates = []
-    for name, files in releases.items():
-        try:
-            version = Version(name)
-        except InvalidVersion:
-            continue
-        if files and not all(f.get("yanked") for f in files):
-            candidates.append((version, name))
-    for _, name in sorted(candidates, reverse=True)[:HARNESS_LOOKUPS]:
-        info = fetch_json(
-            PYPI_RELEASE_JSON.format(project=HARNESS_PROJECT, version=name)
-        )["info"]
-        requirement = harness_pin(info.get("requires_dist"))
-        if requirement is None:
-            continue
-        if requirement.specifier.contains(target, prereleases=True):
-            return name
-        # Each harness pins one Home Assistant release; once the pins fall
-        # below the target, no older harness can match it.
-        pinned = [Version(s.version) for s in requirement.specifier]
-        if pinned and max(pinned) < target:
-            break
-    return ""
-
-
-def dev_commit() -> str:
-    """Return the commit at the head of Core's dev branch."""
+def core_commit(ref: str) -> str:
+    """Resolve a Core branch or tag, preferring an annotated tag's commit."""
+    reference = "refs/heads/dev" if ref == "dev" else f"refs/tags/{ref}"
+    references = [reference]
+    if ref != "dev":
+        references.append(f"{reference}^{{}}")
     result = subprocess.run(  # noqa: S603 - fixed Git arguments, no shell
-        ["git", "ls-remote", CORE_REPO, "refs/heads/dev"],  # noqa: S607
+        ["git", "ls-remote", CORE_REPO, *references],  # noqa: S607
         check=True,
         capture_output=True,
         text=True,
         timeout=TIMEOUT,
     )
-    commit = result.stdout.split("\t", 1)[0].strip()
+    resolved = {}
+    for line in result.stdout.splitlines():
+        commit, separator, name = line.partition("\t")
+        if separator:
+            resolved[name] = commit
+    commit = resolved.get(f"{reference}^{{}}", resolved.get(reference, ""))
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
-        raise LookupError(f"Cannot resolve the head of Core dev: {result.stdout!r}")
+        raise LookupError(f"Cannot resolve Core ref {ref}: {result.stdout!r}")
     return commit
+
+
+def plugin_requirement(commit: str) -> str:
+    """Build an immutable official test plugin requirement for a Core commit."""
+    return (
+        f"pytest-home-assistant @ git+{CORE_REPO}@{commit}"
+        "#subdirectory=packages/pytest-home-assistant"
+    )
 
 
 def resolve(channel: str, python: str) -> dict[str, str]:
     """Return the install requirement and versions for one channel."""
     if channel == "dev":
         # Pin one commit, so the install and Hassfest test the same Core.
-        commit = dev_commit()
+        commit = core_commit("dev")
         return {
             "ha_requirement": f"{HA_PROJECT} @ {DEV_ARCHIVE.format(commit=commit)}",
             "hassfest_ref": commit,
             "ha_version": f"dev@{commit[:12]}",
-            "harness_version": "",
-            "note": DEV_NOTE,
+            "plugin_requirement": plugin_requirement(commit),
+            "plugin_ref": commit[:12],
+            "note": "",
         }
     releases = fetch_json(PYPI_JSON.format(project=HA_PROJECT))["releases"]
     version, skipped = newest_homeassistant(releases, python)
@@ -276,11 +244,13 @@ def resolve(channel: str, python: str) -> dict[str, str]:
             f"Newer {HA_PROJECT} release(s) {', '.join(skipped)} do not support "
             f"Python {python}."
         )
+    commit = core_commit(version)
     return {
         "ha_requirement": f"{HA_PROJECT}=={version}",
         "hassfest_ref": version,
         "ha_version": version,
-        "harness_version": matching_harness(version),
+        "plugin_requirement": plugin_requirement(commit),
+        "plugin_ref": commit[:12],
         "note": note,
     }
 

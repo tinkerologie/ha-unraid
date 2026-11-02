@@ -12,8 +12,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
-from syrupy.assertion import SnapshotAssertion
 from unraid_api.models import (
     ArrayCapacity,
     ArrayDisk,
@@ -50,21 +48,6 @@ from custom_components.unraid.coordinator import (
     UnraidStorageData,
     UnraidSystemData,
 )
-
-# Import pytest_homeassistant_custom_component's autouse fixtures
-pytest_plugins = "pytest_homeassistant_custom_component"
-
-
-# =============================================================================
-# Snapshot Testing Fixture
-# =============================================================================
-
-
-@pytest.fixture
-def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
-    """Return snapshot assertion fixture with the Home Assistant extension."""
-    return snapshot.use_extension(HomeAssistantSnapshotExtension)
-
 
 # Fixtures directory path
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -284,11 +267,12 @@ class _DeprecationReportCollector(logging.Handler):
             self.reports.append(f"{record.name}: {message}")
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def deprecation_report_guard() -> Generator[list[str]]:
     """
     Fail the test when Home Assistant reports deprecated use by ``unraid``.
 
+    Autouse setup runs before ``hass`` and teardown runs after it.
     The handler sits on the root logger from setup to teardown, so reports from
     fixtures, the test and ``hass`` shutdown are all seen, and ``caplog.clear()``
     cannot remove them. Fix the integration code; don't weaken this guard.
@@ -306,23 +290,6 @@ def deprecation_report_guard() -> Generator[list[str]]:
             + "\n".join(collector.reports),
             pytrace=False,
         )
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(
-    deprecation_report_guard: list[str], enable_custom_integrations: None
-) -> None:
-    """
-    Enable custom integrations for all tests.
-
-    This fixture uses the enable_custom_integrations fixture from
-    pytest-homeassistant-custom-component to allow Home Assistant
-    to load custom components from the custom_components directory.
-
-    ``deprecation_report_guard`` comes first, so it is set up before ``hass``
-    and torn down after the ``hass`` cleanup.
-    """
-    return
 
 
 @pytest.fixture

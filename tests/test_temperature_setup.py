@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.unraid.const import DOMAIN
 from tests.conftest import make_server_info

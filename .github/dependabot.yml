@@ -45,11 +45,6 @@ updates:
     commit-message:
       prefix: chore(deps)
     groups:
-      # HA core + test framework must stay in sync — bump together
-      homeassistant-stack:
-        patterns:
-          - homeassistant
-          - pytest-homeassistant-custom-component
       # Linting / formatting tools
       linting:
         patterns:
@@ -62,15 +57,13 @@ updates:
           - pytest*
           - syrupy
           - coverage*
-    # Packages pytest-homeassistant-custom-component pins exactly (==). Bumping one on
-    # its own makes the lock unsatisfiable and fails the whole update run, so they
-    # move only when pytest-homeassistant-custom-component does (STANDARDS.md §6).
+    # Core and its source-pinned official pytest plugin are updated together.
+    # The plugin's exact test dependency pins also move with that baseline.
     ignore:
-      - dependency-name: pydantic
+      - dependency-name: homeassistant
+      - dependency-name: pytest-home-assistant
       - dependency-name: pytest
       - dependency-name: pytest-asyncio
-      - dependency-name: pytest-cov
-      - dependency-name: pytest-timeout
       - dependency-name: syrupy
 
   # Maintain frontend npm dependencies

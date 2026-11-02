@@ -9,7 +9,8 @@ Refer to `AGENTS.md` for full project documentation.
 ## Test Framework
 
 - `pytest` with `pytest-asyncio` (`asyncio_mode = "auto"`)
-- `pytest-homeassistant-custom-component` for HA test infrastructure
+- Official `pytest-home-assistant` plugin for HA fixtures and `pytest_homeassistant.common` helpers
+- Plugin-provided `pytest_homeassistant.syrupy.HomeAssistantSnapshotExtension` for snapshots
 - `pytest-cov` for coverage reporting
 - `syrupy` for snapshot testing
 
@@ -19,6 +20,9 @@ Refer to `AGENTS.md` for full project documentation.
 tests/
 ├── conftest.py                 # Shared fixtures and data factories
 ├── fixtures/                   # JSON API response fixtures
+├── snapshots/                  # Syrupy snapshots from the official HA extension
+├── test_harness.py             # Plugin, guard ordering and snapshot checks
+├── test_environment.py         # Development-environment downgrade protection
 ├── test_init.py                # Setup/teardown
 ├── test_identity_migration.py  # Server identity + registry migration (#351)
 ├── test_config_flow.py         # Config flow paths

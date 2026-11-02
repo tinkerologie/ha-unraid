@@ -79,8 +79,16 @@ Before a pull request can be merged, it must satisfy all automated quality gates
 ### Prerequisites and Setup
 
 - Python 3.12 or later
-- Virtual environment with dependencies installed (`script/setup/bootstrap` or `pip install -e ".[test,dev]"`)
+- Virtual environment with dependencies installed (`script/setup/bootstrap` or `uv pip install -e ".[test,dev]"`)
 - Pre-commit (`pre-commit install`)
+
+Tests use Home Assistant's official `pytest-home-assistant` plugin. The test
+extra pins HA and `[tool.uv.sources]` pins the matching Core plugin commit;
+update both together and regenerate `uv.lock`. Use uv to honor that source.
+Bootstrap removes the retired custom-component plugin from existing environments.
+The runtime HA minimum is unchanged by the test baseline.
+Bootstrap, upgrade, develop and automatic test setup stop before downgrading a
+newer installed HA; use a separate test virtual environment to preserve recorder data.
 
 ### Validation Commands
 
@@ -118,7 +126,8 @@ Two scheduled workflows warn about the next release early and can be started by
 hand from the Actions tab (**Run workflow**):
 
 - **HA Next** checks the newest Home Assistant on PyPI (betas included) and Core
-  `dev`, and keeps one `ha-next` issue per channel.
+  `dev`, installing the official test plugin from the same Core commit and
+  running the full suite on both channels. It keeps one `ha-next` issue per channel.
 - **HA dev blog watch** (optional `days` input) opens a `ha-dev-blog` issue for
   each developer blog post that names code the integration uses.
 
