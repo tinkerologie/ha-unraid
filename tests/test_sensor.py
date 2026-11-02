@@ -3710,6 +3710,63 @@ async def test_asyncsetupentry_removes_non_monitorable_network_entities(hass) ->
 
 
 @pytest.mark.asyncio
+async def test_docker_statistics_consumers_match_sensor_definitions(hass) -> None:
+    """The repair's consumer identities stay aligned with actual setup entities."""
+    from homeassistant.helpers import entity_registry as er
+    from pytest_homeassistant.common import MockConfigEntry
+
+    from custom_components.unraid import (
+        UnraidRuntimeData,
+        _docker_stats_consumers_enabled,
+    )
+    from custom_components.unraid.sensor import async_setup_entry
+
+    entry = MockConfigEntry(domain="unraid", data={"host": "192.168.1.100"})
+    entry.add_to_hass(hass)
+    system = MagicMock(spec=UnraidSystemCoordinator)
+    system.data = make_system_data(
+        containers=[DockerContainer(id="c1", name="media_cpu_memory", state="RUNNING")]
+    )
+    storage = MagicMock(spec=UnraidStorageCoordinator)
+    storage.data = make_storage_data()
+    entry.runtime_data = UnraidRuntimeData(
+        api_client=MagicMock(),
+        system_coordinator=system,
+        storage_coordinator=storage,
+        infra_coordinator=MagicMock(),
+        server_info={"uuid": "placeholder_uuid_tower_name", "name": "tower"},
+        websocket_manager=MagicMock(),
+    )
+    entities = []
+    await async_setup_entry(hass, entry, entities.extend)
+
+    statistics_classes = {
+        DockerTotalCpuSensor,
+        DockerTotalMemoryPercentSensor,
+        DockerTotalMemoryBytesSensor,
+        ContainerCpuSensor,
+        ContainerMemoryUsageSensor,
+        ContainerMemoryPercentSensor,
+        ContainerMemoryUsedSensor,
+        ContainerMemoryLimitSensor,
+    }
+    seen_statistics_classes = set()
+    registry = er.async_get(hass)
+    for entity in entities:
+        registered = registry.async_get_or_create(
+            "sensor", "unraid", entity.unique_id, config_entry=entry
+        )
+        expected = type(entity) in statistics_classes
+        assert _docker_stats_consumers_enabled(hass, entry) is expected, (
+            entity.unique_id
+        )
+        if expected:
+            seen_statistics_classes.add(type(entity))
+        registry.async_remove(registered.entity_id)
+    assert seen_statistics_classes == statistics_classes
+
+
+@pytest.mark.asyncio
 async def test_asyncsetupentry_creates_ups_sensors(hass) -> None:
     """Test setup creates UPS sensors when UPS devices exist."""
     from custom_components.unraid import UnraidRuntimeData
