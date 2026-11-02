@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfInformation
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from unraid_api.models import (
     ArrayCapacity,
@@ -186,8 +187,16 @@ def test_unraidsensorentity_base_sensor_entity_properties() -> None:
     assert entity.unique_id == "test-uuid_test-resource"
     assert entity.name == "Test Sensor"
     assert entity.device_info is not None
-    assert entity.device_info["identifiers"] == {(DOMAIN, "test-uuid")}
-    assert entity.device_info["name"] == "test-server"
+    assert entity.device_info == DeviceInfo(
+        identifiers={(DOMAIN, "test-uuid")},
+        name="test-server",
+        manufacturer=None,
+        model=None,
+        serial_number=None,
+        sw_version=None,
+        hw_version=None,
+        configuration_url=None,
+    )
 
 
 def test_unraidsensorentity_sensor_availability_from_coordinator() -> None:

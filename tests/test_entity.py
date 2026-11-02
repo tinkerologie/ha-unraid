@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from homeassistant.helpers import entity as entity_helper
+from homeassistant.helpers.device_registry import DeviceInfo
 
 from custom_components.unraid import (
     binary_sensor,
@@ -119,15 +120,16 @@ def test_base_entity_creation() -> None:
     assert entity._attr_has_entity_name is True
 
     # Check device info
-    device_info = entity.device_info
-    assert device_info["identifiers"] == {(DOMAIN, "test-uuid-123")}
-    assert device_info["name"] == "tower"
-    assert device_info["manufacturer"] == "Lime Technology"
-    assert device_info["model"] == "Unraid 7.2.0"
-    assert device_info["serial_number"] == "ABC123"
-    assert device_info["sw_version"] == "7.2.4"
-    assert device_info["hw_version"] == "1.0"
-    assert device_info["configuration_url"] == "https://tower.local"
+    assert entity.device_info == DeviceInfo(
+        identifiers={(DOMAIN, "test-uuid-123")},
+        name="tower",
+        manufacturer="Lime Technology",
+        model="Unraid 7.2.0",
+        serial_number="ABC123",
+        sw_version="7.2.4",
+        hw_version="1.0",
+        configuration_url="https://tower.local",
+    )
 
 
 def test_base_entity_creation_without_server_info() -> None:
@@ -145,11 +147,16 @@ def test_base_entity_creation_without_server_info() -> None:
     )
 
     # Device info should have None for optional fields
-    device_info = entity.device_info
-    assert device_info["identifiers"] == {(DOMAIN, "test-uuid")}
-    assert device_info["name"] == "tower"
-    assert device_info["manufacturer"] is None
-    assert device_info["model"] is None
+    assert entity.device_info == DeviceInfo(
+        identifiers={(DOMAIN, "test-uuid")},
+        name="tower",
+        manufacturer=None,
+        model=None,
+        serial_number=None,
+        sw_version=None,
+        hw_version=None,
+        configuration_url=None,
+    )
 
 
 def test_base_entity_availability_success() -> None:
@@ -324,8 +331,16 @@ def test_unraid_entity_with_server_info() -> None:
         server_info=server_info,
     )
 
-    assert entity.device_info["manufacturer"] == "Test Manufacturer"
-    assert entity.device_info["model"] == "Test Model"
+    assert entity.device_info == DeviceInfo(
+        identifiers={(DOMAIN, "test-uuid")},
+        name="tower",
+        manufacturer="Test Manufacturer",
+        model="Test Model",
+        serial_number=None,
+        sw_version=None,
+        hw_version=None,
+        configuration_url=None,
+    )
 
 
 # =============================================================================
