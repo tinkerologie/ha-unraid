@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.11.0] - 2026-11-05
+
 ### Added
 
 - A repair notice appears when running containers send no Docker statistics for 5 minutes, explaining that the Docker sensors are frozen or Unknown and that `unraid-api restart` usually restores them. It clears on its own ([#406](https://github.com/tinkerologie/ha-unraid/issues/406)).
