@@ -31,7 +31,7 @@ tests/
 ├── test_websocket.py           # Subscription manager
 ├── test_sensor.py, test_binary_sensor.py, test_switch.py, test_button.py
 ├── test_event.py, test_update.py
-└── test_diagnostics.py, test_repairs.py, test_entity.py, test_frontend.py
+└── test_diagnostics.py, test_legacy_auth_issue.py, test_entity.py, test_frontend.py
 ```
 
 ## Fixture Patterns

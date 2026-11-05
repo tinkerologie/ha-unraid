@@ -83,20 +83,6 @@
     "docker_stats_stalled": {
       "title": "Docker statistics stopped on {server}",
       "description": "Running containers on {server} have sent no CPU or memory statistics for at least 5 minutes, so the Docker sensors are frozen at their last values or show Unknown. Restarting the Unraid API service usually restores them: run `unraid-api restart` in the Unraid terminal. Your containers are not affected. This notice clears on its own once statistics return."
-    },
-    "auth_failed": {
-      "title": "Authentication Failed",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Reauthenticate Unraid",
-            "description": "The API key for {host} is no longer valid. Click submit to enter a new API key."
-          }
-        },
-        "abort": {
-          "entry_not_found": "This Unraid server is no longer configured."
-        }
-      }
     }
   },
   "exceptions": {

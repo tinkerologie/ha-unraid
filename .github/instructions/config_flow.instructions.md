@@ -94,8 +94,6 @@ via `_get_reauth_entry()` / `_get_reconfigure_entry()` and finish with
 
 ## Repair Issues
 
-Reauth success should clear the auth repair issue created by runtime logic:
-
-```python
-ir.async_delete_issue(self.hass, DOMAIN, REPAIR_AUTH_FAILED)
-```
+Don't create or clear a repair issue for authentication. Raising
+`ConfigEntryAuthFailed` makes Home Assistant start the reauth flow and raise its
+own `config_entry_reauth` issue, which it deletes when the flow finishes (#420).

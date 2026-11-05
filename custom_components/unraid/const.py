@@ -155,13 +155,15 @@ DOCKER_STATS_CONTAINER_SUFFIXES: Final = (
 # =============================================================================
 # Repair Issue IDs
 # =============================================================================
-# Also the translation key, and the ID of the shared issue used before #394.
-REPAIR_AUTH_FAILED: Final = "auth_failed"
+# Authentication failures are reported by Home Assistant's own reauth issue.
+# These IDs only find issues raised before #420 (the shared one before #394)
+# so they can be deleted.
+LEGACY_REPAIR_AUTH_FAILED: Final = "auth_failed"
 
 
-def auth_failed_issue_id(entry_id: str) -> str:
-    """Return the ID of a config entry's authentication repair issue."""
-    return f"{REPAIR_AUTH_FAILED}_{entry_id}"
+def legacy_auth_failed_issue_id(entry_id: str) -> str:
+    """Return the ID of a config entry's pre-#420 authentication repair issue."""
+    return f"{LEGACY_REPAIR_AUTH_FAILED}_{entry_id}"
 
 
 REPAIR_DOCKER_STATS_STALLED: Final = "docker_stats_stalled"

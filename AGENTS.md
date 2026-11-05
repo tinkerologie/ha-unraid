@@ -178,7 +178,6 @@ custom_components/unraid/
 ├── event.py             # Event entities (notifications, plugin operations)
 ├── frontend.py          # Registers the bundled Lovelace cards as a static path / resource
 ├── frontend/            # Built card bundle (sources live in /frontend at repo root)
-├── repairs.py           # Repair flows (auth failed)
 ├── sensor.py            # All sensor entities
 ├── binary_sensor.py     # All binary sensor entities
 ├── switch.py            # Container, VM, array, parity, disk spin switches
@@ -249,8 +248,8 @@ Key patterns:
 
 - Use HA translation system for user-facing errors: `translation_domain=DOMAIN`, `translation_key="..."`, `translation_placeholders={...}`
 - Wrap API errors in `HomeAssistantError` for entity actions (switch on/off, button press)
-- Create repair issues (`ir.async_create_issue`) for persistent auth failures
-- Clear repair issues on successful reconnection
+- Raise `ConfigEntryAuthFailed` for a rejected API key; Home Assistant starts the reauth flow and raises its own repair issue, so don't create one
+- Repair issues are only for problems the user can fix that Home Assistant doesn't already report (e.g. `docker_stats_stalled`), and are cleared when the problem goes away
 
 ### Models & Data
 
@@ -282,7 +281,7 @@ them raise `RuntimeError` through `report_usage`:
 | Entity IDs whose domain differs from the platform | matching domain | 2026.4 (stops 2027.5) |
 | `RestoreStateData.last_states` | `async_get_stored_state` | 2026.11 |
 | `import voluptuous as vol` | `import probatio as vol` (HA 2026.9+ engine; voluptuous is only a `sys.modules` alias and is not installed) | 2026.9 |
-| `data_entry_flow.FlowResult` as a step return type | `ConfigFlowResult` / `RepairsFlowResult` | 2024.x |
+| `data_entry_flow.FlowResult` as a step return type | `ConfigFlowResult` (`RepairsFlowResult` for any repair flow) | 2024.x |
 | `"%"`, `"GiB"` and other unit string literals | `UnitOfRatio.PERCENTAGE`, `UnitOfInformation.GIBIBYTES`, ... | 2026.7 |
 
 Home Assistant 2026.11 follow-ups (#394), keep them when touching these areas:
@@ -294,9 +293,9 @@ Home Assistant 2026.11 follow-ups (#394), keep them when touching these areas:
   and 2027.11 drops that fallback. `tests/test_entity.py` fails on a class that
   misses it.
 - Repair issues that concern one config entry put the entry ID in the issue ID
-  (`auth_failed_issue_id(entry_id)`), carry `data={"entry_id": ...}`, and pass
+  (`docker_stats_stalled_issue_id(entry_id)`), carry `data={"entry_id": ...}`, and pass
   `config_entry_id=` only where `ir.async_create_issue` accepts it (2026.11+;
-  see `_ISSUES_TAKE_CONFIG_ENTRY`). `async_remove_entry` deletes them for older releases.
+  see `_ISSUES_TAKE_CONFIG_ENTRY`). `async_setup` (all entries, disabled ones included) and `async_remove_entry` also delete the `auth_failed` issues releases before #420 raised.
 - `manifest.json` has `categories` (`computers_network.nas_servers`). Hassfest
   from a Core older than 2026.11 rejects the key, so validate locally with
   `HA_VERSION=2026.11.0b1` or later; CI's Hassfest image accepts it.
@@ -345,7 +344,7 @@ tests/
 ├── test_cleanup.py             # Stale entity / device cleanup
 ├── test_websocket.py           # Subscription manager
 ├── test_frontend.py            # Card registration
-├── test_diagnostics.py, test_repairs.py, test_entity.py
+├── test_diagnostics.py, test_legacy_auth_issue.py, test_entity.py
 ├── test_sensor.py, test_binary_sensor.py, test_switch.py, test_button.py
 └── test_event.py, test_update.py
 ```

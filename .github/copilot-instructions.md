@@ -79,7 +79,6 @@ These files auto-load in Copilot based on `applyTo` patterns:
 | `__init__.py`, `config_flow.py`, `coordinator.py` | `api.instructions.md`                | `UnraidClient` usage and API-layer boundaries |
 | `config_flow.py`                                  | `config_flow.instructions.md`        | SSL, versions, options flow                   |
 | `diagnostics.py`                                  | `diagnostics.instructions.md`        | Diagnostic data, security                     |
-| `repairs.py`                                      | `repairs.instructions.md`            | Repair flows                                  |
 | `tests/**/*.py`                                   | `tests.instructions.md`              | Fixtures, mocking, scenarios                  |
 | `strings.json`, `translations/`                   | `translations.instructions.md`       | Translation structure                         |
 | `icons.json`                                      | `json.instructions.md`               | Icon definitions                              |

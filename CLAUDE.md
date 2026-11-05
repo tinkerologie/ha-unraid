@@ -37,7 +37,6 @@ When editing specific file types, consult the relevant instruction file in `.git
 | `coordinator.py` / `websocket.py` / `cleanup.py`    | [`coordinator.instructions.md`](.github/instructions/coordinator.instructions.md)               |
 | `config_flow.py`                                    | [`config_flow.instructions.md`](.github/instructions/config_flow.instructions.md)               |
 | `diagnostics.py`                                    | [`diagnostics.instructions.md`](.github/instructions/diagnostics.instructions.md)               |
-| `repairs.py`                                        | [`repairs.instructions.md`](.github/instructions/repairs.instructions.md)                       |
 | `tests/**/*.py`                                     | [`tests.instructions.md`](.github/instructions/tests.instructions.md)                           |
 | `strings.json`, `translations/`                     | [`translations.instructions.md`](.github/instructions/translations.instructions.md)             |
 | `icons.json`                                        | [`json.instructions.md`](.github/instructions/json.instructions.md)                             |
