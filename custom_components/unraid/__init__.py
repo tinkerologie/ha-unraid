@@ -342,18 +342,37 @@ _ISSUES_TAKE_CONFIG_ENTRY: Final = (
 )
 
 
+def _is_legacy_auth_issue(issue_id: str) -> bool:
+    """Return whether an issue ID belongs to a pre-#420 authentication issue."""
+    # Before #394 one issue, keyed only by domain, covered every server.
+    return issue_id == LEGACY_REPAIR_AUTH_FAILED or issue_id.startswith(
+        legacy_auth_failed_issue_id("")
+    )
+
+
 @callback
-def _async_delete_legacy_auth_issues(hass: HomeAssistant, entry_id: str) -> None:
+def _async_delete_legacy_auth_issues(
+    hass: HomeAssistant, entry_id: str | None = None
+) -> None:
     """
     Delete authentication repair issues left by earlier releases.
 
     Before #420 the integration raised its own fixable ``auth_failed`` issue
     next to the reauth issue Home Assistant raises for ``ConfigEntryAuthFailed``.
     Its fix flow is gone, so a leftover issue would show a broken Fix button.
+    Without ``entry_id`` every such issue goes, including those of disabled
+    entries, which Home Assistant never sets up.
     """
-    ir.async_delete_issue(hass, DOMAIN, legacy_auth_failed_issue_id(entry_id))
-    # Before #394 one issue, keyed only by domain, covered every server.
-    ir.async_delete_issue(hass, DOMAIN, LEGACY_REPAIR_AUTH_FAILED)
+    if entry_id is not None:
+        issue_ids = [legacy_auth_failed_issue_id(entry_id), LEGACY_REPAIR_AUTH_FAILED]
+    else:
+        issue_ids = [
+            issue_id
+            for domain, issue_id in ir.async_get(hass).issues
+            if domain == DOMAIN and _is_legacy_auth_issue(issue_id)
+        ]
+    for issue_id in issue_ids:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
 
 
 @callback
@@ -524,13 +543,13 @@ async def _async_refresh_coordinators(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
     """Set up the Unraid component and register dashboard frontend."""
+    _async_delete_legacy_auth_issues(hass)
     await async_register_frontend(hass)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bool:
     """Set up Unraid from a config entry."""
-    _async_delete_legacy_auth_issues(hass, entry.entry_id)
     host = entry.data[CONF_HOST]
     port = entry.data.get(CONF_PORT, DEFAULT_PORT)
     api_key = entry.data[CONF_API_KEY]

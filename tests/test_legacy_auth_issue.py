@@ -5,19 +5,21 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant.common import MockConfigEntry
 from unraid_api.exceptions import UnraidAuthenticationError
 
-from custom_components import unraid
 from custom_components.unraid import async_remove_entry, async_setup_entry
 from custom_components.unraid.const import (
     DEFAULT_PORT,
     DOMAIN,
     LEGACY_REPAIR_AUTH_FAILED,
+    docker_stats_stalled_issue_id,
     legacy_auth_failed_issue_id,
 )
 
@@ -112,38 +114,35 @@ async def test_core_raises_one_reauth_issue(
     assert any(entry.async_get_active_flows(hass, {"reauth"}))
 
 
-async def test_setup_deletes_leftover_issues_when_auth_fails(
+async def test_loading_deletes_every_leftover_issue(
     hass: HomeAssistant, client: MagicMock
 ) -> None:
-    """After an upgrade with the key still revoked, the old issues go."""
-    entry, other = _entry("tower"), _entry("other")
-    entry.add_to_hass(hass)
-    other.add_to_hass(hass)
-    _raise_legacy_issues(hass, entry, other)
-
-    with pytest.raises(ConfigEntryAuthFailed):
-        await async_setup_entry(hass, entry)
-
-    # The other server's issue goes when that server sets up.
-    assert _unraid_issue_ids(hass) == {legacy_auth_failed_issue_id(other.entry_id)}
-
-
-async def test_setup_deletes_leftover_issues_when_auth_succeeds(
-    hass: HomeAssistant, client: MagicMock
-) -> None:
+    """Disabled entries never set up, so loading the integration clears theirs."""
     entry = _entry("tower")
+    disabled = MockConfigEntry(
+        domain=DOMAIN,
+        title="disabled",
+        data=dict(entry.data),
+        unique_id="uuid-disabled",
+        disabled_by=ConfigEntryDisabler.USER,
+    )
     entry.add_to_hass(hass)
-    _raise_legacy_issues(hass, entry)
-    client.test_connection.side_effect = None
+    disabled.add_to_hass(hass)
+    _raise_legacy_issues(hass, entry, disabled)
+    unrelated = docker_stats_stalled_issue_id(entry.entry_id)
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        unrelated,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="docker_stats_stalled",
+    )
 
-    # Stop setup right after the connection succeeds.
-    with (
-        patch.object(unraid, "_build_server_info", side_effect=RuntimeError("done")),
-        pytest.raises(RuntimeError, match="done"),
-    ):
-        await async_setup_entry(hass, entry)
+    await async_setup_component(hass, DOMAIN, {})
+    await hass.async_block_till_done()
 
-    assert _unraid_issue_ids(hass) == set()
+    assert _unraid_issue_ids(hass) == {unrelated}
 
 
 async def test_removing_the_entry_deletes_leftover_issues(

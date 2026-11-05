@@ -295,7 +295,7 @@ Home Assistant 2026.11 follow-ups (#394), keep them when touching these areas:
 - Repair issues that concern one config entry put the entry ID in the issue ID
   (`docker_stats_stalled_issue_id(entry_id)`), carry `data={"entry_id": ...}`, and pass
   `config_entry_id=` only where `ir.async_create_issue` accepts it (2026.11+;
-  see `_ISSUES_TAKE_CONFIG_ENTRY`). `async_remove_entry` and setup also delete the `auth_failed` issues releases before #420 raised.
+  see `_ISSUES_TAKE_CONFIG_ENTRY`). `async_setup` (all entries, disabled ones included) and `async_remove_entry` also delete the `auth_failed` issues releases before #420 raised.
 - `manifest.json` has `categories` (`computers_network.nas_servers`). Hassfest
   from a Core older than 2026.11 rejects the key, so validate locally with
   `HA_VERSION=2026.11.0b1` or later; CI's Hassfest image accepts it.
