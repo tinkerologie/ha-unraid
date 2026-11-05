@@ -7,6 +7,9 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+
+## [2026.11.1] - 2026-11-05
+
 ### Changed
 
 - A rejected API key now raises only Home Assistant's own reauthentication repair, instead of that one plus a second "Authentication Failed" repair from the integration. Leftover "Authentication Failed" repairs from earlier releases are removed when the integration loads ([#420](https://github.com/tinkerologie/ha-unraid/issues/420)).
