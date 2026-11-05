@@ -361,7 +361,9 @@ def _async_delete_legacy_auth_issues(
     next to the reauth issue Home Assistant raises for ``ConfigEntryAuthFailed``.
     Its fix flow is gone, so a leftover issue would show a broken Fix button.
     Without ``entry_id`` every such issue goes, including those of disabled
-    entries, which Home Assistant never sets up.
+    entries, which Home Assistant never sets up. When every Unraid entry is
+    disabled the integration isn't loaded and nothing can run; the issue goes
+    once an entry is enabled again or removed (``async_remove_entry``).
     """
     if entry_id is not None:
         issue_ids = [legacy_auth_failed_issue_id(entry_id), LEGACY_REPAIR_AUTH_FAILED]
