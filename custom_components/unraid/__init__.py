@@ -48,11 +48,11 @@ from .const import (
     DOCKER_STATS_CONTAINER_PREFIX,
     DOCKER_STATS_CONTAINER_SUFFIXES,
     DOMAIN,
-    REPAIR_AUTH_FAILED,
+    LEGACY_REPAIR_AUTH_FAILED,
     REPAIR_DOCKER_STATS_STALLED,
-    auth_failed_issue_id,
     docker_stats_stalled_issue_id,
     is_placeholder_uuid,
+    legacy_auth_failed_issue_id,
 )
 from .coordinator import (
     UnraidInfraCoordinator,
@@ -343,36 +343,17 @@ _ISSUES_TAKE_CONFIG_ENTRY: Final = (
 
 
 @callback
-def _async_create_auth_issue(
-    hass: HomeAssistant, entry: ConfigEntry, host: str
-) -> None:
-    """Raise this entry's authentication repair issue."""
-    belongs_to: dict[str, Any] = {}
-    if _ISSUES_TAKE_CONFIG_ENTRY:
-        belongs_to["config_entry_id"] = entry.entry_id
-    ir.async_create_issue(
-        hass,
-        DOMAIN,
-        auth_failed_issue_id(entry.entry_id),
-        is_fixable=True,
-        is_persistent=True,
-        severity=ir.IssueSeverity.ERROR,
-        translation_key=REPAIR_AUTH_FAILED,
-        translation_placeholders={"host": host},
-        data={"entry_id": entry.entry_id},
-        **belongs_to,
-    )
-    # The shared issue from before #394 would duplicate it and could
-    # reauthenticate the wrong server.
-    ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
+def _async_delete_legacy_auth_issues(hass: HomeAssistant, entry_id: str) -> None:
+    """
+    Delete authentication repair issues left by earlier releases.
 
-
-@callback
-def async_delete_auth_issue(hass: HomeAssistant, entry_id: str) -> None:
-    """Delete an entry's authentication repair issue and the legacy shared one."""
-    ir.async_delete_issue(hass, DOMAIN, auth_failed_issue_id(entry_id))
+    Before #420 the integration raised its own fixable ``auth_failed`` issue
+    next to the reauth issue Home Assistant raises for ``ConfigEntryAuthFailed``.
+    Its fix flow is gone, so a leftover issue would show a broken Fix button.
+    """
+    ir.async_delete_issue(hass, DOMAIN, legacy_auth_failed_issue_id(entry_id))
     # Before #394 one issue, keyed only by domain, covered every server.
-    ir.async_delete_issue(hass, DOMAIN, REPAIR_AUTH_FAILED)
+    ir.async_delete_issue(hass, DOMAIN, LEGACY_REPAIR_AUTH_FAILED)
 
 
 @callback
@@ -436,8 +417,6 @@ def _async_update_docker_stats_issue(
 
 
 async def _async_connect_and_get_server_info(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
     api_client: UnraidClient,
     host: str,
     port: int,
@@ -447,11 +426,9 @@ async def _async_connect_and_get_server_info(
         await api_client.test_connection()
         info = await api_client.get_server_info()
         _LOGGER.debug("Initial connectivity test succeeded for %s:%s", host, port)
-        async_delete_auth_issue(hass, entry.entry_id)
         return info
     except UnraidAuthenticationError as err:
         await api_client.close()
-        _async_create_auth_issue(hass, entry, host)
         _LOGGER.warning(
             "Authentication failed for Unraid server %s:%s: %s",
             host,
@@ -553,6 +530,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa:
 
 async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bool:
     """Set up Unraid from a config entry."""
+    _async_delete_legacy_auth_issues(hass, entry.entry_id)
     host = entry.data[CONF_HOST]
     port = entry.data.get(CONF_PORT, DEFAULT_PORT)
     api_key = entry.data[CONF_API_KEY]
@@ -577,7 +555,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bo
         verify_ssl=verify_ssl,
         session=session,
     )
-    info = await _async_connect_and_get_server_info(hass, entry, api_client, host, port)
+    info = await _async_connect_and_get_server_info(api_client, host, port)
 
     # Build server info using helper function
     server_info = _build_server_info(info, host, use_ssl)
@@ -709,8 +687,8 @@ async def async_remove_config_entry_device(
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> None:
-    """Delete the entry's repair issue; 2026.11 does it for issues it owns."""
-    async_delete_auth_issue(hass, entry.entry_id)
+    """Delete repair issues that Home Assistant doesn't delete with the entry."""
+    _async_delete_legacy_auth_issues(hass, entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bool:

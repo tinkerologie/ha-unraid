@@ -13,12 +13,11 @@ from types import ModuleType
 
 import probatio
 import pytest
-from homeassistant.components.repairs import RepairsFlow
 from homeassistant.const import UnitOfInformation, UnitOfRatio
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.unraid import config_flow, repairs, sensor
+from custom_components.unraid import config_flow, sensor
 from tests.conftest import DEPRECATION_REPORT_PATTERNS, is_deprecation_report
 
 
@@ -57,28 +56,10 @@ def test_storage_sensors_suggest_gibibytes_enum() -> None:
     assert UnitOfInformation.GIBIBYTES == "GiB"
 
 
-@pytest.mark.parametrize("module", [config_flow, repairs])
-def test_schemas_use_probatio(module: object) -> None:
+def test_schemas_use_probatio() -> None:
     """Flows build schemas with Probatio, the HA 2026.9+ validation engine."""
-    assert module.vol is probatio  # type: ignore[attr-defined]
-    assert isinstance(module.vol.Schema({}), probatio.Schema)  # type: ignore[attr-defined]
-
-
-async def test_repair_flow_steps_return_typed_results(hass: HomeAssistant) -> None:
-    """Repair flow steps are annotated with and return RepairsFlowResult."""
-    for step in ("async_step_init", "async_step_confirm"):
-        hints = inspect.get_annotations(
-            getattr(repairs.AuthFailedRepairFlow, step), eval_str=True
-        )
-        assert hints["return"].__name__ == "RepairsFlowResult"
-
-    flow = repairs.AuthFailedRepairFlow()
-    flow.hass = hass
-    assert isinstance(flow, RepairsFlow)
-    result = await flow.async_step_init()
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "confirm"
-    assert isinstance(result["data_schema"], probatio.Schema)
+    assert config_flow.vol is probatio
+    assert isinstance(config_flow.vol.Schema({}), probatio.Schema)
 
 
 # ---------------------------------------------------------------------------
@@ -230,38 +211,6 @@ async def test_options_form_schema_is_probatio(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "init"
     assert isinstance(result["data_schema"], probatio.Schema)
-
-
-async def test_repair_flow_submit_returns_typed_create_entry(
-    hass: HomeAssistant,
-) -> None:
-    """Submitting the repair form yields a CREATE_ENTRY RepairsFlowResult."""
-    from unittest.mock import patch
-
-    from homeassistant.const import CONF_API_KEY, CONF_HOST
-    from pytest_homeassistant.common import MockConfigEntry
-
-    from custom_components.unraid.const import DOMAIN
-
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={CONF_HOST: "unraid.local", CONF_API_KEY: "key"},
-        unique_id="test-uuid",
-    )
-    entry.add_to_hass(hass)
-
-    flow = repairs.AuthFailedRepairFlow()
-    flow.hass = hass
-    with patch.object(
-        hass.config_entries.flow, "async_init", return_value={"flow_id": "x"}
-    ) as mock_init:
-        result = await flow.async_step_confirm(user_input={})
-        await hass.async_block_till_done()
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {}
-    mock_init.assert_called_once()
-    assert mock_init.call_args.kwargs["context"]["entry_id"] == entry.entry_id
 
 
 async def test_ups_energy_invalid_restored_state_is_ignored(

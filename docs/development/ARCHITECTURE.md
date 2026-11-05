@@ -18,7 +18,6 @@ custom_components/unraid/
 ├── switch.py            # Docker container, VM, array, parity switches
 ├── button.py            # Parity check, container restart buttons
 ├── diagnostics.py       # Diagnostic data export (sanitized)
-├── repairs.py           # Repair flows (auth failure → reauth)
 ├── icons.json           # MDI icons per entity translation key
 ├── strings.json         # English translations (source of truth)
 ├── translations/en.json # Generated from strings.json

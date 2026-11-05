@@ -422,8 +422,8 @@ views:
 
 If your API key becomes invalid:
 
-1. A repair notification will appear in Home Assistant
-2. Click the notification and follow the steps to enter a new API key
+1. Home Assistant shows a repair notice saying the Unraid server needs to be reauthenticated
+2. Select the notice and enter a new API key
 3. Alternatively, go to **Settings** → **Devices & Services**, find Unraid, and use the "Reconfigure" option
 
 ## Removal
