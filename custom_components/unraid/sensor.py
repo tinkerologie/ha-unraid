@@ -40,6 +40,7 @@ from .coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+from .docker_entities import DockerEntityKind
 from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
@@ -2422,7 +2423,7 @@ class ContainerCpuSensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{container_name}_cpu",
+            resource_id=DockerEntityKind.CPU.resource_id(container_name),
             name=f"Container {container_name} CPU",
         )
         self._attr_translation_placeholders = {
@@ -2480,7 +2481,7 @@ class ContainerMemoryUsageSensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{container_name}_memory",
+            resource_id=DockerEntityKind.MEMORY.resource_id(container_name),
             name=f"Container {container_name} Memory",
         )
         self._attr_translation_placeholders = {
@@ -2526,7 +2527,7 @@ class ContainerMemoryPercentSensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{container_name}_memory_pct",
+            resource_id=DockerEntityKind.MEMORY_PCT.resource_id(container_name),
             name=f"Container {container_name} Memory %",
         )
         self._attr_translation_placeholders = {
@@ -2574,7 +2575,7 @@ class ContainerMemoryUsedSensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{container_name}_memory_used",
+            resource_id=DockerEntityKind.MEMORY_USED.resource_id(container_name),
             name=f"Container {container_name} Memory Used",
         )
         self._attr_translation_placeholders = {
@@ -2623,7 +2624,7 @@ class ContainerMemoryLimitSensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{container_name}_memory_limit",
+            resource_id=DockerEntityKind.MEMORY_LIMIT.resource_id(container_name),
             name=f"Container {container_name} Memory Limit",
         )
         self._attr_translation_placeholders = {
@@ -3799,13 +3800,10 @@ async def async_setup_entry(
     # Container stats sensors (WebSocket-powered). Containers created after
     # setup get sensors on the next coordinator refresh — no reload needed.
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.docker_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="sensor",
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.containers if system_coordinator.data else []
-            ),
-            get_key=lambda container: container.name.lstrip("/"),
             create_entities=lambda container: [
                 ContainerCpuSensor(
                     system_coordinator,

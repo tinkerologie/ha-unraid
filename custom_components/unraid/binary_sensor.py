@@ -29,6 +29,7 @@ from .coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+from .docker_entities import DockerEntityKind
 from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
@@ -709,7 +710,9 @@ class ContainerUpdateAvailableBinarySensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{self._container_name}_update",
+            resource_id=DockerEntityKind.LEGACY_UPDATE.resource_id(
+                self._container_name
+            ),
             name=f"Container {self._container_name} Update",
         )
         self._attr_translation_placeholders = {"name": self._container_name}
@@ -1336,13 +1339,10 @@ async def async_setup_entry(
     # Containers created after setup get sensors on the next coordinator
     # refresh — no integration reload needed.
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.docker_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="binary_sensor",
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.containers if system_coordinator.data else []
-            ),
-            get_key=lambda container: container.name.lstrip("/"),
             create_entities=lambda container: [
                 ContainerUpdateAvailableBinarySensor(
                     system_coordinator, server_uuid, server_name, container

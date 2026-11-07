@@ -13,6 +13,7 @@ from unraid_api.models import DockerContainer
 from custom_components.unraid import UnraidRuntimeData
 from custom_components.unraid.const import CONF_ENABLE_CONTAINER_UPDATES
 from custom_components.unraid.coordinator import UnraidSystemCoordinator
+from custom_components.unraid.docker_entities import DockerEntityLifecycle
 from custom_components.unraid.update import (
     _VERSION_UPDATE_AVAILABLE,
     DockerContainerUpdateEntity,
@@ -475,6 +476,7 @@ async def test_setup_entry_creates_entities_for_containers() -> None:
     ]
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    system_coordinator.docker_entities = DockerEntityLifecycle()
     system_coordinator.data = make_system_data(containers=containers)
 
     runtime_data = MagicMock(spec=UnraidRuntimeData)
@@ -524,6 +526,7 @@ async def test_setup_entry_skips_entities_when_updates_disabled() -> None:
 async def test_setup_entry_no_containers() -> None:
     """Test setup entry creates no entities when no containers exist."""
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    system_coordinator.docker_entities = DockerEntityLifecycle()
     system_coordinator.data = make_system_data(containers=[])
 
     runtime_data = MagicMock(spec=UnraidRuntimeData)
@@ -546,6 +549,7 @@ async def test_setup_entry_no_containers() -> None:
 async def test_setup_entry_no_data() -> None:
     """Test setup entry creates no entities when coordinator has no data."""
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    system_coordinator.docker_entities = DockerEntityLifecycle()
     system_coordinator.data = None
 
     runtime_data = MagicMock(spec=UnraidRuntimeData)

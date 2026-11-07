@@ -24,6 +24,7 @@ from custom_components.unraid.button import (
     VMResumeButton,
     async_setup_entry,
 )
+from custom_components.unraid.docker_entities import DockerEntityLifecycle
 
 # =============================================================================
 # Fixtures
@@ -421,6 +422,7 @@ async def test_setup_entry_creates_container_restart_buttons(hass):
     container2.id = "def456"
 
     system_coordinator = MagicMock()
+    system_coordinator.docker_entities = DockerEntityLifecycle()
     system_coordinator.data = MagicMock()
     system_coordinator.data.containers = [container1, container2]
     system_coordinator.data.vms = []
@@ -867,6 +869,7 @@ async def test_setup_entry_creates_container_and_vm_buttons(hass):
     vm.id = "vm-001"
 
     system_coordinator = MagicMock()
+    system_coordinator.docker_entities = DockerEntityLifecycle()
     system_coordinator.data = MagicMock()
     system_coordinator.data.containers = [container]
     system_coordinator.data.vms = [vm]
@@ -1340,6 +1343,7 @@ async def test_pause_buttons_discovered_after_setup(hass) -> None:
     from tests.conftest import make_storage_data, make_system_data
 
     coordinator = MagicMock()
+    coordinator.docker_entities = DockerEntityLifecycle()
     coordinator.data = make_system_data()
     coordinator.last_update_success = True
     coordinator.optional_query_status = {"containers": True}

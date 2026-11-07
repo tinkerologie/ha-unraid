@@ -16,6 +16,7 @@ from custom_components.unraid.cleanup import (
     build_expected_dynamic_unique_ids,
 )
 from custom_components.unraid.const import DOMAIN
+from custom_components.unraid.docker_entities import DockerEntityLifecycle
 from tests.conftest import make_storage_data, make_system_data
 
 # Fake server UUID used throughout these tests
@@ -417,6 +418,7 @@ class TestAsyncCleanupStaleEntities:
         coord = MagicMock()
         coord.last_update_success = last_update_success
         coord.data = make_system_data() if data_override is _SENTINEL else data_override
+        coord.docker_entities = DockerEntityLifecycle()
         coord.optional_query_status = (
             {
                 "containers": True,
@@ -559,6 +561,7 @@ class TestAsyncCleanupStaleEntities:
             ),
         ):
             for _ in range(_MISSING_STREAK_THRESHOLD):
+                sys_coord.data.docker_inventory_generation += 1
                 async_cleanup_stale_entities(
                     hass, "entry1", _UUID, sys_coord, stor_coord
                 )
@@ -614,13 +617,12 @@ class TestAsyncCleanupStaleEntities:
             ),
         ):
             for _ in range(_MISSING_STREAK_THRESHOLD):
+                sys_coord.data.docker_inventory_generation += 1
                 async_cleanup_stale_entities(
                     hass, "entry1", _UUID, sys_coord, stor_coord
                 )
 
         mock_reg.async_remove.assert_not_called()
-        assert f"{_UUID}_container_switch_oldapp" not in cleanup_module._missing_streaks
-        assert f"{_UUID}_container_oldapp_cpu" not in cleanup_module._missing_streaks
 
     async def test_removes_all_containers_when_query_succeeded_empty(
         self, hass: HomeAssistant
@@ -660,6 +662,7 @@ class TestAsyncCleanupStaleEntities:
             ),
         ):
             for _ in range(_MISSING_STREAK_THRESHOLD):
+                sys_coord.data.docker_inventory_generation += 1
                 async_cleanup_stale_entities(
                     hass, "entry1", _UUID, sys_coord, stor_coord
                 )
@@ -1039,10 +1042,10 @@ class TestAsyncCleanupStaleEntities:
                 return_value=[],
             ),
         ):
+            sys_coord.data.docker_inventory_generation = 1
             async_cleanup_stale_entities(hass, "entry1", _UUID, sys_coord, stor_coord)
 
         mock_reg.async_remove.assert_not_called()
-        assert cleanup_module._missing_streaks[f"{_UUID}_container_switch_oldapp"] == 1
 
     async def test_streak_resets_when_resource_returns(
         self, hass: HomeAssistant
@@ -1091,12 +1094,17 @@ class TestAsyncCleanupStaleEntities:
             ),
         ):
             # missing, present, missing, missing — never 3 consecutive
-            for coord in (
-                sys_coord_missing,
-                sys_coord_present,
-                sys_coord_missing,
-                sys_coord_missing,
+            sys_coord_present.docker_entities = sys_coord_missing.docker_entities
+            for generation, coord in enumerate(
+                (
+                    sys_coord_missing,
+                    sys_coord_present,
+                    sys_coord_missing,
+                    sys_coord_missing,
+                ),
+                start=1,
             ):
+                coord.data.docker_inventory_generation = generation
                 async_cleanup_stale_entities(hass, "entry1", _UUID, coord, stor_coord)
 
         mock_reg.async_remove.assert_not_called()
@@ -1171,6 +1179,7 @@ class TestAsyncCleanupStaleEntities:
             ),
         ):
             for _ in range(_MISSING_STREAK_THRESHOLD):
+                sys_coord.data.docker_inventory_generation += 1
                 async_cleanup_stale_entities(
                     hass, "entry1", _UUID, sys_coord, stor_coord
                 )

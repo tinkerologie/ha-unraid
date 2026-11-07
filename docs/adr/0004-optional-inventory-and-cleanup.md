@@ -10,8 +10,10 @@ hardware temperature telemetry is not treated as sensor removal. This favors
 registry continuity over immediate deletion, at the cost of retaining stale
 resources during outages and a grace period after removal.
 
-The grace counter advances when cleanup runs, including system and storage
-listeners; it is not a guarantee of three distinct upstream inventory requests.
+Docker cleanup counts each successful inventory observation once. Cached lists,
+failed requests, and storage-only refreshes cannot advance its counter. Successful
+Docker presence clears absence evidence during storage failures. Other cleanup
+categories still count eligible cleanup passes.
 Other optional values have their own fallback behavior. See
 [optional queries and caches](../../custom_components/unraid/coordinator.py),
 [cleanup policy](../../custom_components/unraid/cleanup.py),

@@ -14,6 +14,7 @@ from custom_components.unraid.coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+from custom_components.unraid.docker_entities import DockerEntityLifecycle
 from custom_components.unraid.switch import (
     ArraySwitch,
     DiskSpinSwitch,
@@ -1585,6 +1586,7 @@ async def test_setup_creates_container_switches(hass) -> None:
     container = DockerContainer(id="ct:1", name="/web", state="RUNNING")
 
     system_coordinator = MagicMock()
+    system_coordinator.docker_entities = DockerEntityLifecycle()
     system_coordinator.data = make_system_data(containers=[container])
 
     storage_coordinator = MagicMock()

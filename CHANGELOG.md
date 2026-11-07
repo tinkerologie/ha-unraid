@@ -7,6 +7,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Fixed
+
+- Count distinct successful Docker inventory observations before removing container entities. Containers recreated with the same name can rediscover their entities without an integration reload ([#426](https://github.com/tinkerologie/ha-unraid/issues/426)).
+
 ### Added
 
 - Contributor domain glossary and numbered records of existing architecture decisions, with links to implementation and regression tests.
