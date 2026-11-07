@@ -1,5 +1,7 @@
 """Exercise notification events through Home Assistant's integration setup."""
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
