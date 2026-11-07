@@ -17,6 +17,7 @@ from .coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+from .docker_entities import DockerEntityKind
 from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
@@ -244,7 +245,7 @@ class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_restart_{self._container_name}",
+            resource_id=DockerEntityKind.RESTART.resource_id(self._container_name),
             name=f"Restart Container {self._container_name}",
             server_info=server_info,
         )
@@ -308,7 +309,9 @@ class _DockerContainerPauseControlButton(UnraidButtonEntity[UnraidSystemCoordina
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{self._action}_{self._container_name}",
+            resource_id=DockerEntityKind[self._action.upper()].resource_id(
+                self._container_name
+            ),
             name=None,
             server_info=server_info,
         )
@@ -1003,13 +1006,9 @@ async def async_setup_entry(
     # coordinator refresh — no integration reload needed.
     # Container restart buttons: users enable per-container as needed.
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.docker_entities.async_register_platform(
             coordinator=system_coordinator,
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.containers if system_coordinator.data else []
-            ),
-            get_key=lambda container: container.name.lstrip("/"),
             create_entities=lambda container: [
                 DockerContainerRestartButton(
                     system_coordinator,

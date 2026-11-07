@@ -61,6 +61,7 @@ from .const import (
     STORAGE_POLL_INTERVAL,
     SYSTEM_POLL_INTERVAL,
 )
+from .docker_entities import DockerEntityLifecycle
 
 _LOGGER = logging.getLogger(__name__)
 MAX_SEEN_NOTIFICATION_IDS = 1000
@@ -82,6 +83,7 @@ class UnraidSystemData:
     network_metrics: list[NetworkMetrics] = field(default_factory=list)
     network_interfaces: list[InfoNetworkInterface] = field(default_factory=list)
     plugin_operations: list[PluginInstallOperation] = field(default_factory=list)
+    docker_inventory_generation: int = 0
 
 
 @dataclass(frozen=True)
@@ -205,6 +207,8 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         self._cached_containers: list[DockerContainer] = []
         self._last_docker_refresh: float = -DOCKER_POLL_INTERVAL
         self._force_docker_refresh: bool = True
+        self._docker_inventory_generation = 0
+        self.docker_entities = DockerEntityLifecycle()
         # Cached VM list to keep the last known-good value across failed
         # optional queries.
         self._cached_vms: list[VmDomain] = []
@@ -842,6 +846,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
             self._optional_query_status["containers"] = docker_result is not None
             if docker_result is not None:
                 self._cached_containers = docker_result
+                self._docker_inventory_generation += 1
             self._last_docker_refresh = time.monotonic()
             self._force_docker_refresh = False
         else:
@@ -971,6 +976,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
                 network_metrics=network_metrics,
                 network_interfaces=network_interfaces,
                 plugin_operations=plugin_operations,
+                docker_inventory_generation=self._docker_inventory_generation,
             )
 
         except UnraidAuthenticationError as err:

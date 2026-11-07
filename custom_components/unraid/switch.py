@@ -27,6 +27,7 @@ from .coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+from .docker_entities import DockerEntityKind
 from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
@@ -116,7 +117,7 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
             server_uuid=server_uuid,
             server_name=server_name,
             # Use container NAME for stable unique_id (not ID which changes)
-            resource_id=f"container_switch_{self._container_name}",
+            resource_id=DockerEntityKind.SWITCH.resource_id(self._container_name),
             name=f"Container {self._container_name}",
         )
         self._attr_translation_placeholders = {"name": self._container_name}
@@ -276,7 +277,7 @@ class DockerContainerAutostartSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_autostart_{self._container_name}",
+            resource_id=DockerEntityKind.AUTOSTART.resource_id(self._container_name),
             name=f"Container {self._container_name} autostart",
         )
         self._attr_translation_placeholders = {"name": self._container_name}
@@ -869,13 +870,9 @@ async def async_setup_entry(
             len(system_coordinator.data.containers),
         )
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.docker_entities.async_register_platform(
             coordinator=system_coordinator,
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.containers if system_coordinator.data else []
-            ),
-            get_key=lambda container: container.name.lstrip("/"),
             create_entities=lambda container: [
                 DockerContainerSwitch(
                     system_coordinator,

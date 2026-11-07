@@ -29,6 +29,7 @@ from .coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+from .docker_entities import DockerEntityKind
 from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
@@ -709,7 +710,9 @@ class ContainerUpdateAvailableBinarySensor(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_{self._container_name}_update",
+            resource_id=DockerEntityKind.LEGACY_UPDATE.resource_id(
+                self._container_name
+            ),
             name=f"Container {self._container_name} Update",
         )
         self._attr_translation_placeholders = {"name": self._container_name}
