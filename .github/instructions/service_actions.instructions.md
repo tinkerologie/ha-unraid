@@ -8,14 +8,14 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Current Status
 
-The integration does **not** currently register custom service actions. All controls are implemented via entity platforms (switches, buttons).
+The integration does **not** now register custom service actions. The integration uses entity platforms (switches and buttons) for controls.
 
 ## If Adding Service Actions
 
 Follow the HA pattern:
 
 1. Define services in `services.yaml` with fields and translations
-2. Register handlers in `__init__.py` via `async_setup_entry`
+2. Register handlers in `__init__.py` through `async_setup_entry`
 3. Use `hass.services.async_register(DOMAIN, service_name, handler, schema)`
 4. Validate inputs with `vol.Schema`
 

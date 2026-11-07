@@ -8,7 +8,7 @@ Refer to `AGENTS.md` and [`service_actions.instructions.md`](service_actions.ins
 
 ## Status
 
-The integration currently has no `services.yaml` — all controls use entity platforms (switches, buttons). This file would only be created if custom service actions are added.
+The integration uses entity platforms (switches and buttons) for controls. Create `services.yaml` only if you add custom service actions.
 
 ## Format
 
@@ -31,7 +31,7 @@ service_name:
 
 ## Rules
 
-- Every service field needs a `selector` for the UI
+- Each service field needs a `selector` for the UI
 - Add corresponding translations in `strings.json` under `services.{service_name}`
 - Target should specify `integration: unraid` for entity-targeted services
 - Keep service names in snake_case matching the domain convention

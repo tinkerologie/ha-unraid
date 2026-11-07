@@ -8,7 +8,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Integration Setup Model
 
-Unraid is **UI-configured only** (`config_flow: true`).
+Configure Unraid in the Home Assistant UI (`config_flow: true`).
 
 - Do not add a `unraid:` YAML integration block.
 - Use YAML only for HA-wide features (logger, automations, scripts, templates).
@@ -31,6 +31,6 @@ logger:
 
 ## Polling Reminder
 
-Polling intervals are fixed by integration design. For ad-hoc refreshes, use
+The integration uses fixed polling intervals. For an on-demand refresh, use
 `homeassistant.update_entity` in automations instead of adding YAML polling
 options.

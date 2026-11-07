@@ -1,29 +1,26 @@
 # Architectural and Design Decisions
 
-The current decision index is [docs/adr/README.md](../adr/README.md), with domain
-terms in [GLOSSARY.md](../../GLOSSARY.md). The numbered ADRs record existing
-architecture retrospectively and link to implementation and regression tests.
-This page preserves the earlier decision headings as navigation and keeps
-smaller implementation conventions separate from consequential ADRs.
+Use the [decision index](../adr/README.md) to find the numbered architecture decision records (ADRs).
+Use the [glossary](../../GLOSSARY.md) to find project terms. The ADRs record
+existing decisions and link to the code and regression tests. This page
+keeps the earlier headings and records smaller decisions.
 
 ## Decision Log
 
 ### Triple Coordinator Pattern
 
-See [ADR 0002: polling and push](../adr/0002-polling-and-push.md). Three fixed
-polling schedules are supplemented by selective push updates and a separate
-container-inventory throttle.
+See [ADR 0002: polling and push](../adr/0002-polling-and-push.md). The integration uses three fixed polling schedules and push updates for some data.
+A separate interval limits how often the integration reads the container inventory.
 
 ### Single Device per Server
 
 See [ADR 0003: server and resource identity](../adr/0003-server-and-resource-identity.md).
-All resources of one configured server are grouped under its server device.
+The integration groups all resources of a configured server under its server device.
 
 ### Unique ID Format: `{server_uuid}_{resource_id}`
 
-See [ADR 0003](../adr/0003-server-and-resource-identity.md). The server prefix is
-the resolved runtime identity, not necessarily the raw firmware UUID; container
-and VM names preserve registry continuity across recreation.
+See [ADR 0003](../adr/0003-server-and-resource-identity.md). The server prefix uses the resolved runtime identity. This value can differ from the raw firmware UUID.
+Container and VM names preserve registry entries if you create a resource again.
 
 ### Server Identity for Placeholder SMBIOS UUIDs
 
@@ -34,28 +31,26 @@ owned registry records before platform loading and skips conflicts for later ret
 ### Optional Services Graceful Degradation
 
 See [ADR 0004: optional inventory and cleanup](../adr/0004-optional-inventory-and-cleanup.md).
-Selected inventory queries preserve cached data and report category success;
-a failed query is not interchangeable with a successful empty result.
+Some inventory queries report whether each category succeeded. The integration keeps cached data if a query fails. A successful query can return an empty result.
 
 ### Button Entities Without Coordinator
 
-This earlier heading is retained for existing links; the previous description
-is obsolete. [UnraidButtonEntity](../../custom_components/unraid/button.py) now
+This heading keeps existing links valid. [UnraidButtonEntity](../../custom_components/unraid/button.py) now
 extends `UnraidBaseEntity` and uses a coordinator for device metadata and
 availability. Actions call coordinator methods that delegate to `UnraidClient`.
 
 ### SSL Auto-Detection in Config Flow
 
 The [config flow](../../custom_components/unraid/config_flow.py) tests connection
-settings and handles SSL retries; the [library I/O policy](../adr/0001-library-owns-server-io.md)
+settings and handles SSL retries. The [library I/O policy](../adr/0001-library-owns-server-io.md)
 keeps server requests and endpoint discovery in `unraid-api`. Reauthentication
 and reconfiguration update the saved entry and reload it.
 
 ### Pydantic v2 with `extra="ignore"` for Forward Compatibility
 
-Response models belong to `unraid-api`; see [ADR 0001](../adr/0001-library-owns-server-io.md).
-The library’s base model ignores unknown fields, while new fields need explicit
-model and query support before the integration consumes them.
+`unraid-api` owns response models. See [ADR 0001](../adr/0001-library-owns-server-io.md).
+The library's base model ignores unknown fields.
+To use a new field in the integration, first add the field to the model and the query.
 
 ### Sensor Precision and Formatting
 
@@ -74,11 +69,9 @@ subscriptions and refresh guards. Push supplements polling.
 
 ### Multi-Server Support
 
-Supported through multiple config entries, with one server identity per entry;
-see [ADR 0003](../adr/0003-server-and-resource-identity.md).
+The integration supports multiple config entries. Each entry has one server identity.
+See [ADR 0003](../adr/0003-server-and-resource-identity.md).
 
 ## Decision Review
 
-Read the relevant ADR before changing its interface or invariants. Record an
-accepted change in a new numbered ADR and identify any superseded decision;
-track proposed improvements in GitHub Issues.
+Read the applicable ADR before you change its interface or requirements. Record an accepted change in a new numbered ADR. Identify each decision it replaces. Record proposed improvements in GitHub Issues.

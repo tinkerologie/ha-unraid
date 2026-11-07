@@ -34,11 +34,11 @@ Defines Material Design Icons (mdi) for entities, keyed by translation key.
 
 ### Rules
 
-- Every entity with `_attr_translation_key` must have a matching entry in `icons.json`
+- Each entity with `_attr_translation_key` must have a matching entry in `icons.json`
 - Use `mdi:` prefix for all icons (Material Design Icons)
 - Use `"state"` sub-object for state-dependent icons
 - Group by platform (`sensor`, `binary_sensor`, `switch`, `button`)
-- Keep icons consistent within categories (e.g., all storage icons use `mdi:harddisk` variants)
+- Keep icons consistent within categories (for example, all storage icons use `mdi:harddisk` variants)
 
 ### Adding a New Entity Icon
 

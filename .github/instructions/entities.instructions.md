@@ -30,7 +30,7 @@ Order matters: `PlatformEntity` last in MRO so `UnraidBaseEntity.__init__` runs 
 - `_attr_has_entity_name = True` (set on `UnraidBaseEntity`)
 - `_attr_translation_key = "..."` — maps to `strings.json` and `icons.json`
 - Unique ID: constructed as `{server_uuid}_{resource_id}` in `UnraidBaseEntity.__init__`
-- `server_uuid` comes from `entry.runtime_data.server_info["uuid"]` in `async_setup_entry` (the resolved identity; hostname-qualified for placeholder SMBIOS UUIDs). Never read `coordinator.data.info.uuid` for it.
+- `server_uuid` comes from `entry.runtime_data.server_info["uuid"]` in `async_setup_entry` (the resolved identity). For a placeholder SMBIOS UUID, the resolved identity includes the hostname. Do not read `coordinator.data.info.uuid` for it.
 
 ## Constructor Pattern
 
@@ -104,7 +104,7 @@ async def async_turn_on(self, **kwargs: Any) -> None:
 ## Device Info
 
 All entities share a single device per server, identified by `(DOMAIN, server_uuid)`.
-Devices belong to exactly one config entry (HA 2026.8+); look a device up with
+Each device belongs to one config entry (HA 2026.8+). Find the device with
 `dev_reg.async_get_device_by_identifier((DOMAIN, server_uuid), entry.entry_id)`,
 never the deprecated `async_get_device(identifiers=...)`. Use `via_device_id`, not `via_device`.
 
@@ -116,5 +116,10 @@ never the deprecated `async_get_device(identifiers=...)`. Use `via_device_id`, n
 ## Units
 
 Use the `UnitOf*` enums (`UnitOfInformation`, `UnitOfTemperature`, `UnitOfDataRate`, `UnitOfRatio.PERCENTAGE`, ...).
-`CONCENTRATION_*` constants, the bare `PERCENTAGE` constant and string literals such as `"%"`
-or `"GiB"` must not be used as units (HA 2026.7 deprecation); the enums carry the same values.
+HA 2026.7 deprecated these units.
+
+- `CONCENTRATION_*` constants
+- The `PERCENTAGE` constant
+- String literals such as `"%"` and `"GiB"`
+
+Use the enum members for these values.

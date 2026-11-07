@@ -17,14 +17,14 @@ If not provided, ask for:
 **Entity Implementation:**
 
 - Create entity class in the appropriate platform file (`sensor.py`, `binary_sensor.py`, `switch.py`, `button.py`)
-- Inherit from both the HA platform entity and `UnraidBaseEntity` (e.g., `SensorEntity, UnraidBaseEntity`)
+- Inherit from both the HA platform entity and `UnraidBaseEntity` (for example, `SensorEntity, UnraidBaseEntity`)
 - Set `_attr_translation_key` for translated names
 - Access data from `self.coordinator.data` (typed as coordinator data class)
 
 **Device Grouping:**
 
 - All Unraid entities share a single device per server
-- Device is identified by `(DOMAIN, server_uuid)` in `DeviceInfo.identifiers`
+- Use `(DOMAIN, server_uuid)` in `DeviceInfo.identifiers` to identify the device.
 - `UnraidBaseEntity.__init__` handles DeviceInfo construction automatically
 - Pass `server_uuid`, `server_name`, and `server_info` dict to base constructor
 
@@ -39,12 +39,12 @@ If not provided, ask for:
 
 - Add entity name to `strings.json` under `entity.{platform}.{translation_key}.name`
 - Add icon to `icons.json` under `entity.{platform}.{translation_key}.default`
-- Use `_attr_translation_placeholders` for dynamic name parts (e.g., disk name)
+- Use `_attr_translation_placeholders` for dynamic name parts (for example, disk name)
 
 **Registration:**
 
 - Add entity instantiation in the platform's `async_setup_entry()` function
-- Follow existing patterns for how entities are created and added
+- Use the existing pattern to create and add entities.
 
 **Verification:**
 

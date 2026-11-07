@@ -4,12 +4,12 @@ tools:
   - "search/codebase"
   - "edit"
   - "search"
-description: "Perform a comprehensive quality review of the Unraid integration"
+description: "Review the quality of the Unraid integration"
 ---
 
 # Review Integration
 
-Your goal is to perform a comprehensive quality review of the Unraid integration against Home Assistant standards.
+Review the Unraid integration against Home Assistant standards.
 Treat the official Quality Scale rules as mandatory review criteria:
 <https://developers.home-assistant.io/docs/core/integration-quality-scale/rules>
 
@@ -17,8 +17,8 @@ Treat the official Quality Scale rules as mandatory review criteria:
 
 ### Quality Scale Compliance
 
-- [ ] Applicable rules from the official Quality Scale rules page have been reviewed
-- [ ] All applicable rules are satisfied or clearly documented as not applicable
+- [ ] Review the applicable rules on the official Quality Scale page.
+- [ ] Check that the integration meets each applicable rule. Give a reason for each rule that does not apply.
 
 ### Architecture
 

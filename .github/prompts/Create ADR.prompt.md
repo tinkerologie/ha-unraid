@@ -8,8 +8,8 @@ Document an important architectural or design decision for the ha-unraid integra
 
 If not provided, ask for:
 
-- What decision needs to be documented
-- Context: Why is this decision being made
+- Which decision to record
+- Context for the decision
 - Options considered
 - Chosen approach and rationale
 
@@ -88,7 +88,7 @@ Create a new ADR in `docs/development/adr/NNNN-title-of-decision.md`:
 ### API Integration
 - SSL auto-detection fallback
 - Version checking (MIN_API_VERSION, MIN_UNRAID_VERSION)
-- Session injection via `async_get_clientsession`
+- Session injection through `async_get_clientsession`
 
 ### Architecture
 - Triple coordinator pattern vs single/dual
@@ -99,7 +99,7 @@ Create a new ADR in `docs/development/adr/NNNN-title-of-decision.md`:
 
 1. Check existing ADRs in `docs/development/adr/`
 2. Use next sequential number (0001, 0002, etc.)
-3. Create the directory if it doesn't exist
+3. Create the directory if it does not exist
 4. Focus on the "why" not just the "what"
 5. Reference in `docs/development/DECISIONS.md`
 

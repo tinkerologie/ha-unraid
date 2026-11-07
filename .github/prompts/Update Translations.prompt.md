@@ -47,7 +47,7 @@ Read these files:
 ## Rules
 
 - `strings.json` is the source of truth — edit this, not `translations/en.json` directly
-- Never modify non-English translation files (e.g., `translations/fr.json`)
+- Never modify non-English translation files (for example, `translations/fr.json`)
 - Use `{placeholder}` syntax for dynamic values in messages
 - Keep text concise and user-friendly
 - Entity names should be title case ("CPU Usage", not "cpu usage")

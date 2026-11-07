@@ -8,7 +8,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Source of Truth
 
-`strings.json` is the **single source of truth** for English text. `translations/en.json` is generated from it.
+`strings.json` is the **single source of truth** for English text. Use it to generate `translations/en.json`.
 
 ## Structure
 
@@ -44,6 +44,6 @@ Refer to `AGENTS.md` for full project documentation.
 - Business logic first, translations later — get entity working before adding translation keys
 - Entity names come from `entity.{platform}.{translation_key}.name`
 - Exception messages from `exceptions.{key}.message` with `{placeholder}` support
-- Never manually edit non-English translation files — they are managed by translators
+- Translators maintain non-English translation files. Do not edit them manually.
 - Keep translation values concise and user-friendly
 - Use placeholders `{name}`, `{error}`, `{host}` for dynamic content

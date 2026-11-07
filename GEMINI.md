@@ -1,15 +1,14 @@
 # Gemini Instructions — ha-unraid
 
-> Read **[`AGENTS.md`](AGENTS.md)** for comprehensive project documentation.
+> Read **[`AGENTS.md`](AGENTS.md)** for project documentation.
 > This file is a thin wrapper for Google Gemini / Gemini Code Assist agents.
 
 ## ⚠️ Critical Rule: Never Bypass `unraid-api`
 
 All communication with the Unraid server **must** go through the
 [`unraid-api`](https://github.com/tinkerologie/unraid-api) library
-(`UnraidClient`). Never add direct GraphQL/HTTP/websocket/SSH I/O, and never
-re-implement or work around the library to land a fix faster — this keeps the
-integration compliant with Home Assistant best practice.
+(`UnraidClient`). Do not add direct GraphQL, HTTP, WebSocket, or SSH I/O.
+Do not reimplement or bypass the library.
 
 If a fix needs something `unraid-api` does not expose, **STOP**: do not work
 around it here. Open an issue on **https://github.com/tinkerologie/unraid-api**
@@ -20,7 +19,7 @@ Rule: Never Bypass `unraid-api`".
 
 - **Domain**: `unraid` | **Prefix**: `Unraid` | **Python**: 3.14.2+ | **HA**: 2026.9.0+ (target 2026.10 practice) | **Dep**: `unraid-api>=1.16.0`
 - **Platforms**: `sensor`, `binary_sensor`, `switch`, `button`, `event`, `update`
-- **Server identity**: `{server_uuid}` is always `entry.runtime_data.server_info["uuid"]` (resolved in `__init__.py`; hostname-qualified for placeholder SMBIOS UUIDs). Never key registries on `ServerInfo.uuid`.
+- **Server identity**: `{server_uuid}` is always `entry.runtime_data.server_info["uuid"]` (set in `__init__.py`). For a placeholder SMBIOS UUID, the resolved identity includes the hostname. Never key registries on `ServerInfo.uuid`.
 - **Deprecated HA APIs**: see `AGENTS.md` → "Home Assistant API Currency (2026.10+)" before touching registries, device info, config flows or units
 - **Code**: `custom_components/unraid/` | **Tests**: `tests/`
 - **Lint**: `./script/lint` | **Test**: `./script/test` | **Check**: `./script/check`

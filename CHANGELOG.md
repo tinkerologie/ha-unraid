@@ -1,23 +1,24 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+This file lists important changes to the project.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), matching Home Assistant's versioning scheme.
+This file uses the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), the format Home Assistant uses.
 
 ## [Unreleased]
 
 ### Changed
 
-- Deliver notification events through a dedicated per-server module backed by the typed notification reader in unraid-api 1.16.0 ([#427](https://github.com/tinkerologie/ha-unraid/issues/427)).
+- Apply ASD-STE100 Issue 9 to project documentation. Add a writing guide for contributors.
+- Deliver notification events through a module for each server. The module uses the typed notification reader in unraid-api 1.16.0 ([#427](https://github.com/tinkerologie/ha-unraid/issues/427)).
 
 ### Fixed
 
-- Count distinct successful Docker inventory observations before removing container entities. Containers recreated with the same name can rediscover their entities without an integration reload ([#426](https://github.com/tinkerologie/ha-unraid/issues/426)).
+- Count each successful Docker inventory observation once before entity cleanup. The integration finds the entities again if you create a container with the same name. It does this without a reload ([#426](https://github.com/tinkerologie/ha-unraid/issues/426)).
 
 ### Added
 
-- Contributor domain glossary and numbered records of existing architecture decisions, with links to implementation and regression tests.
+- Add a glossary and architecture decision records. The records link to the code and regression tests.
 
 
 ## [2026.11.1] - 2026-11-05

@@ -1,20 +1,22 @@
 # AI Agent Instructions — ha-unraid
 
+Use [ASD-STE100 Issue 9](docs/agents/documentation.md) for new or changed English documentation.
+
 ## Mandatory Development Workflow for AI Agents
 
-All AI coding assistants (Claude Code, Gemini, GitHub Copilot, Cursor, Roo, Devin, etc.) MUST strictly adhere to the following workflow when working on this repository:
+All AI coding agents must follow these steps.
 
-1. Issue-First Requirement: Never start writing code or creating pull requests without an existing GitHub Issue.
-2. Issue Template: Issues must be created using the official Issue Forms (`01-bug-report.yml` for bugs or `02-enhancement-request.yml` for enhancements).
-3. CodeRabbit AI Plan: Every issue must have a generated Coding Plan from CodeRabbit AI (`@coderabbitai plan`). AI agents must read and implement strictly according to the approved plan.
-4. Branch Discipline: Always create and work on a dedicated branch (`feat/<issue-id>-<description>` or `fix/<issue-id>-<description>`). NEVER commit directly to `main`.
-5. Documentation & Changelog: Update `CHANGELOG.md` under `## [Unreleased]` for any user-facing or architectural changes.
-6. Local Verification: Run all test, lint, format, and typecheck commands locally before committing. All tests must pass with zero errors and zero warnings.
-7. PR Template Completion: Always use `.github/PULL_REQUEST_TEMPLATE.md`. Complete all fields, link the issue using `Closes #<id>` or `Fixes #<id>` when the PR fully resolves it, or `Part of #<id>` for partial work (only maintainers with write access may write `None`, for housekeeping), and check all Pre-Submission Governance boxes with real terminal output.
-8. Draft PR First: ALWAYS open pull requests as DRAFT (`gh pr create --draft`).
-9. CI Verification: Wait for CI workflows to run on the draft PR and verify that all status checks pass.
-10. Ready for Review: Only mark the PR as ready for review (`gh pr ready`) once all checks pass and all due diligence is verified.
-11. Review Clearance: Review and resolve all CodeRabbit AI and GitHub Copilot comments. Ensure Codecov reports show zero errors, zero warnings, and no coverage drop.
+1. Find the GitHub issue before you write code or create a pull request (PR).
+2. Use the official issue form. Use `01-bug-report.yml` for a bug or `02-enhancement-request.yml` for an enhancement.
+3. Make sure the issue has a CodeRabbit Coding Plan (`@coderabbitai plan`). Read the approved plan. Follow it.
+4. Create a branch for the issue. Use `feat/<issue-id>-<description>` or `fix/<issue-id>-<description>`. Do not commit to `main`.
+5. Record user-facing or architecture changes under `## [Unreleased]` in `CHANGELOG.md`.
+6. Run all local test, lint, format, and type checks before you commit. Correct all errors and warnings.
+7. Use `.github/PULL_REQUEST_TEMPLATE.md`. Complete each field. Link the issue as specified in **Issue and Pull Request Governance**. Complete the Pre-Submission Governance checklist. Paste the terminal output from the checks.
+8. Open the PR as a draft (`gh pr create --draft`).
+9. Wait for all CI checks on the draft PR to pass.
+10. Complete the required verification. Then mark the PR as ready for review (`gh pr ready`).
+11. Review and resolve all CodeRabbit and GitHub Copilot comments. Check that Codecov shows zero errors, zero warnings, and no decrease in coverage.
 
 
 > **Single source of truth** for all AI agents working on this codebase.
@@ -22,12 +24,11 @@ All AI coding assistants (Claude Code, Gemini, GitHub Copilot, Cursor, Roo, Devi
 
 ## ️ Critical Rule: Never Bypass `unraid-api`
 
-**This applies to every AI coding agent (Claude Code, Codex, Copilot, Gemini, etc.).**
+**This applies to each AI coding agent (Claude Code, Codex, Copilot, Gemini, etc.).**
 
 All communication with the Unraid server **must** go through the
-[`unraid-api`](https://github.com/tinkerologie/unraid-api) library. This is a
-hard requirement, not a preference — it keeps the integration compliant with
-Home Assistant best practice (a single, typed, tested API client owns all I/O).
+[`unraid-api`](https://github.com/tinkerologie/unraid-api) library.
+The typed API client owns all server I/O. The library tests this code.
 
 **You must not, under any circumstances:**
 
@@ -37,9 +38,8 @@ Home Assistant best practice (a single, typed, tested API client owns all I/O).
   behaviour to "get a fix in faster."
 - Parse raw server responses outside the library's typed models.
 
-**If a fix appears to require functionality that `unraid-api` does not expose**
-(a missing field, query, mutation, subscription, or a library bug): **STOP.** Do
-not implement a workaround in this repository. Instead:
+If a fix needs a missing field, query, mutation, or subscription, stop.
+Also stop if the cause is a library bug. Do not add a workaround to this integration.
 
 1. Explain to the user that the change belongs in the `unraid-api` library.
 2. Open (or direct the user to open) an issue on the library repo:
@@ -59,8 +59,8 @@ The only sanctioned data flow is:
 | **Class prefix**     | `Unraid`                                      |
 | **Code path**        | `custom_components/unraid/`                   |
 | **Test path**        | `tests/`                                      |
-| **Python**           | 3.14.2+ (`requires-python`; CI uses 3.14.2) |
-| **HA minimum**       | 2026.9.0 (`hacs.json`, `pyproject.toml`; device registry 2026.8 + Probatio 2026.9) |
+| **Python**           | 3.14.2+ (`requires-python`). CI uses 3.14.2. |
+| **HA minimum**       | 2026.9.0 (`hacs.json`, `pyproject.toml`). The device registry requires 2026.8. Probatio requires 2026.9. |
 | **HA target**        | 2026.10 and later developer practice          |
 | **Key dependency**   | `unraid-api>=1.16.0`                          |
 | **iot_class**        | `local_polling` (plus websocket push for container stats and UPS) |
@@ -93,7 +93,7 @@ The only sanctioned data flow is:
 ```
 
 The scripts activate `.local/ha-venv`. If a tool is missing there, install it with
-`uv pip install --python .venv/bin/python <tool>`; CI installs fresh with
+`uv pip install --python .venv/bin/python <tool>`. CI installs dependencies with
 `uv pip install . ".[dev]"` on Python 3.14.2, so the lock file is
 for local reproducibility only.
 
@@ -118,7 +118,7 @@ Three `DataUpdateCoordinator` subclasses poll at different intervals:
 | `UnraidStorageCoordinator` | 5min     | Array state, disks, parity, shares, capacity                             |
 | `UnraidInfraCoordinator`   | 15min    | Services, registration, cloud, remote access, plugins                    |
 
-Intervals are **fixed** per HA Core guidelines (not user-configurable). Users can call `homeassistant.update_entity` for on-demand refresh.
+The integration uses fixed intervals, as specified by the HA Core guidelines. For an on-demand refresh, call `homeassistant.update_entity`.
 
 ### Runtime Data
 
@@ -140,21 +140,21 @@ Access in platform setup: `entry.runtime_data.system_coordinator`, etc.
 
 ### Server Identity (`server_info["uuid"]`)
 
-`server_info["uuid"]` is the **only** source of the `{server_uuid}` prefix used by
-entity unique IDs, the server device identifier `(DOMAIN, server_uuid)`,
-`cleanup.py`, `async_remove_config_entry_device` and diagnostics. It is resolved
-once in `async_setup_entry` by `_resolve_server_identity()`:
+`server_info["uuid"]` is the only source of the `{server_uuid}` prefix.
+Use it in entity unique IDs and the server device identifier `(DOMAIN, server_uuid)`.
+Use it in `cleanup.py`, `async_remove_config_entry_device`, and diagnostics.
+`async_setup_entry` calls `_resolve_server_identity()` once.
 
 - Real UUID → the raw API UUID.
-- Known placeholder SMBIOS UUID (`is_placeholder_uuid()` in `const.py`) **and**
-  `entry.unique_id` starts with `{uuid}_` → the hostname-qualified
-  `entry.unique_id` that the config flow created (#166, #183, #351).
+- Use `entry.unique_id` with its hostname if these two conditions apply.
+  The API UUID is a known SMBIOS placeholder (`is_placeholder_uuid()` in `const.py`).
+  The config flow set an `entry.unique_id` that starts with `{uuid}_` (#166, #183, #351).
 - Anything else (host fallback, no unique ID, legacy raw-placeholder unique ID)
   → the raw API UUID.
 
-Never build registry keys from `ServerInfo.uuid` or `coordinator.data.info.uuid`.
+Do not build registry keys from `ServerInfo.uuid` or `coordinator.data.info.uuid`.
 `_async_migrate_registry_identity()` re-keys existing registry records
-idempotently before platforms load; see `docs/development/DECISIONS.md`.
+before platforms load. You can repeat this migration safely. See `docs/development/DECISIONS.md`.
 
 ### Data Classes
 
@@ -198,8 +198,8 @@ custom_components/unraid/
 - **Line length**: 88 characters (ruff formatter)
 - **Linter**: ruff (`E`, `W`, `F`, `I`, `C`, `B`, `UP` rules)
 - **Target**: Python 3.14 (ruff `target-version = "py314"`, `requires-python >= 3.14.2`)
-- **Imports**: Use `from __future__ import annotations` in every file
-- **Type hints**: Required on all public functions; use `TYPE_CHECKING` guard for import-only types
+- **Imports**: Use `from __future__ import annotations` in each file
+- **Type hints**: Add type hints to all public functions. Use a `TYPE_CHECKING` guard for import-only types.
 - **Logging**: `_LOGGER = logging.getLogger(__name__)` — use `_LOGGER.debug()` for data updates, `.info()` for lifecycle, `.warning()` for user-visible issues, `.error()` for failures
 - **Constants**: Define in `const.py` with `Final` type annotation
 - **Strings**: f-strings preferred
@@ -214,12 +214,12 @@ CoordinatorEntity
         └── UnraidEntity        # + EntityDescription support
 ```
 
-Entity MRO for platform entities: `PlatformEntity, UnraidBaseEntity` (e.g., `SensorEntity, UnraidBaseEntity`)
+Entity MRO for platform entities: `PlatformEntity, UnraidBaseEntity` (for example, `SensorEntity, UnraidBaseEntity`)
 
 Key patterns:
 
 - `_attr_has_entity_name = True` (always, set on `UnraidBaseEntity`)
-- `_attr_translation_key = "..."` for translated names via `strings.json`
+- `_attr_translation_key = "..."` for translated names through `strings.json`
 - Unique ID format: `{server_uuid}_{resource_id}` where `server_uuid` is `server_info["uuid"]` (see *Server Identity* above)
 - Access coordinator data: `data: UnraidSystemData | None = self.coordinator.data`
 - Use `@property` for `native_value`, `is_on`, `extra_state_attributes`
@@ -238,18 +238,18 @@ Key patterns:
 
 - Steps: `user` → `reauth_confirm` → `reconfigure`
 - SSL auto-detection: Try HTTPS first, fall back to HTTP on `UnraidSSLError`
-- Version checking: API version from `get_server_info()` compared against `MIN_API_VERSION` (requires GraphQL API `v4.31.1+`; no Unraid OS version requirement — API upgradeable via Connect plugin)
+- Compare the API version from `get_server_info()` with `MIN_API_VERSION`. The integration requires GraphQL API `v4.31.1+` and has no Unraid OS version requirement. Update the API with the Connect plugin.
 - Options flow: `OptionsFlowWithReload` for UPS capacity/power settings
-- Unique ID: server UUID from `api_client.get_server_info()`; a placeholder SMBIOS UUID is qualified as `{uuid}_{hostname}`; a missing UUID falls back to the host
-- `_get_reauth_entry()` / `_get_reconfigure_entry()` + `async_update_reload_and_abort()`; never pair those with an update listener (deprecated 2026.6, error from 2026.12)
-- Shared abort reasons (`already_configured`, `reauth_successful`, ...) are translated centrally by HA 2026.10+
+- Use the server UUID from `api_client.get_server_info()`. For a placeholder SMBIOS UUID, use `{uuid}_{hostname}`. If the UUID is missing, use the host.
+- `_get_reauth_entry()` / `_get_reconfigure_entry()` + `async_update_reload_and_abort()`. Do not use them with an update listener (deprecated 2026.6, error from 2026.12)
+- HA 2026.10+ supplies translations for shared abort reasons such as `already_configured` and `reauth_successful`.
 
 ### Error Handling
 
 - Use HA translation system for user-facing errors: `translation_domain=DOMAIN`, `translation_key="..."`, `translation_placeholders={...}`
 - Wrap API errors in `HomeAssistantError` for entity actions (switch on/off, button press)
-- Raise `ConfigEntryAuthFailed` for a rejected API key; Home Assistant starts the reauth flow and raises its own repair issue, so don't create one
-- Repair issues are only for problems the user can fix that Home Assistant doesn't already report (e.g. `docker_stats_stalled`), and are cleared when the problem goes away
+- Raise `ConfigEntryAuthFailed` for a rejected API key. Home Assistant starts the reauthentication flow and creates a repair issue. Do not create a second issue.
+- Create repair issues only for problems the user can correct and that Home Assistant does not report. One example is `docker_stats_stalled`. Clear the issue when the problem stops.
 
 ### Models & Data
 
@@ -259,9 +259,7 @@ Key patterns:
 
 ## Home Assistant API Currency (2026.10+)
 
-Write new code against current core APIs. These are **deprecated or removed** and
-must not be (re)introduced; CI tests run on the current HA release where many of
-them raise `RuntimeError` through `report_usage`:
+Use current Core APIs. Do not use the deprecated or removed APIs in the table. CI tests run on the current HA release. Many of these APIs raise `RuntimeError` through `report_usage`.
 
 | Do not use | Use instead | Since |
 | --- | --- | --- |
@@ -273,14 +271,14 @@ them raise `RuntimeError` through `report_usage`:
 | `DeviceEntry.config_entries`, `primary_config_entry` | `DeviceEntry.config_entry_id` (a device has one entry) | 2026.8 / reports 2026.10 |
 | `async_update_device(add_config_entry_id= / remove_config_entry_id= / merge_identifiers=)` | `new_config_entry_id=`, `new_identifiers=` | 2026.8 |
 | `DeviceInfo(via_device=...)` | `via_device_id=` | 2026.8 |
-| Mapping construction or dictionary operations on `DeviceInfo` (`[]`, `.get()`, `.update()`, `.copy()`, iteration, `\|`, truthiness) | Construct with keyword arguments; use attributes for fields and full `DeviceInfo(...)` equality in tests supporting older HA | dataclass from 2026.11; dictionary compatibility will be removed later |
-| `DeviceInfo` fields `created_at`, `modified_at`, `default_manufacturer`, `default_model`, `default_name` | Use `manufacturer`, `model`, `name`; leave registry timestamps to HA | removed 2027.9 |
+| Mapping construction or dictionary operations on `DeviceInfo` (`[]`, `.get()`, `.update()`, `.copy()`, iteration, `\|`, truthiness) | Construct with keyword arguments. Use attributes for fields. Compare complete `DeviceInfo(...)` objects in tests for older HA versions. | Dataclass from 2026.11. Dictionary support will end later. |
+| `DeviceInfo` fields `created_at`, `modified_at`, `default_manufacturer`, `default_model`, `default_name` | Use `manufacturer`, `model`, `name`. Let HA set registry timestamps. | removed 2027.9 |
 | Returning `False` from `async_migrate_entry` | raise `ConfigEntryNotReady` / `ConfigEntryError` | 2026.10 |
-| `CONCENTRATION_*` constants; `PERCENTAGE` as a unit | `UnitOfDensity`, `UnitOfRatio.PERCENTAGE` | 2026.7 |
+| `CONCENTRATION_*` constants, or `PERCENTAGE` as a unit | `UnitOfDensity`, `UnitOfRatio.PERCENTAGE` | 2026.7 |
 | `FlowHandler.show_advanced_options` | remove the check (always true) | 2026.6 (removed 2027.6) |
 | Entity IDs whose domain differs from the platform | matching domain | 2026.4 (stops 2027.5) |
 | `RestoreStateData.last_states` | `async_get_stored_state` | 2026.11 |
-| `import voluptuous as vol` | `import probatio as vol` (HA 2026.9+ engine; voluptuous is only a `sys.modules` alias and is not installed) | 2026.9 |
+| `import voluptuous as vol` | `import probatio as vol` (HA 2026.9+). The `voluptuous` name is a `sys.modules` alias. Do not install the package. | 2026.9 |
 | `data_entry_flow.FlowResult` as a step return type | `ConfigFlowResult` (`RepairsFlowResult` for any repair flow) | 2024.x |
 | `"%"`, `"GiB"` and other unit string literals | `UnitOfRatio.PERCENTAGE`, `UnitOfInformation.GIBIBYTES`, ... | 2026.7 |
 
@@ -292,25 +290,30 @@ Home Assistant 2026.11 follow-ups (#394), keep them when touching these areas:
   (`entity.py`). Otherwise 2026.11 removes and re-adds it on an entity ID change,
   and 2027.11 drops that fallback. `tests/test_entity.py` fails on a class that
   misses it.
-- Repair issues that concern one config entry put the entry ID in the issue ID
-  (`docker_stats_stalled_issue_id(entry_id)`), carry `data={"entry_id": ...}`, and pass
-  `config_entry_id=` only where `ir.async_create_issue` accepts it (2026.11+;
-  see `_ISSUES_TAKE_CONFIG_ENTRY`). `async_setup` (all entries, disabled ones included) and `async_remove_entry` also delete the `auth_failed` issues releases before #420 raised.
+- For a repair issue about one config entry, include the entry ID in the issue ID
+  (`docker_stats_stalled_issue_id(entry_id)`). Include `data={"entry_id": ...}`.
+  Pass `config_entry_id=` only if `ir.async_create_issue` accepts it
+  (2026.11+, see `_ISSUES_TAKE_CONFIG_ENTRY`).
+  `async_setup` deletes the old `auth_failed` issues from before #420, even for disabled entries.
+  `async_remove_entry` also deletes these issues.
 - `manifest.json` has `categories` (`computers_network.nas_servers`). Hassfest
   from a Core older than 2026.11 rejects the key, so validate locally with
-  `HA_VERSION=2026.11.0b1` or later; CI's Hassfest image accepts it.
-- Every `async_show_form`/`async_show_menu`/`async_show_progress` passes
+  `HA_VERSION=2026.11.0b1` or later. The Hassfest image in CI accepts this key.
+- Each `async_show_form`/`async_show_menu`/`async_show_progress` passes
   `step_id` (required from 2027.5).
 
-Still current and expected: `cv.config_entry_only_config_schema`, `ConfigType`,
-frozen `EntityDescription` dataclasses, `UpdateFailed(retry_after=...)`,
-`ServiceValidationError`, `ir.async_create_issue`, `er.async_migrate_entries` /
-`async_update_entity(new_unique_id=...)` for registry migrations (pre-check with
-`async_get_entity_id`; a conflict raises `ValueError`), and the entity lifecycle
-hooks `async_prepare_to_add_to_hass` (2026.10) / `async_entity_id_changed` (2026.11).
+Continue to use these APIs.
 
-Developer blog index: https://developers.home-assistant.io/blog/ — check it for
-the current month before touching registries, config flows or device info.
+- Configuration and errors: `cv.config_entry_only_config_schema`, `ConfigType`,
+  `UpdateFailed(retry_after=...)`, `ServiceValidationError`, and `ir.async_create_issue`.
+- Entities: frozen `EntityDescription` dataclasses, `async_prepare_to_add_to_hass`
+  (2026.10), and `async_entity_id_changed` (2026.11).
+- Registry migrations: `er.async_migrate_entries` and
+  `async_update_entity(new_unique_id=...)`. Check for conflicts with
+  `async_get_entity_id` before the update. A conflict raises `ValueError`.
+
+Check this month's posts before you change registries, config flows, or device information.
+See the [Home Assistant developer blog](https://developers.home-assistant.io/blog/).
 
 ## Testing
 
@@ -322,12 +325,11 @@ uv pip install -e ".[dev]"
 ./script/setup
 ```
 
-The test extra pins Home Assistant separately from the runtime minimum. Until
-`pytest-home-assistant` is published on PyPI, `[tool.uv.sources]` pins its Core
-commit. To update the test baseline, change the HA test pin and plugin commit
-together, run `uv lock`, and run the full suite. Use uv for installation so the
-source pin is respected. `script/setup/bootstrap` removes the retired plugin
-from existing environments; the two plugins must not be installed together.
+The test extra pins Home Assistant separately from the runtime minimum. The `[tool.uv.sources]` section pins the Core commit for `pytest-home-assistant` until the package is on PyPI.
+
+To update the test baseline, change the HA test pin and the plugin commit together.
+Run `uv lock`. Run all tests. Use uv to install dependencies from the pinned source. `script/setup/bootstrap` removes the retired plugin
+from existing environments. Do not install both plugins in the same environment.
 Bootstrap, upgrade, develop and automatic test setup refuse to downgrade a newer
 installed HA to the test pin. Use a separate test virtual environment in that case.
 
@@ -351,20 +353,24 @@ tests/
 
 ### Patterns
 
-- Use the official `pytest-home-assistant` plugin; import helpers from `pytest_homeassistant.common`
+- Use the official `pytest-home-assistant` plugin. Import helpers from `pytest_homeassistant.common`.
 - Mock `UnraidClient` methods, not HTTP calls
 - Use `pytest-asyncio` with `asyncio_mode = "auto"`
 - Fixtures provide pre-built coordinator data classes
 - Test both happy path and error scenarios (auth failure, connection loss, missing optional data)
-- Registry behaviour is tested against the real registries from the `hass` fixture (`er.async_get(hass)`, `dr.async_get(hass)`) with `MockConfigEntry.add_to_hass(hass)`; never mock the registries
-- Full-integration tests use `hass.config_entries.async_setup(entry.entry_id)`; setting up the first entry of the domain loads every entry, and `async_register_frontend` / `UnraidWebSocketManager` must be patched
-- Deprecated core APIs raise `RuntimeError` in tests (`report_usage` with no integration frame), so a failing test that mentions "deprecated" means the code, not the test, must change
-- Deprecation checks are blocking (#391):
+- Test registry behavior with the registries from the `hass` fixture (`er.async_get(hass)`, `dr.async_get(hass)`) with `MockConfigEntry.add_to_hass(hass)`. Do not mock the registries.
+- Use `hass.config_entries.async_setup(entry.entry_id)` in full integration tests. Setup of the first domain entry loads all entries. Patch `async_register_frontend` and `UnraidWebSocketManager`.
+- Deprecated Core APIs raise `RuntimeError` in tests (`report_usage` has no integration frame). Correct the integration code if a test reports deprecation.
+- All deprecation checks must pass (#391).
   - `pyproject.toml` `filterwarnings` turns `DeprecationWarning` and `PendingDeprecationWarning` raised from `custom_components.unraid` into errors.
-  - The autouse `deprecation_report_guard` fixture (set up before `hass` and torn down after it) fails a test when Home Assistant logs one of its three reports about `unraid`: `Detected that custom integration 'unraid' …` (frame helper), `The deprecated … was <verb> from unraid.` (deprecation helpers), and `custom_components.unraid.<module>::<Class> provides the deprecated <name>, …` (an entity class defining a deprecated member, HA 2026.11+).
+  - The autouse `deprecation_report_guard` fixture starts before `hass` and stops after it.
+    It fails a test if Home Assistant logs any of these reports.
+    - Frame helper: `Detected that custom integration 'unraid' …`
+    - Deprecation helpers: `The deprecated … was <verb> from unraid.`
+    - Deprecated entity class member (HA 2026.11+): `custom_components.unraid.<module>::<Class> provides the deprecated <name>, …`
   - Class-definition reports fire at import time, before any fixture, so `tests/test_deprecation_currency.py` also runs `python3 script/ha_next.py import-check` in a fresh interpreter. Keep the three patterns in `tests/conftest.py` and `script/ha_next.py` identical (a test enforces it).
-  - When a check fires, fix the integration code; never weaken the filter, the patterns or the guard. A test that emits a report on purpose takes `deprecation_report_guard` and clears it.
-- After deploying to a live Home Assistant, search its log for `Detected that custom integration 'unraid'` (the `report_usage` deprecation report) and for `custom_components.unraid` warnings; both must be empty before a PR is opened
+  - When a check fires, fix the integration code. Keep the filter, patterns, and guard in effect. A test that emits a report on purpose takes `deprecation_report_guard` and clears it.
+- After deploying to a live Home Assistant, search its log for `Detected that custom integration 'unraid'` (the `report_usage` deprecation report) and for `custom_components.unraid` warnings. Correct both types of report before you open a PR.
 
 ### Running Tests
 
@@ -384,7 +390,7 @@ pytest --no-cov                  # Skip coverage for speed
 - Use `_attr_translation_key` for entity names (not hardcoded strings)
 - Add translation keys to `strings.json` when creating new entities
 - Match existing icon patterns in `icons.json`
-- Use typed coordinator data access (e.g., `data: UnraidSystemData | None = self.coordinator.data`)
+- Use typed coordinator data access (for example, `data: UnraidSystemData | None = self.coordinator.data`)
 - Handle `None` coordinator data gracefully
 - Use `Final` type annotations for constants in `const.py`
 - Run `./script/lint` before committing
@@ -397,13 +403,13 @@ pytest --no-cov                  # Skip coverage for speed
 - Changing coordinator polling intervals
 - Modifying the config flow steps
 - Adding new dependencies to `manifest.json` or `pyproject.toml`
-- Changing entity unique ID format or the server identity rule (breaks existing installations; needs a registry migration)
+- Changing entity unique ID format or the server identity rule (requires a registry migration to keep existing installations working)
 - Modifying `UnraidRuntimeData` structure
 - Updating the `unraid-api` library version
 
 ### Never Do
 
-- **Bypass `unraid-api`** — no direct GraphQL/HTTP/WebSocket/SSH/raw-socket I/O to the Unraid server; no re-implementing, monkey-patching, vendoring, or working around `UnraidClient`. CI (`check-api-boundary.yml`) blocks this automatically. If the library is missing a capability, stop and open an issue at **https://github.com/tinkerologie/unraid-api**.
+- **Bypass `unraid-api`** — no direct GraphQL/HTTP/WebSocket/SSH/raw-socket I/O to the Unraid server. Do not reimplement, monkey-patch, vendor, or bypass `UnraidClient`. CI (`check-api-boundary.yml`) blocks this automatically. If the library is missing a capability, stop and open an issue at **https://github.com/tinkerologie/unraid-api**.
 - Make polling intervals user-configurable (HA Core policy)
 - Skip `from __future__ import annotations`
 - Use bare `except:` — always catch specific exceptions
@@ -431,21 +437,21 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`
 
 ## Releases
 
-A manifest version bump on `main` with a matching `## [VERSION]` CHANGELOG
-section makes `release.yml` tag `vVERSION`, then build and publish in the same run:
+The release workflow starts when a manifest version change reaches `main`.
+The changelog must have a matching `## [VERSION]` section.
+In one run, `release.yml` creates the `vVERSION` tag, builds the archive, and publishes the release.
 
-- **`build`** (read-only, `id-token`/`attestations: write`) checks out the tag
-  and runs `script/build_release.py --tag vVERSION`. It packages the files Git
-  tracks under `custom_components/unraid/` **at the zip root** as `unraid.zip`
-  (HACS and the Marketplace extract it straight into `custom_components/unraid/`),
-  writes `SHA256SUMS`, and attests the zip.
+- **`build`** (read-only, `id-token`/`attestations: write`) checks out the tag.
+  The job runs `script/build_release.py --tag vVERSION`.
+  It puts the tracked files from `custom_components/unraid/` at the root of `unraid.zip`.
+  HACS and the Marketplace extract the archive into `custom_components/unraid/`.
+  The job writes `SHA256SUMS` and attests the archive.
 - **`publish`** (`contents: write`) verifies the checksum and attestation,
   uploads to a draft, then publishes, so release immutability works.
 
-`hacs.json` sets `zip_release: true` and `filename: "unraid.zip"`; never rename
-the asset or nest it in a folder. The builder fails on a manifest/tag mismatch,
-an unresolved relative Python import, a missing `CARD_FILES` bundle or an
-unresolved frontend import. CI's `Release zip` job builds twice and compares
+`hacs.json` sets `zip_release: true` and `filename: "unraid.zip"`. Keep
+this file name and place the asset at the archive root. The build fails if the manifest and tag disagree.
+It also fails if a relative Python import, frontend import, or `CARD_FILES` bundle is missing. CI's `Release zip` job builds twice and compares
 the bytes. Try it locally with
 `python3 script/build_release.py --tag v$(jq -r .version custom_components/unraid/manifest.json)`.
 
@@ -454,35 +460,37 @@ the bytes. Try it locally with
 Two non-blocking scheduled workflows (both with `workflow_dispatch`) warn before
 a Home Assistant release breaks the integration:
 
-- **`HA Next`** (`ha-next.yml`, weekly) runs a matrix of two channels, resolved by
-  `script/ha_next.py resolve`: `pypi`, the newest `homeassistant` on PyPI
-  including betas (pinned exactly, never `--prerelease allow`), and `dev`, the
-  head of Core's `dev` branch pinned to one commit (`git ls-remote`), so the
-  install and Hassfest test the same Core. Each channel runs the import check,
-  the full pytest suite with the official plugin from that Core commit, and
-  `script/hassfest`. All five outcomes, including pytest, must succeed. On `main`, each channel keeps one open issue, labelled `ha-next` and
-  `bug` and found by its `<!-- ha-next-channel: … -->` marker: a failure opens
-  it or comments on it, a pass comments and closes it.
-- **`HA dev blog watch`** (`ha-dev-blog.yml`, weekly, looking back 22 days so a
-  failed or late run is covered; dispatch takes `days`) runs
-  `script/ha_blog_watch.py scan`. It reads the developer blog feed and
-  takes inline code from paragraphs and list items that announce a change. It
-  searches the integration's code (not comments or strings) for that code and
-  opens one `HA dev blog: <post title>` issue, labelled `ha-dev-blog` and
-  `enhancement`, per post that names code the integration uses. Duplicates are
-  found by the post link in any issue body, open or closed.
+- **`HA Next`** (`ha-next.yml`) checks two channels each week.
+  The `script/ha_next.py resolve` command selects both targets.
+  The `pypi` channel uses the latest exact `homeassistant` version, including beta releases.
+  Do not use `--prerelease allow`.
+  The `dev` channel uses `git ls-remote` to pin Core's `dev` branch to one commit.
+  The installation and Hassfest use the same Core target.
 
-Workflow-created issues get `bug` or `enhancement` in the create call because
-issues opened with `GITHUB_TOKEN` never trigger `issue-labeler.yml`, and
-CodeRabbit only writes a coding plan for issues with one of those labels.
-Missing labels are created first.
+  For each channel, the job runs the import check, the full pytest suite, and `script/hassfest`.
+  It uses the official test plugin from the applicable Core commit.
+  All five results must pass, including pytest.
+  On `main`, the job identifies each channel issue by its `<!-- ha-next-channel: … -->` marker.
+  A failure opens or updates an issue with the `ha-next` and `bug` labels.
+  A pass adds a comment to the issue and closes it.
+- **`HA dev blog watch`** (`ha-dev-blog.yml`) runs `script/ha_blog_watch.py scan` each week.
+  It checks 22 days of posts to cover late or failed runs. A manual run accepts `days`. It reads the developer blog feed and
+  takes inline code from paragraphs and list items that announce a change.
+  It searches the integration's code and ignores comments and strings.
+  It opens one `HA dev blog: <post title>` issue for each post that names code the integration uses.
+  The issue uses the `ha-dev-blog` and `enhancement` labels.
+  It checks the post link in open and closed issues to prevent duplicates.
 
-`script/hassfest` takes `HA_VERSION` (a tag, `dev`, or a 40-character Core commit) and reconciles its sparse
-Core checkout on every run. From Core 2026.11 the validator lives in
-`packages/hassfest`; the script then runs it through
-`uv run --no-project --with-editable <core>/packages/hassfest`, so `uv` must be
-on `PATH`, and the installed `homeassistant` must match the Core it validates
-against.
+The workflow creates a label first if it does not exist.
+It sets `bug` or `enhancement` when it opens an issue.
+A `GITHUB_TOKEN` issue does not start `issue-labeler.yml`.
+CodeRabbit needs one of these labels to write a plan.
+
+Set `HA_VERSION` to a tag, `dev`, or a 40-character Core commit.
+On each run, `script/hassfest` updates its sparse Core checkout to that target.
+From Core 2026.11, `packages/hassfest` contains the validator.
+The script calls `uv run --no-project --with-editable <core>/packages/hassfest`.
+Make sure `uv` is on `PATH`. Install the `homeassistant` version that matches the validation target.
 
 ## Debugging
 
@@ -495,55 +503,54 @@ logger:
     unraid_api: debug
 ```
 
-Check diagnostics via: Settings > Devices & Services > Unraid > (...) > Download diagnostics
+Check diagnostics through: Settings > Devices & Services > Unraid > (...) > Download diagnostics
 
 ## Quality Scale
 
 The integration targets **Platinum** level on the [HA Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/). Current status:
 
 - **Bronze**: All rules done/exempt (including `docs-conditions` and `docs-triggers`, added mid-2026)
-- **Silver**: All rules done; `test-coverage` is **>=95%** per module (total ~97%)
+- **Silver**: All rules are complete. `test-coverage` is **>=95%** per module (total ~97%)
 - **Gold**: All done/exempt
 - **Platinum**: All done (async dependency, inject websession, strict typing)
 
-Every rule must be listed in `quality_scale.yaml` (`done`, `todo`, or
-`{status: exempt, comment: ...}`); hassfest validates the file for core
-integrations only, so keep it honest by hand.
+List each rule in `quality_scale.yaml` (`done`, `todo`, or
+`{status: exempt, comment: ...}`). Hassfest checks the file for Core
+integrations only. Check the file manually for this integration.
 
 ## Issue and Pull Request Governance
 
-These rules apply to every contributor, including AI coding agents. The full org-wide rules are in
+These rules apply to each contributor, including AI coding agents. The full org-wide rules are in
 [GOVERNANCE.md](https://github.com/tinkerologie/.github/blob/main/GOVERNANCE.md).
 
-1. **Issue first.** Open an issue with the bug or enhancement template before opening a pull
-   request. Keep the title prefix `[Bug]:` or `[Enhancement]:`, followed by a space and the title.
-   Automation applies the `bug` or `enhancement` label when it can tell the type, and CodeRabbit
-   then posts a Coding Plan on the issue. Implement from that plan. The labeler skips issues labeled
-   `question`, `duplicate`, `invalid`, `wontfix`, or `no-type`, and never re-adds a type label that
-   a maintainer removed.
-2. **Link the issue.** In the PR's **Related Issues** section, write `Closes #<number>` (or `Fixes`
-   or `Resolves`) when the PR completely resolves the issue; these keywords close it on merge. Use
-   `Part of #<number>` or `Related to #<number>` for partial work. The linked issue must exist; an
-   issue in another public repository (`owner/repo#123`) is fine. Only authors with write access or
-   higher (maintainers) may write `None`, for housekeeping such as CI,
-   documentation, or dependency updates; PR governance rejects `None` from everyone else.
-3. **One change at a time.** Contributors without write access can have at most 2 open, non-draft
-   pull requests here. GitHub enforces this limit, and draft pull requests do not count toward it.
-   Do not open PRs that edit the same files as another open PR, such as `CHANGELOG.md`,
-   translations, `README.md`, or generated bundles. Wait for the first to merge, rebase, then
-   continue.
-4. **Act on the Tinkerologie-Bot report.** When PR governance fails, Tinkerologie-Bot posts one comment
-   listing every problem as a numbered item. Fix each item by editing the PR description or pushing
-   the missing change; the check re-runs and the comment updates to passed.
-5. **Rebase before review.** Rebase on `main` before marking a PR ready for review.
-6. **Resolve conflicts first.** When a PR gets the `conflicts` label, rebase on `main`,
-   resolve the conflicts (keep every `CHANGELOG.md` entry under `[Unreleased]`), re-run the tests,
-   and force-push before doing any other work.
-7. **Coverage.** `codecov/patch` must pass: at least 90% of added or changed lines must be
-   covered by tests. The gate is the percentage; still, add tests for the uncovered lines the
-   Codecov PR comment lists, and explain in the PR description any line you leave uncovered. Do
-   not lower coverage targets or add coverage ignore rules to make it pass.
-8. **Stale items.** Issues and PRs with no activity for 14 days are labeled `stale` and closed 30
-   days later unless there is new activity. These labels are exempt:
+1. **Issue first.** Open an issue with the bug or enhancement template before you open a pull
+   request. Use `[Bug]:` or `[Enhancement]:`, followed by a space and the title.
+   The labeler adds `bug` or `enhancement` when it can identify the issue type.
+   CodeRabbit then adds a Coding Plan to the issue. Follow that plan.
+   The labeler skips issues with `question`, `duplicate`, `invalid`, `wontfix`, or `no-type`.
+   It does not add a type label again if a maintainer removed it.
+2. **Link the issue.** In **Related Issues**, use `Closes #<number>`, `Fixes #<number>`, or
+   `Resolves #<number>` if the PR completes the issue. GitHub then closes the issue when
+   the PR merges. For partial work, use `Part of #<number>` or `Related to #<number>`.
+   Link to an existing issue. You can link to an issue in another public repository
+   with `owner/repo#123`. Only contributors with write access or higher can use
+   `None` for maintenance work such as CI, documentation, or dependency updates.
+3. **One change at a time.** GitHub limits contributors without write access to two open,
+   non-draft pull requests. Draft pull requests do not count. Do not edit files that another
+   open PR changes. Examples include `CHANGELOG.md`, translations, `README.md`, and generated
+   bundles. Wait for the first PR to merge. Then rebase your branch before you continue.
+4. **Act on the Tinkerologie-Bot report.** If the PR governance check fails, the bot lists
+   all problems in one numbered comment. Correct each problem in the PR description
+   or push the necessary change. The check runs again and the bot updates the comment.
+5. **Rebase before review.** Rebase on `main` before you mark the PR ready for review.
+6. **Resolve conflicts first.** If the PR has the `conflicts` label, rebase on `main`.
+   Resolve the conflicts. Keep all `CHANGELOG.md` entries under `[Unreleased]`.
+   Run the tests again. Force-push the branch before you do other work.
+7. **Coverage.** Tests must cover at least 90% of the added or changed lines for
+   `codecov/patch`. Add tests for uncovered lines in the Codecov comment.
+   In the PR description, explain each line that still has no coverage.
+   Do not decrease coverage targets or add coverage ignore rules to pass the check.
+8. **Stale items.** The bot adds `stale` to issues and PRs after 14 days without activity.
+   It closes them 30 days later if there is no new activity. The bot skips these labels.
    - Issues: `pinned`, `security`, `confirmed`, `work-in-progress`, `priority: critical`, `priority: high`.
    - Pull requests: `pinned`, `security`, `work-in-progress`.

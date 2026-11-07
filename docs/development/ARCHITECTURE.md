@@ -39,7 +39,7 @@ The integration uses the `unraid-api` library which provides:
 - Pydantic v2 models for all responses (`ServerInfo`, `SystemMetrics`, `UnraidArray`, etc.)
 - Custom exceptions (`UnraidAuthenticationError`, `UnraidConnectionError`, etc.)
 
-The HA integration injects its own `aiohttp.ClientSession` via `async_get_clientsession()` for proper connection pooling and SSL handling.
+The HA integration injects its own `aiohttp.ClientSession` through `async_get_clientsession()` for proper connection pooling and SSL handling.
 
 ### Triple Coordinator Pattern
 
@@ -56,7 +56,7 @@ Each coordinator:
 - Returns a typed dataclass (`UnraidSystemData`, `UnraidStorageData`, `UnraidInfraData`)
 - Handles auth errors → `ConfigEntryAuthFailed` (triggers reauth)
 - Handles connection errors → `UpdateFailed` (retries next interval)
-- Queries optional services (Docker, VMs, UPS, network) returning `None` on failure while preserving the last known-good cache; successful empty queries return empty lists
+- Queries optional services (Docker, VMs, UPS, and network). On failure, it returns `None` and keeps the last valid data in the cache. A successful query with no resources returns an empty list.
 - Tracks `_previously_unavailable` for recovery logging
 
 ### Runtime Data
@@ -74,7 +74,7 @@ class UnraidRuntimeData:
 type UnraidConfigEntry = ConfigEntry[UnraidRuntimeData]
 ```
 
-Stored in `entry.runtime_data` (typed `ConfigEntry[UnraidRuntimeData]`). Never use `hass.data[DOMAIN]`.
+Stored in `entry.runtime_data` (typed `ConfigEntry[UnraidRuntimeData]`). Do not use `hass.data[DOMAIN]`.
 
 ### Entity Hierarchy
 
@@ -84,9 +84,9 @@ CoordinatorEntity
         └── UnraidEntity        # + UnraidEntityDescription support (available_fn, supported_fn)
 ```
 
-Platform entities use MRO: `PlatformEntity, UnraidBaseEntity` (e.g., `SensorEntity, UnraidBaseEntity`).
+Platform entities use MRO: `PlatformEntity, UnraidBaseEntity` (for example, `SensorEntity, UnraidBaseEntity`).
 
-Exception: `UnraidButtonEntity` extends `ButtonEntity` directly (buttons are action-only, no coordinator state).
+`UnraidButtonEntity` inherits from `ButtonEntity` and `UnraidBaseEntity`. It uses the coordinator for availability and device information. Button actions call coordinator methods.
 
 ### Config Flow
 
@@ -99,7 +99,7 @@ Exception: `UnraidButtonEntity` extends `ButtonEntity` directly (buttons are act
 
 All entities share a **single device per Unraid server**, identified by `(DOMAIN, server_uuid)`. Containers, VMs, and disks are entities (not sub-devices).
 
-`server_uuid` is the resolved identity in `entry.runtime_data.server_info["uuid"]`: the API UUID, or the hostname-qualified config entry unique ID when the firmware reports a placeholder SMBIOS UUID (see `DECISIONS.md`, "Server Identity for Placeholder SMBIOS UUIDs").
+`server_uuid` uses the resolved identity in `entry.runtime_data.server_info["uuid"]`. This is usually the API UUID. For a known placeholder SMBIOS UUID, the integration checks `entry.unique_id`. If it starts with the placeholder UUID followed by an underscore, the integration uses that ID. This unique ID includes the hostname. Otherwise, the integration uses the API UUID. See "Server Identity for Placeholder SMBIOS UUIDs" in `DECISIONS.md`.
 
 ## Data Flow
 

@@ -1,35 +1,37 @@
 # Contributing to Home Assistant Unraid Integration
 
+Use [ASD-STE100 Issue 9](docs/agents/documentation.md) for new or changed English documentation.
+
 Thank you for your interest in contributing to Home Assistant Unraid Integration. This project welcomes contributions from human developers and autonomous AI coding agents alike.
 
 Home Assistant integration for monitoring Unraid arrays, pools, and hardware status.
 
-To maintain code quality, protect maintainer capacity, and prevent maintainer burnout, all contributors must follow the standardized development and governance workflow outlined below.
+All contributors must follow this workflow. It helps maintainers review changes and maintain code quality.
 
 ---
 
 ## Code of Conduct and Standards
 
 - Be respectful, constructive, and collaborative.
-- Zero secrets policy: Never commit passwords, tokens, API keys, private certificates, or personal data.
+- Zero secrets policy: Do not commit passwords, tokens, API keys, private certificates, or personal data.
 - Anti-burnout principle: Perform full due diligence locally before opening pull requests or requesting review.
 
 ---
 
 ## Development Workflow
 
-All contributions—whether submitted by humans or AI agents—must adhere to this step-by-step workflow:
+All contributors and AI agents must follow these steps.
 
 ### 1. Open a GitHub Issue First
-- Every bug fix, feature, or enhancement must start with an issue.
+- Each bug fix, feature, or enhancement must start with an issue.
 - Use the appropriate GitHub Issue Form:
   - Bug Report (`01-bug-report.yml`)
   - Enhancement Request (`02-enhancement-request.yml`)
-- Blank or unstructured issues are disabled. Pull requests without a corresponding issue will be closed.
+- GitHub accepts issues from the issue forms. Maintainers close pull requests that have no issue.
 
 ### 2. CodeRabbit AI Plan Generation
-- Once the issue is created, CodeRabbit AI is triggered to generate an implementation plan (either automatically via the `bug` or `enhancement` label, or by commenting `@coderabbitai plan` on the issue).
-- CodeRabbit analyzes the codebase and posts a comprehensive Coding Plan containing:
+- CodeRabbit can make a plan when GitHub adds the `bug` or `enhancement` label. To start it manually, add the comment `@coderabbitai plan` to the issue.
+- CodeRabbit examines the code and posts a Coding Plan. The plan includes these items.
   - Codebase research and affected components
   - Architectural design choices
   - Phased task breakdowns
@@ -41,12 +43,12 @@ All contributions—whether submitted by humans or AI agents—must adhere to th
   - Features: `git checkout -b feat/<issue-number>-<short-description>`
   - Fixes: `git checkout -b fix/<issue-number>-<short-description>`
   - Documentation: `git checkout -b docs/<issue-number>-<short-description>`
-- Never commit directly to the default branch (`main`).
+- Do not commit directly to the default branch (`main`).
 
 ### 4. Implementation and Local Validation
 - Implement changes following project conventions and the approved plan.
 - Update `CHANGELOG.md` under `## [Unreleased]` describing what changed and why.
-- Run all required local validation checks (tests with coverage, linters, type checkers, and formatters). Ensure all checks pass with zero errors and zero warnings.
+- Run all required local validation checks (tests with coverage, linters, type checkers, and formatters). Correct all errors and warnings.
 
 ### 5. Follow the Pull Request Template
 - Open a Pull Request using `.github/PULL_REQUEST_TEMPLATE.md`.
@@ -54,20 +56,20 @@ All contributions—whether submitted by humans or AI agents—must adhere to th
   - Summary of changes
   - Linked issue keywords (`Fixes #<issue>`, `Closes #<issue>`, `Addresses #<issue>`)
   - Verification steps and pasted terminal output
-  - Mandatory Pre-Submission Governance checklist (every box must be checked)
+  - Mandatory Pre-Submission Governance checklist. Select each box after you complete its check.
 
 ### 6. Open PR as DRAFT First
-- Pull requests MUST be opened in Draft mode (`gh pr create --draft` or choose "Create draft pull request" in GitHub).
+- Open all pull requests in Draft mode (`gh pr create --draft` or choose "Create draft pull request" in GitHub).
 - Draft PRs allow CI workflows to run in isolation without triggering premature reviewer notifications or consuming unnecessary review capacity.
-- Verify that all CI checks pass in draft mode and confirm that everything is working as expected from your end.
+- Wait for all CI checks to pass on the draft. Make sure the change works locally.
 
 ### 7. Mark Ready for Review
 - Only after all local and draft CI checks have succeeded, convert the pull request to "Ready for Review".
-- Pull requests marked ready for review with failing checks, incomplete templates, or unverified changes will be converted back to draft or closed.
+- The project can return a PR to draft or close it. This can occur if checks fail or the PR has missing template fields or verification.
 
 ### 8. Automated Quality Gates and Merge Criteria
-Before a pull request can be merged, it must satisfy all automated quality gates:
-- CodeRabbit AI Review: All review comments and suggestions must be resolved or addressed.
+A pull request must pass all automated checks before merge.
+- CodeRabbit AI Review. Address all review comments and suggestions.
 - GitHub Copilot Code Review: Must pass with no blocking feedback.
 - Codecov Coverage Reports: Must pass with zero errors, zero warnings, and no coverage regressions below the repository target.
 - Branch Ruleset Checks: All required status checks defined in the default branch ruleset must pass.
@@ -83,12 +85,12 @@ Before a pull request can be merged, it must satisfy all automated quality gates
 - Pre-commit (`pre-commit install`)
 
 Tests use Home Assistant's official `pytest-home-assistant` plugin. The test
-extra pins HA and `[tool.uv.sources]` pins the matching Core plugin commit;
-update both together and regenerate `uv.lock`. Use uv to honor that source.
+extra pins Home Assistant. The `[tool.uv.sources]` section pins the matching Core plugin commit.
+Update both pins together. Then regenerate `uv.lock`. Use uv to honor that source.
 Bootstrap removes the retired custom-component plugin from existing environments.
 The runtime HA minimum is unchanged by the test baseline.
 Bootstrap, upgrade, develop and automatic test setup stop before downgrading a
-newer installed HA; use a separate test virtual environment to preserve recorder data.
+newer installed HA. Use a separate test virtual environment to preserve recorder data.
 
 ### Validation Commands
 
@@ -116,20 +118,25 @@ HA_VERSION=2026.11.0b1 ./script/hassfest
 
 ### Deprecation checks
 
-`pytest` fails when the integration raises a `DeprecationWarning` or
-`PendingDeprecationWarning`, or when Home Assistant logs a deprecation report
-naming `unraid` (`Detected that custom integration 'unraid' …`, `The deprecated
-… was used from unraid.`, `custom_components.unraid.<module>::<Class> provides
-the deprecated …`). Fix the code; don't weaken the checks.
+`pytest` fails if the integration raises `DeprecationWarning` or `PendingDeprecationWarning`.
+It also fails if Home Assistant logs a deprecation report about `unraid`.
+The tests look for these report patterns.
 
-Two scheduled workflows warn about the next release early and can be started by
-hand from the Actions tab (**Run workflow**):
+- `Detected that custom integration 'unraid' …`
+- `The deprecated … was used from unraid.`
+- `custom_components.unraid.<module>::<Class> provides the deprecated …`
 
-- **HA Next** checks the newest Home Assistant on PyPI (betas included) and Core
-  `dev`, installing the official test plugin from the same Core commit and
-  running the full suite on both channels. It keeps one `ha-next` issue per channel.
-- **HA dev blog watch** (optional `days` input) opens a `ha-dev-blog` issue for
-  each developer blog post that names code the integration uses.
+Correct the code. Keep the checks in effect.
+
+Two scheduled workflows check for Home Assistant changes before a release.
+To start a workflow manually, select **Run workflow** in the Actions tab.
+
+- **HA Next** checks the latest Home Assistant on PyPI, including beta releases.
+  It also checks Core `dev`. For each channel, it installs the test plugin
+  from the applicable Core commit and runs all tests.
+  It keeps one `ha-next` issue for each channel.
+- **HA dev blog watch** checks developer blog posts. It opens a `ha-dev-blog`
+  issue for each post that names code the integration uses. You can specify `days`.
 
 ---
 
@@ -150,49 +157,47 @@ We follow Conventional Commits:
 
 - No spam or back-to-back PRs: Batch related changes into a single PR.
 - AI-assisted PRs require human verification and local testing before submission.
-- All template checkboxes must be confirmed.
+- Complete all required template checks.
 - PRs must remain in Draft until verified.
 
 ## Issue and Pull Request Governance
 
-These rules apply to every contributor, including AI coding agents. The full org-wide rules are in
+These rules apply to each contributor, including AI coding agents. The full org-wide rules are in
 [GOVERNANCE.md](https://github.com/tinkerologie/.github/blob/main/GOVERNANCE.md).
 
-1. **Issue first.** Open an issue with the bug or enhancement template before opening a pull
-   request. Keep the title prefix `[Bug]:` or `[Enhancement]:`, followed by a space and the title.
-   Automation applies the `bug` or `enhancement` label when it can tell the type, and CodeRabbit
-   then posts a Coding Plan on the issue. Implement from that plan. The labeler skips issues labeled
-   `question`, `duplicate`, `invalid`, `wontfix`, or `no-type`, and never re-adds a type label that
-   a maintainer removed.
-2. **Link the issue.** In the PR's **Related Issues** section, write `Closes #<number>` (or `Fixes`
-   or `Resolves`) when the PR completely resolves the issue; these keywords close it on merge. Use
-   `Part of #<number>` or `Related to #<number>` for partial work. The linked issue must exist; an
-   issue in another public repository (`owner/repo#123`) is fine. Only authors with write access or
-   higher (maintainers) may write `None`, for housekeeping such as CI,
-   documentation, or dependency updates; PR governance rejects `None` from everyone else.
-3. **One change at a time.** Contributors without write access can have at most 2 open, non-draft
-   pull requests here. GitHub enforces this limit, and draft pull requests do not count toward it.
-   Do not open PRs that edit the same files as another open PR, such as `CHANGELOG.md`,
-   translations, `README.md`, or generated bundles. Wait for the first to merge, rebase, then
-   continue.
-4. **Act on the Tinkerologie-Bot report.** When PR governance fails, Tinkerologie-Bot posts one comment
-   listing every problem as a numbered item. Fix each item by editing the PR description or pushing
-   the missing change; the check re-runs and the comment updates to passed.
-5. **Rebase before review.** Rebase on `main` before marking a PR ready for review.
-6. **Resolve conflicts first.** When a PR gets the `conflicts` label, rebase on `main`,
-   resolve the conflicts (keep every `CHANGELOG.md` entry under `[Unreleased]`), re-run the tests,
-   and force-push before doing any other work.
-7. **Coverage.** `codecov/patch` must pass: at least 90% of added or changed lines must be
-   covered by tests. The gate is the percentage; still, add tests for the uncovered lines the
-   Codecov PR comment lists, and explain in the PR description any line you leave uncovered. Do
-   not lower coverage targets or add coverage ignore rules to make it pass.
-8. **Stale items.** Issues and PRs with no activity for 14 days are labeled `stale` and closed 30
-   days later unless there is new activity. These labels are exempt:
+1. **Issue first.** Open an issue with the bug or enhancement template before you open a pull
+   request. Use `[Bug]:` or `[Enhancement]:`, followed by a space and the title.
+   The labeler adds `bug` or `enhancement` when it can identify the issue type.
+   CodeRabbit then adds a Coding Plan to the issue. Follow that plan.
+   The labeler skips issues with `question`, `duplicate`, `invalid`, `wontfix`, or `no-type`.
+   It does not add a type label again if a maintainer removed it.
+2. **Link the issue.** In **Related Issues**, use `Closes #<number>`, `Fixes #<number>`, or
+   `Resolves #<number>` if the PR completes the issue. GitHub then closes the issue when
+   the PR merges. For partial work, use `Part of #<number>` or `Related to #<number>`.
+   Link to an existing issue. You can link to an issue in another public repository
+   with `owner/repo#123`. Only contributors with write access or higher can use
+   `None` for maintenance work such as CI, documentation, or dependency updates.
+3. **One change at a time.** GitHub limits contributors without write access to two open,
+   non-draft pull requests. Draft pull requests do not count. Do not edit files that another
+   open PR changes. Examples include `CHANGELOG.md`, translations, `README.md`, and generated
+   bundles. Wait for the first PR to merge. Then rebase your branch before you continue.
+4. **Act on the Tinkerologie-Bot report.** If the PR governance check fails, the bot lists
+   all problems in one numbered comment. Correct each problem in the PR description
+   or push the necessary change. The check runs again and the bot updates the comment.
+5. **Rebase before review.** Rebase on `main` before you mark the PR ready for review.
+6. **Resolve conflicts first.** If the PR has the `conflicts` label, rebase on `main`.
+   Resolve the conflicts. Keep all `CHANGELOG.md` entries under `[Unreleased]`.
+   Run the tests again. Force-push the branch before you do other work.
+7. **Coverage.** Tests must cover at least 90% of the added or changed lines for
+   `codecov/patch`. Add tests for uncovered lines in the Codecov comment.
+   In the PR description, explain each line that still has no coverage.
+   Do not decrease coverage targets or add coverage ignore rules to pass the check.
+8. **Stale items.** The bot adds `stale` to issues and PRs after 14 days without activity.
+   It closes them 30 days later if there is no new activity. The bot skips these labels.
    - Issues: `pinned`, `security`, `confirmed`, `work-in-progress`, `priority: critical`, `priority: high`.
    - Pull requests: `pinned`, `security`, `work-in-progress`.
 
 ## Domain and architecture
 
-Contributor terminology is defined in [GLOSSARY.md](GLOSSARY.md). Existing
-architecture decisions and their source evidence are indexed in
+Use [GLOSSARY.md](GLOSSARY.md) for project terms. Find architecture decisions and links to their sources in
 [docs/adr/README.md](docs/adr/README.md).

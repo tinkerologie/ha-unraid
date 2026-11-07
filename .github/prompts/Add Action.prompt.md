@@ -18,13 +18,13 @@ Read these files before starting:
 
 Before adding a service action, consider whether an entity-based control (switch/button) would be more appropriate:
 
-- **Use a button entity** if: It's a one-shot action (start, stop, restart)
+- **Use a button entity** if: It is a one-shot action (start, stop, restart)
 - **Use a switch entity** if: It toggles a state (on/off)
-- **Use a service action** if: It takes parameters, targets multiple entities, or doesn't map to a single entity
+- **Use a service action** if: It takes parameters, targets multiple entities, or does not map to a single entity
 
 ## Steps
 
-1. **Create `services.yaml`** (if it doesn't exist):
+1. **Create `services.yaml`** (if it does not exist):
    ```yaml
    my_action:
      name: My Action

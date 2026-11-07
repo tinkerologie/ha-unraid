@@ -16,6 +16,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Rules
 
+- Follow [ASD-STE100 Issue 9](../../docs/agents/documentation.md) for English prose.
 - Keep `AGENTS.md` as the authoritative source — update it, not the wrappers
 - `CLAUDE.md` and `GEMINI.md` should remain thin (just reference `AGENTS.md`)
 - Use GitHub-flavored Markdown

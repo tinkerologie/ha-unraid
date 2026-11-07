@@ -17,17 +17,17 @@ Read these files first:
 ## Plan Structure
 
 ### 1. Summary
-- What is being implemented and why
-- Which parts of the codebase are affected
+- What to change and why
+- Which parts of the code to change
 
 ### 2. Data Flow
 - Where does the data come from? (Which API endpoint / coordinator)
-- What data class changes are needed?
+- Which data classes must change?
 - Which coordinator should handle it?
 
 ### 3. Files Modified
 For each file, describe:
-- What changes are needed
+- Which changes to make
 - Any new classes, functions, or constants
 - Impact on existing code
 
@@ -54,4 +54,4 @@ For each file, describe:
 - Prefer entity-based controls over service actions
 - Follow existing patterns in the codebase
 - Consider backwards compatibility (unique IDs must not change)
-- Plan for graceful degradation if new API features aren't available
+- Plan for graceful degradation if new API features are not available

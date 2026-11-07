@@ -8,7 +8,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Purpose
 
-The `diagnostics.py` file provides debug data export via HA's diagnostics framework.
+The `diagnostics.py` file provides debug data export through HA's diagnostics framework.
 Users access it at: Settings > Devices & Services > Unraid > (...) > Download diagnostics.
 
 ## Required Function
@@ -25,7 +25,7 @@ async def async_get_config_entry_diagnostics(
 - **Never expose**: API keys, passwords, tokens, or full IP addresses
 - **Safe to include**: UUID, hostname, manufacturer, model, sw_version, api_version, license_type
 - **Redact**: Any field that could identify the user's network (use `async_redact_data` if needed)
-- Access runtime data via `entry.runtime_data` (typed as `UnraidRuntimeData`)
+- Access runtime data through `entry.runtime_data` (typed as `UnraidRuntimeData`)
 
 ## Data to Include
 

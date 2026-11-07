@@ -28,7 +28,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Rules
 
-- **version**: CalVer format `YYYY.M.patch` (e.g., `2026.2.3`)
+- **version**: CalVer format `YYYY.M.patch` (for example, `2026.2.3`)
 - **requirements**: Only list PyPI packages needed at runtime (not dev deps)
 - **iot_class**: Must be `local_polling` (integration polls local server)
 - **config_flow**: Must be `true` (UI-only setup, no YAML)

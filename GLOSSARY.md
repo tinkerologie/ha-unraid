@@ -1,105 +1,105 @@
 # Unraid in Home Assistant
 
-The integration represents Unraid servers and their resources in Home Assistant for monitoring and control.
+This glossary gives terms for Unraid servers and their resources in Home Assistant.
 
 ## Language
 
 **Unraid server**:
-An Unraid system whose storage, workloads, and operational state are monitored or controlled.
+An Unraid system that supplies storage and operates workloads.
 _Avoid_: device when referring to the server itself
 
 **Config entry**:
-A saved Home Assistant configuration for one Unraid server.
+A Home Assistant configuration for one Unraid server.
 _Avoid_: server UUID, device
 
 **Server device**:
-The Home Assistant grouping for the entities belonging to one configured Unraid server.
+The device in Home Assistant that groups the entities of one Unraid server.
 _Avoid_: a separate device for each container or disk
 
 **Server UUID**:
-The server identifier reported by its firmware, which can be a shared placeholder on some hardware.
+The server identifier that the firmware gives. Some servers give the same placeholder UUID.
 _Avoid_: guaranteed unique server identity
 
 **Server identity**:
-The identity used to distinguish a configured server and its entities from other servers, including servers with placeholder UUIDs.
+The identity that Home Assistant uses to distinguish one Unraid server and its entities from others.
 _Avoid_: raw UUID as an interchangeable term
 
 **Entity**:
-A Home Assistant representation of one observed value, state, event stream, or available control.
-_Avoid_: sensor when referring to every entity platform
+An item in Home Assistant that shows a value, state, event, or control.
+_Avoid_: sensor when referring to each entity platform
 
 **Entity unique ID**:
-The persistent identity of an entity within the integration.
+The persistent identity of an entity in the integration.
 _Avoid_: entity ID
 
 **Entity ID**:
-The Home Assistant address used to refer to an entity in dashboards and automations; users can change it.
+The address of an entity in Home Assistant dashboards and automations. The user can change this address.
 _Avoid_: entity unique ID
 
 **Resource**:
-A monitored or controlled part of an Unraid server, such as a container, VM, disk, share, or UPS.
+A part of an Unraid server, for example a container, VM, disk, share, or UPS.
 _Avoid_: device when referring to a server resource
 
 **Dynamic resource**:
-A server resource that may appear, disappear, or be recreated while the integration is running.
+A server resource that can appear, disappear, or return with the same name while the integration operates.
 _Avoid_: temporary entity
 
 **Docker container**:
-An application workload managed by the server’s Docker engine; recreation can change its container ID while retaining its name.
+A workload that the Docker engine controls. A new container can have the same name and a different ID.
 _Avoid_: Docker image
 
 **Virtual machine (VM)**:
-A guest machine managed by the Unraid server.
+A guest machine that the Unraid server controls.
 _Avoid_: Docker container
 
 **Array**:
-The server’s managed storage array, with data disks and any assigned parity disks.
+The Unraid storage array with data disks and parity disks if present.
 _Avoid_: all server storage
 
 **Array disk**:
-A disk represented in the array’s storage view, including data, parity, cache, and boot categories exposed there.
+A disk in the array storage view. The view has data, parity, cache, and boot disks.
 _Avoid_: physical disk as an interchangeable term
 
 **Physical disk**:
-A hardware storage device, whether or not it belongs to the array’s storage view.
+A hardware storage device. The disk can belong to the array storage view or be separate.
 _Avoid_: array slot
 
 **Share**:
-A named storage location exposed by the server.
+A storage location with a name that Unraid makes available.
 _Avoid_: physical disk
 
 **Parity check**:
-An operation that verifies array parity and may correct it when correction is requested.
+An operation that checks array parity. The operation can also correct parity if you request correction.
 _Avoid_: parity history
 
 **Parity history**:
-Records of completed parity operations.
+The record of completed parity operations.
 _Avoid_: current parity status
 
 **Disk standby**:
-The low-power state of a disk that is not spinning.
+The low-power condition of a disk when the disk does not rotate.
 _Avoid_: disk removed, disk unavailable
 
 **UPS**:
-An uninterruptible power supply protecting the server.
+An uninterruptible power supply for the Unraid server.
 _Avoid_: server power consumption
 
 **Notification**:
-An Unraid message with its own identity, content, importance, and read or archived state.
+An Unraid message with an ID, content, importance, and read or archive status.
 _Avoid_: Home Assistant repair
 
 **Notification event**:
-An occurrence announcing a newly observed Unraid notification to Home Assistant automations.
+An event that tells Home Assistant automations about a new Unraid notification.
 _Avoid_: unread count
 
 **Repair issue**:
-A Home Assistant notice describing a problem that a user can act on.
+A Home Assistant notice that tells the user about a problem and a possible action.
 _Avoid_: Unraid notification
 
 **Docker statistics stall**:
-A sustained absence of expected container statistics while containers are running and statistics consumers are enabled.
+A condition in which active containers stop sending statistics for a period of time. Enabled Home Assistant entities need these statistics.
 _Avoid_: all server data unavailable
 
 **API version**:
-The version of the Unraid GraphQL API, which can change independently of the Unraid OS version.
+The version of the Unraid GraphQL API. You can update the API independently of Unraid OS.
 _Avoid_: Unraid OS version

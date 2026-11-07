@@ -1,11 +1,11 @@
 # Architecture decisions
 
-These records describe existing architecture, checked against `5059762` on
-2026-11-07. They record observable contracts and documented trade-offs
-retrospectively; the recording date is not an asserted original decision date.
-Proposed changes belong in GitHub Issues until a decision is accepted.
+These records describe the design and its effects.
+The initial review used commit `5059762` on 2026-11-07.
+The review date can differ from the decision date.
+Put proposals in GitHub Issues until the maintainers agree to a change.
 
-Read the [domain glossary](../../GLOSSARY.md) for terminology.
+The [domain glossary](../../GLOSSARY.md) gives the terms for these records.
 
 | ADR | Decision |
 | --- | --- |
