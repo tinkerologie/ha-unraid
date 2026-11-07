@@ -59,3 +59,17 @@ Reusable prompts for common tasks in `.github/prompts/`:
 - **Create Implementation Plan** — Structured planning for new features
 - **Review Integration** — Quality scale and best practices audit
 - **Update Translations** — Translation string management
+
+## Agent skills
+
+### Issue tracker
+
+Track work in this repository’s GitHub Issues. Read `docs/agents/issue-tracker.md` before issue operations.
+
+### Triage labels
+
+Use the five canonical triage labels. Read `docs/agents/triage-labels.md` before triage.
+
+### Domain docs
+
+Single-context layout: root `GLOSSARY.md` and `docs/adr/`. Read `docs/agents/domain.md` before exploring domain terminology or architectural decisions.
