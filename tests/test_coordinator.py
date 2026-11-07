@@ -2155,6 +2155,22 @@ async def test_infra_update_auth_error_raises_config_entry_auth_failed(
         await coordinator._async_update_data()
 
 
+def test_storage_data_capacity_and_parity_properties() -> None:
+    """parity_status and explicit boot are exposed via properties."""
+    from unraid_api import UnraidArray
+    from unraid_api.models import ArrayDisk, ParityCheck
+
+    from custom_components.unraid.coordinator import UnraidStorageData
+
+    flash = ArrayDisk(id="flash", name="flash")
+    parity = ParityCheck(status="COMPLETED")
+    data = UnraidStorageData(
+        array=UnraidArray(state="STARTED", parityCheckStatus=parity, boot=flash)
+    )
+    assert data.parity_status is parity
+    assert data.boot is flash
+
+
 @pytest.mark.asyncio
 async def test_system_update_tolerates_notification_processing_api_error(
     hass, mock_api_client, mock_config_entry
