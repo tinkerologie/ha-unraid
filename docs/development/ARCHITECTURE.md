@@ -86,7 +86,7 @@ CoordinatorEntity
 
 Platform entities use MRO: `PlatformEntity, UnraidBaseEntity` (for example, `SensorEntity, UnraidBaseEntity`).
 
-Exception: `UnraidButtonEntity` extends `ButtonEntity` directly (buttons are action-only, no coordinator state).
+`UnraidButtonEntity` inherits from `ButtonEntity` and `UnraidBaseEntity`. It uses the coordinator for availability and device information. Button actions call coordinator methods.
 
 ### Config Flow
 
@@ -99,7 +99,7 @@ Exception: `UnraidButtonEntity` extends `ButtonEntity` directly (buttons are act
 
 All entities share a **single device per Unraid server**, identified by `(DOMAIN, server_uuid)`. Containers, VMs, and disks are entities (not sub-devices).
 
-`server_uuid` uses the resolved identity in `entry.runtime_data.server_info["uuid"]`. This is usually the API UUID. If the firmware gives a placeholder SMBIOS UUID, use the config entry ID with the hostname. See "Server Identity for Placeholder SMBIOS UUIDs" in `DECISIONS.md`.
+`server_uuid` uses the resolved identity in `entry.runtime_data.server_info["uuid"]`. This is usually the API UUID. For a known placeholder SMBIOS UUID, the integration checks `entry.unique_id`. If it starts with the placeholder UUID followed by an underscore, the integration uses that ID. This unique ID includes the hostname. Otherwise, the integration uses the API UUID. See "Server Identity for Placeholder SMBIOS UUIDs" in `DECISIONS.md`.
 
 ## Data Flow
 

@@ -431,7 +431,7 @@ views:
 
 ### Entities Not Updating
 
-- System sensors update each 30 seconds, storage sensors each 5 minutes
+- System sensors update at 30-second intervals. Storage sensors update at 5-minute intervals.
 - Use `homeassistant.update_entity` service to force immediate refresh
 - Check Unraid server responsiveness
 - View integration diagnostics for coordinator status
