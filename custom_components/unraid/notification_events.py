@@ -82,11 +82,13 @@ class NotificationEventDelivery:
                     "Skipping incomplete unread notification on %s", self._server_name
                 )
                 continue
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=UTC)
             # Unraid timestamps use ISO 8601, with milliseconds and a UTC Z.
             # Preserve that automation-facing format after model conversion.
             precision = "microseconds" if stamp.microsecond % 1000 else "milliseconds"
             unread[notification.id] = (
-                stamp if stamp.tzinfo is not None else stamp.replace(tzinfo=UTC),
+                stamp,
                 UnraidNotificationEventData(
                     event_type=NOTIFICATION_EVENT_TYPE_CREATED,
                     notification_id=notification.id,

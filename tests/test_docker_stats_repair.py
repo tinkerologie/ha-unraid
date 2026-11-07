@@ -34,11 +34,13 @@ def _manager(
     coordinator.last_update_success = last_update_success
     coordinator.optional_query_status = {"containers": True}
     coordinator.data.containers = [MagicMock(is_running=s) for s in states]
-    manager = UnraidWebSocketManager(
-        api_client=MagicMock(),
-        system_coordinator=coordinator,
-        server_name="tower",
-    )
+    # Keep exact-threshold arithmetic independent of the runner's uptime.
+    with patch(_MONOTONIC, return_value=1000.0):
+        manager = UnraidWebSocketManager(
+            api_client=MagicMock(),
+            system_coordinator=coordinator,
+            server_name="tower",
+        )
     manager._running = True
     return manager
 

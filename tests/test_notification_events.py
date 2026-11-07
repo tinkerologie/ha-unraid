@@ -30,7 +30,7 @@ async def test_delivery_filters_orders_deduplicates_and_unsubscribes() -> None:
     assert received == []
     storage.async_save.assert_awaited_once_with({"seen_ids": ["baseline"]})
     read.return_value = [
-        unread("late", "2026-11-07T03:00:00Z"),
+        unread("late", "2026-11-07T03:00:00"),
         unread("early", "2026-11-07T12:00:00+10:00"),
         unread("early", "2026-11-07T12:00:00+10:00"),
         unread("baseline"),
@@ -41,6 +41,7 @@ async def test_delivery_filters_orders_deduplicates_and_unsubscribes() -> None:
     await delivery.async_reconcile()
     await delivery.async_reconcile()
     assert [event.notification_id for event in received] == ["early", "late"]
+    assert received[-1].timestamp == "2026-11-07T03:00:00.000Z"
 
     unsubscribe()
     unsubscribe()
