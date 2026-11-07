@@ -24,7 +24,7 @@ If not provided, ask for:
 **Device Grouping:**
 
 - All Unraid entities share a single device per server
-- Device is identified by `(DOMAIN, server_uuid)` in `DeviceInfo.identifiers`
+- Use `(DOMAIN, server_uuid)` in `DeviceInfo.identifiers` to identify the device.
 - `UnraidBaseEntity.__init__` handles DeviceInfo construction automatically
 - Pass `server_uuid`, `server_name`, and `server_info` dict to base constructor
 
@@ -44,7 +44,7 @@ If not provided, ask for:
 **Registration:**
 
 - Add entity instantiation in the platform's `async_setup_entry()` function
-- Follow existing patterns for how entities are created and added
+- Use the existing pattern to create and add entities.
 
 **Verification:**
 

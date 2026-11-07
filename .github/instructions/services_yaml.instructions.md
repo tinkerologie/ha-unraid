@@ -8,7 +8,7 @@ Refer to `AGENTS.md` and [`service_actions.instructions.md`](service_actions.ins
 
 ## Status
 
-The integration now has no `services.yaml` — all controls use entity platforms (switches, buttons). This file would only be created if custom service actions are added.
+The integration uses entity platforms (switches and buttons) for controls. Create `services.yaml` only if you add custom service actions.
 
 ## Format
 

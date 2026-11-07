@@ -18,16 +18,16 @@ Read these files first:
 
 ### 1. Summary
 - What to change and why
-- Which parts of the codebase are affected
+- Which parts of the code to change
 
 ### 2. Data Flow
 - Where does the data come from? (Which API endpoint / coordinator)
-- What data class changes are needed?
+- Which data classes must change?
 - Which coordinator should handle it?
 
 ### 3. Files Modified
 For each file, describe:
-- What changes are needed
+- Which changes to make
 - Any new classes, functions, or constants
 - Impact on existing code
 

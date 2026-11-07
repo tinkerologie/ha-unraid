@@ -8,7 +8,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Current Status
 
-The integration does **not** now register custom service actions. All controls are implemented through entity platforms (switches, buttons).
+The integration does **not** now register custom service actions. The integration uses entity platforms (switches and buttons) for controls.
 
 ## If Adding Service Actions
 

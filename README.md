@@ -130,7 +130,7 @@ The integration will validate the connection and create entities for all discove
 
 ### Step 3: Configure Options (Optional)
 
-After setup, you can adjust UPS settings (only shown if UPS is detected):
+After setup, the integration shows UPS settings if it finds a UPS.
 
 1. Go to **Settings** → **Devices & Services**
 2. Find the Unraid entry and click **Configure**
@@ -138,7 +138,7 @@ After setup, you can adjust UPS settings (only shown if UPS is detected):
    - **UPS capacity (VA)**: Your UPS VA rating for reference
    - **UPS nominal power (W)**: Required for UPS Power sensor in Energy Dashboard
 
-> **Note**: Polling intervals are fixed per Home Assistant Core guidelines:
+> **Note**: The integration uses fixed polling intervals, as specified by the Home Assistant Core guidelines.
 >
 > - System data (CPU, RAM, Docker, VMs): **30 seconds**
 > - Storage data (array, disks, SMART): **5 minutes**
@@ -440,7 +440,7 @@ views:
 
 If your API key becomes invalid:
 
-1. Home Assistant shows a repair notice saying the Unraid server needs to be reauthenticated
+1. Home Assistant shows a repair notice when it needs a new Unraid API key.
 2. Select the notice and enter a new API key
 3. Alternatively, go to **Settings** → **Devices & Services**, find Unraid, and use the "Reconfigure" option
 
@@ -457,7 +457,7 @@ If you installed the integration with HACS, uninstall it from HACS after you rem
 
 ## Known Limitations
 
-- **GraphQL API Required**: This integration requires the Unraid GraphQL API v4.31.1 or later. The API can be updated independently of the Unraid OS version — install the Unraid Connect plugin to keep it updated
+- **GraphQL API Required**: This integration requires the Unraid GraphQL API v4.31.1 or later. Use the Unraid Connect plugin to update the API independently of Unraid OS.
 - **No Network Discovery**: Unraid servers must be manually configured (no SSDP/mDNS discovery)
 - **Disk SMART Data**: SMART queries can be slow on large arrays. The integration polls storage less frequently.
 - **Container/VM Actions**: Start/stop operations may take up to 60 seconds to complete

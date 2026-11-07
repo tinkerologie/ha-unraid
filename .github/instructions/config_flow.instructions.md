@@ -82,7 +82,7 @@ runtime `server_info["uuid"]`. This gives each server a separate device and enti
 through `_get_reauth_entry()` / `_get_reconfigure_entry()` and finish with
 `async_update_reload_and_abort()`. Do not combine that with an update listener
 (deprecated 2026.6, error from 2026.12). Use `OptionsFlowWithReload` for options.
-`show_advanced_options` is deprecated (2026.6) and must not be checked.
+Do not check `show_advanced_options`. Home Assistant deprecated it in 2026.6.
 
 ## Validation
 

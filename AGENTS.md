@@ -118,7 +118,7 @@ Three `DataUpdateCoordinator` subclasses poll at different intervals:
 | `UnraidStorageCoordinator` | 5min     | Array state, disks, parity, shares, capacity                             |
 | `UnraidInfraCoordinator`   | 15min    | Services, registration, cloud, remote access, plugins                    |
 
-Intervals are **fixed** per HA Core guidelines (not user-configurable). Users can call `homeassistant.update_entity` for on-demand refresh.
+The integration uses fixed intervals, as specified by the HA Core guidelines. For an on-demand refresh, call `homeassistant.update_entity`.
 
 ### Runtime Data
 
@@ -242,7 +242,7 @@ Key patterns:
 - Options flow: `OptionsFlowWithReload` for UPS capacity/power settings
 - Use the server UUID from `api_client.get_server_info()`. For a placeholder SMBIOS UUID, use `{uuid}_{hostname}`. If the UUID is missing, use the host.
 - `_get_reauth_entry()` / `_get_reconfigure_entry()` + `async_update_reload_and_abort()`. Do not use them with an update listener (deprecated 2026.6, error from 2026.12)
-- Shared abort reasons (`already_configured`, `reauth_successful`, ...) are translated centrally by HA 2026.10+
+- HA 2026.10+ supplies translations for shared abort reasons such as `already_configured` and `reauth_successful`.
 
 ### Error Handling
 
@@ -325,9 +325,7 @@ uv pip install -e ".[dev]"
 ./script/setup
 ```
 
-The test extra pins Home Assistant separately from the runtime minimum. Until
-`pytest-home-assistant` is published on PyPI, `[tool.uv.sources]` pins its Core
-commit.
+The test extra pins Home Assistant separately from the runtime minimum. The `[tool.uv.sources]` section pins the Core commit for `pytest-home-assistant` until the package is on PyPI.
 
 To update the test baseline, change the HA test pin and the plugin commit together.
 Run `uv lock`. Run all tests. Use uv to install dependencies from the pinned source. `script/setup/bootstrap` removes the retired plugin
@@ -475,9 +473,8 @@ a Home Assistant release breaks the integration:
   On `main`, the job identifies each channel issue by its `<!-- ha-next-channel: … -->` marker.
   A failure opens or updates an issue with the `ha-next` and `bug` labels.
   A pass adds a comment to the issue and closes it.
-- **`HA dev blog watch`** (`ha-dev-blog.yml`, weekly, looking back 22 days so a
-  failed or late run is covered) runs
-  `script/ha_blog_watch.py scan`. A manual run accepts `days`. It reads the developer blog feed and
+- **`HA dev blog watch`** (`ha-dev-blog.yml`) runs `script/ha_blog_watch.py scan` each week.
+  It checks 22 days of posts to cover late or failed runs. A manual run accepts `days`. It reads the developer blog feed and
   takes inline code from paragraphs and list items that announce a change.
   It searches the integration's code and ignores comments and strings.
   It opens one `HA dev blog: <post title>` issue for each post that names code the integration uses.
@@ -517,7 +514,7 @@ The integration targets **Platinum** level on the [HA Integration Quality Scale]
 - **Gold**: All done/exempt
 - **Platinum**: All done (async dependency, inject websession, strict typing)
 
-Each rule must be listed in `quality_scale.yaml` (`done`, `todo`, or
+List each rule in `quality_scale.yaml` (`done`, `todo`, or
 `{status: exempt, comment: ...}`). Hassfest checks the file for Core
 integrations only. Check the file manually for this integration.
 

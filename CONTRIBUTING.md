@@ -27,7 +27,7 @@ All contributors and AI agents must follow these steps.
 - Use the appropriate GitHub Issue Form:
   - Bug Report (`01-bug-report.yml`)
   - Enhancement Request (`02-enhancement-request.yml`)
-- Blank or unstructured issues are disabled. Pull requests without a corresponding issue will be closed.
+- GitHub accepts issues from the issue forms. Maintainers close pull requests that have no issue.
 
 ### 2. CodeRabbit AI Plan Generation
 - CodeRabbit can make a plan when GitHub adds the `bug` or `enhancement` label. To start it manually, add the comment `@coderabbitai plan` to the issue.
@@ -56,10 +56,10 @@ All contributors and AI agents must follow these steps.
   - Summary of changes
   - Linked issue keywords (`Fixes #<issue>`, `Closes #<issue>`, `Addresses #<issue>`)
   - Verification steps and pasted terminal output
-  - Mandatory Pre-Submission Governance checklist (each box must be checked)
+  - Mandatory Pre-Submission Governance checklist. Select each box after you complete its check.
 
 ### 6. Open PR as DRAFT First
-- Pull requests MUST be opened in Draft mode (`gh pr create --draft` or choose "Create draft pull request" in GitHub).
+- Open all pull requests in Draft mode (`gh pr create --draft` or choose "Create draft pull request" in GitHub).
 - Draft PRs allow CI workflows to run in isolation without triggering premature reviewer notifications or consuming unnecessary review capacity.
 - Wait for all CI checks to pass on the draft. Make sure the change works locally.
 
@@ -68,8 +68,8 @@ All contributors and AI agents must follow these steps.
 - The project can return a PR to draft or close it. This can occur if checks fail or the PR has missing template fields or verification.
 
 ### 8. Automated Quality Gates and Merge Criteria
-Before a pull request can be merged, it must satisfy all automated quality gates:
-- CodeRabbit AI Review: All review comments and suggestions must be resolved or addressed.
+A pull request must pass all automated checks before merge.
+- CodeRabbit AI Review. Address all review comments and suggestions.
 - GitHub Copilot Code Review: Must pass with no blocking feedback.
 - Codecov Coverage Reports: Must pass with zero errors, zero warnings, and no coverage regressions below the repository target.
 - Branch Ruleset Checks: All required status checks defined in the default branch ruleset must pass.
@@ -157,7 +157,7 @@ We follow Conventional Commits:
 
 - No spam or back-to-back PRs: Batch related changes into a single PR.
 - AI-assisted PRs require human verification and local testing before submission.
-- All template checkboxes must be confirmed.
+- Complete all required template checks.
 - PRs must remain in Draft until verified.
 
 ## Issue and Pull Request Governance
@@ -199,6 +199,5 @@ These rules apply to each contributor, including AI coding agents. The full org-
 
 ## Domain and architecture
 
-Contributor terminology is defined in [GLOSSARY.md](GLOSSARY.md). Existing
-architecture decisions and their source evidence are indexed in
+Use [GLOSSARY.md](GLOSSARY.md) for project terms. Find architecture decisions and links to their sources in
 [docs/adr/README.md](docs/adr/README.md).

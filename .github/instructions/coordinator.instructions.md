@@ -14,7 +14,7 @@ Refer to `AGENTS.md` for full project documentation.
 | `UnraidStorageCoordinator` | 5min | `STORAGE_POLL_INTERVAL` | Array, disks, parity, shares, capacity |
 | `UnraidInfraCoordinator` | 15min | `INFRA_POLL_INTERVAL` | Services, registration, cloud, remote access, plugins |
 
-Intervals are **fixed** (not user-configurable) per HA Core guidelines.
+The integration uses fixed intervals, as specified by the HA Core guidelines.
 
 ## Data Classes
 
@@ -40,7 +40,7 @@ async def _async_update_data(self) -> UnraidXxxData:
 
 ## Optional Services Pattern
 
-Docker, VMs, UPS, and network metrics may not be enabled or may transiently fail.
+The server can have Docker, VMs, UPS, or network metrics off. Requests for these data can also fail temporarily.
 Query them separately with `list[...] | None` return types:
 
 - **Return `None` on caught error** (`UnraidAPIError`, `UnraidConnectionError`, `UnraidTimeoutError`) so query failure is distinct from an empty resource list.
@@ -60,7 +60,7 @@ async def _query_optional_docker(self) -> list[DockerContainer] | None:
 
 ## Recovery Logging
 
-Track previous unavailability and log when connection is restored:
+Record a loss of connection. Log when the server connection returns.
 
 ```python
 if self._previously_unavailable:

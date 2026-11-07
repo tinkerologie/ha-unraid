@@ -17,8 +17,8 @@ Treat the official Quality Scale rules as mandatory review criteria:
 
 ### Quality Scale Compliance
 
-- [ ] Applicable rules from the official Quality Scale rules page have been reviewed
-- [ ] All applicable rules are satisfied or clearly documented as not applicable
+- [ ] Review the applicable rules on the official Quality Scale page.
+- [ ] Check that the integration meets each applicable rule. Give a reason for each rule that does not apply.
 
 ### Architecture
 

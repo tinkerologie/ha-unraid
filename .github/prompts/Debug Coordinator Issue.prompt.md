@@ -16,7 +16,7 @@ Read these files before starting:
 
 ## Diagnostic Steps
 
-### 1. Identify which coordinator is affected
+### 1. Identify the coordinator with the problem
 
 | Symptom | Likely Coordinator |
 |---------|-------------------|

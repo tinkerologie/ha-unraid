@@ -8,8 +8,8 @@ Document an important architectural or design decision for the ha-unraid integra
 
 If not provided, ask for:
 
-- What decision needs to be documented
-- Context: Why is this decision being made
+- Which decision to record
+- Context for the decision
 - Options considered
 - Chosen approach and rationale
 
