@@ -17,7 +17,7 @@ Read these files first:
 ## Plan Structure
 
 ### 1. Summary
-- What is being implemented and why
+- What to change and why
 - Which parts of the codebase are affected
 
 ### 2. Data Flow
@@ -54,4 +54,4 @@ For each file, describe:
 - Prefer entity-based controls over service actions
 - Follow existing patterns in the codebase
 - Consider backwards compatibility (unique IDs must not change)
-- Plan for graceful degradation if new API features aren't available
+- Plan for graceful degradation if new API features are not available

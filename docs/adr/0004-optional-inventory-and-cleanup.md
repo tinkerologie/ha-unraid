@@ -1,21 +1,27 @@
 # Require successful resource observations before removing entities
 
-Selected optional inventories, including containers, VMs, UPS devices, network
-resources, plugin operations, and shares, preserve the last successful result
-when their query fails and expose category success separately; a successful empty
-result can replace the cache. Cleanup skips failed coordinators and failed
-categories, considers only recognized dynamic entity identities owned by the
-config entry, and requires three missing observations before removal; missing
-hardware temperature telemetry is not treated as sensor removal. This favors
-registry continuity over immediate deletion, at the cost of retaining stale
-resources during outages and a grace period after removal.
+The integration keeps the last successful result when a query for an optional inventory fails.
+This applies to containers, VMs, UPS devices, network resources, plugin operations, and shares.
+A successful query with an empty result can replace the result in the cache.
+The integration also records whether each query succeeds.
 
-Docker cleanup counts each successful inventory observation once. Cached lists,
-failed requests, and storage-only refreshes cannot advance its counter. Successful
-Docker presence clears absence evidence during storage failures. Other cleanup
-categories still count eligible cleanup passes.
-Other optional values have their own fallback behavior. See
-[optional queries and caches](../../custom_components/unraid/coordinator.py),
-[cleanup policy](../../custom_components/unraid/cleanup.py),
-[listener registration](../../custom_components/unraid/__init__.py), and
-[cleanup tests](../../tests/test_cleanup.py).
+The cleanup process removes only known dynamic entities of the config entry.
+It removes an entity after three applicable observations that do not contain the resource.
+Failed queries do not count.
+A missing temperature value does not show that the server no longer has the temperature sensor.
+
+For Docker, cleanup counts each successful inventory observation once.
+Results from the cache, failed requests, and storage updates alone do not increase the counter.
+A successful Docker query that shows the resource resets its counter, also during a storage failure.
+Cleanup does not remove entities when either coordinator has failed.
+For other resource types, cleanup counts each applicable cleanup pass.
+
+The delay keeps entity settings during temporary outages.
+The integration can show old data until a query succeeds.
+
+## Related files
+
+- [optional queries and caches](../../custom_components/unraid/coordinator.py)
+- [cleanup policy](../../custom_components/unraid/cleanup.py)
+- [listener registration](../../custom_components/unraid/__init__.py)
+- [cleanup tests](../../tests/test_cleanup.py)

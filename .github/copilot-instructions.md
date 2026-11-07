@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions — ha-unraid
 
-> Read **`AGENTS.md`** for comprehensive project documentation.
+> Read **`AGENTS.md`** for project documentation.
 > Path-specific `*.instructions.md` files in `.github/instructions/` auto-load per file type.
 > Reusable task prompts are in `.github/prompts/`.
 
@@ -8,9 +8,8 @@
 
 All communication with the Unraid server **must** go through the
 [`unraid-api`](https://github.com/tinkerologie/unraid-api) library
-(`UnraidClient`). Never add direct GraphQL/HTTP/websocket/SSH I/O, and never
-re-implement or work around the library to land a fix faster — this keeps the
-integration compliant with Home Assistant best practice.
+(`UnraidClient`). Do not add direct GraphQL, HTTP, WebSocket, or SSH I/O.
+Do not reimplement or bypass the library.
 
 If a fix needs something `unraid-api` does not expose, **STOP**: do not work
 around it here. Open an issue on **https://github.com/tinkerologie/unraid-api**
@@ -30,7 +29,7 @@ Bypass `unraid-api`".
 ## Code Quality Baseline
 
 - Ruff linter + formatter, line length 88, target `py314`
-- `from __future__ import annotations` in every file
+- `from __future__ import annotations` in each file
 - Type hints on all public functions
 - Constants in `const.py` with `Final` annotations
 - Run `./script/lint` before committing
@@ -55,15 +54,15 @@ Platform entities use MRO: `PlatformEntity, UnraidBaseEntity`
 
 ### Runtime Data
 
-Access via `entry.runtime_data` (typed as `UnraidRuntimeData`: api client, three coordinators, `websocket_manager`, `server_info`). Never use `hass.data[DOMAIN]`.
+Access through `entry.runtime_data` (typed as `UnraidRuntimeData`: api client, three coordinators, `websocket_manager`, `server_info`). Do not use `hass.data[DOMAIN]`.
 
 ## Workflow Rules
 
-- Lint after every change: `./script/lint`
+- Lint after each change: `./script/lint`
 - Test: `pytest` or `./script/test`
-- Entity names via `_attr_translation_key` + `strings.json`
-- Icons via `icons.json` keyed by translation key
-- Unique IDs: `{server_uuid}_{resource_id}` where `server_uuid` is `entry.runtime_data.server_info["uuid"]` (resolved once in `__init__.py`; hostname-qualified for placeholder SMBIOS UUIDs). Never derive it from `ServerInfo.uuid`.
+- Entity names through `_attr_translation_key` + `strings.json`
+- Icons through `icons.json` keyed by translation key
+- Unique IDs: `{server_uuid}_{resource_id}` where `server_uuid` is `entry.runtime_data.server_info["uuid"]` (set once in `__init__.py`). For a placeholder SMBIOS UUID, the resolved identity includes the hostname. Do not derive it from `ServerInfo.uuid`.
 - Handle `None` coordinator data gracefully
 - Do not use deprecated HA core APIs (`dr.async_get_device`, `DeviceEntry.config_entries`, `add_/remove_config_entry_id`, `merge_identifiers`, `via_device`, `async_forward_entry_setup`, `OptionsFlowWithConfigEntry`, `PERCENTAGE` as a unit, ...). The full table is in `AGENTS.md` → "Home Assistant API Currency (2026.10+)".
 

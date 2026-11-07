@@ -8,32 +8,33 @@
 [![License](https://img.shields.io/github/license/tinkerologie/ha-unraid)](./LICENSE)
 <!-- BADGES:END -->
 
-A Home Assistant custom integration for monitoring and controlling Unraid servers via the official GraphQL API.
+This Home Assistant integration monitors and controls Unraid servers through the official GraphQL API.
 
-> **Note**: This integration requires the **Unraid GraphQL API v4.31.1 or later**. The API can be updated independently of the Unraid OS version by installing the **Unraid Connect** plugin from the Unraid Community Applications store.
+> **Note**: This integration requires the **Unraid GraphQL API v4.31.1 or later**. Install **Unraid Connect** from the Unraid Community Applications store to update the API. You can update the API independently of Unraid OS.
 >
-> **Important**: If you encounter issues, ensure you have the **latest version** of the Unraid GraphQL API installed via the Unraid Connect plugin. Many reported issues are resolved simply by updating to the latest API version.
+> **Important**: If you have a problem, check the Unraid GraphQL API version. Use the Unraid Connect plugin to install the **latest version**. The latest version corrects many known problems.
 >
-> ⚠️ **Migration Notice**: Release **2025.06.11** is the **last stable SSH-based** version of this integration. Starting with **2025.12.0**, this integration has been completely rebuilt to use Unraid's official GraphQL API. **There is no direct migration or upgrade path** from SSH to GraphQL - you will need to remove the old integration and set up fresh with a new API key. Users who prefer the SSH-based integration can continue using [release 2025.06.11](https://github.com/tinkerologie/ha-unraid/releases/tag/v2025.06.11).
+> ⚠️ **Migration Notice**: Release **2025.06.11** is the **last stable SSH-based** version of this integration. Release **2025.12.0** and later use the official Unraid GraphQL API. To move from SSH to GraphQL, remove the old integration. Install the new integration. Configure it with a new API key. Users who prefer the SSH-based integration can continue using [release 2025.06.11](https://github.com/tinkerologie/ha-unraid/releases/tag/v2025.06.11).
 
 ## Installation
 
 ### HACS (Recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tinkerologie&repository=ha-unraid&category=integration)
+[![Open the Unraid repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tinkerologie&repository=ha-unraid&category=integration)
 
-1. Click the button above or manually add the repository in HACS
-2. Search for **Unraid** and click **Download**
-3. Restart Home Assistant
+1. Select the button above. You can also add the repository manually in HACS.
+2. Search for **Unraid**.
+3. Select **Download**.
+4. Restart Home Assistant.
 
 ## Features
 
 ### System Monitoring
 
-- **CPU Usage**: Real-time CPU utilization percentage
+- **CPU Usage**: Current CPU usage as a percentage
 - **CPU Temperature**: Package temperature monitoring
 - **CPU Power**: Power consumption (when available)
-- **Memory Usage**: Used memory and percentage utilization
+- **Memory Usage**: Memory in use and percentage of total
 - **System Uptime**: Human-readable uptime display
 
 ### Storage Management
@@ -43,7 +44,7 @@ A Home Assistant custom integration for monitoring and controlling Unraid server
 - **Parity Status**: Parity check status, progress, and validation
 - **Disk Health**: Per-disk health monitoring (binary sensors)
 - **Disk Usage**: Individual disk capacity and usage for data and cache disks
-- **Share Usage**: Per-share storage utilization
+- **Share Usage**: Storage in use for each share
 - **Flash Device**: Boot device usage monitoring
 
 ### Docker Container Control
@@ -52,7 +53,7 @@ A Home Assistant custom integration for monitoring and controlling Unraid server
 - **State Sync**: Real-time container state updates
 - **Attributes**: Container image, status, and port information
 
-Docker update entities provide a release-notes panel with cached image details, installed tag, update status and available project, registry and support links. Actual target versions and changelogs require future [upstream API/client metadata](https://github.com/tinkerologie/unraid-api/issues/132); generic links are not release-specific notes.
+Docker update entities show the cached image details, installed tag, and update status in the release notes panel. The panel also shows available links to the project, registry, and support. Release-specific notes and target versions require [additional API data](https://github.com/tinkerologie/unraid-api/issues/132).
 
 ### Virtual Machine Control
 
@@ -75,7 +76,7 @@ Docker update entities provide a release-notes panel with cached image details, 
 ## Requirements
 
 - **Home Assistant**: 2026.9.0 or later
-- **Unraid Server**: With **GraphQL API v4.31.1 or later** (install the [Unraid Connect](https://unraid.net/connect) plugin to stay up to date)
+- **Unraid Server**: **GraphQL API v4.31.1 or later**. Use the [Unraid Connect](https://unraid.net/connect) plugin to update the API.
 - **Unraid API Key**: Generated in Unraid settings
 
 ### Manual Installation
@@ -85,11 +86,10 @@ Docker update entities provide a release-notes panel with cached image details, 
 3. Extract `unraid.zip` into that folder. The integration's files (`manifest.json`, `__init__.py`, ...) are at the root of the zip, so they land directly in `custom_components/unraid/`
 4. Restart Home Assistant
 
-HACS and the Home Assistant Marketplace install the same `unraid.zip`, and the
-"Downloaded N times" figure they show is that asset's download count on the
-latest release. Releases published before the zip was introduced (2026.10.5 and
-earlier) don't carry `unraid.zip`, so choosing one of them in HACS or the
-Marketplace can fail to download.
+HACS and the Home Assistant Marketplace install the same `unraid.zip`.
+"Downloaded N times" shows the download count for this file in the latest release.
+Release 2026.10.5 and earlier do not include `unraid.zip`. A download in HACS or
+the Marketplace can fail if you select one of these releases.
 
 #### Verify the download
 
@@ -151,7 +151,7 @@ After setup, you can adjust UPS settings (only shown if UPS is detected):
 
 | Entity          | Description         | Device Class |
 | --------------- | ------------------- | ------------ |
-| CPU Usage       | CPU utilization %   | -            |
+| CPU Usage       | CPU usage %   | -            |
 | CPU Temperature | Package temp °C     | temperature  |
 | CPU Power       | Power consumption W | power        |
 | Memory Usage    | RAM used %          | -            |
@@ -170,7 +170,7 @@ After setup, you can adjust UPS settings (only shown if UPS is detected):
 
 ### Summary sensors
 
-These host and Docker aggregates are enabled by default; group helpers are unnecessary:
+Home Assistant enables these host and Docker summary sensors by default.
 
 | Requested metric | Entity name | Translation key |
 | --- | --- | --- |
@@ -180,13 +180,21 @@ These host and Docker aggregates are enabled by default; group helpers are unnec
 | Docker used memory | Docker Total Memory Used | `docker_total_memory_bytes` |
 | Docker memory usage | Docker Total Memory % | `docker_total_memory_percent` |
 
-RAM Used is whole-host total memory minus available memory. RAM Usage uses the API-reported percentage. Docker memory bytes sum the reported usage of running containers, including containers with different memory limits. A missing or invalid reading from any running container keeps the total unknown; a reported zero remains zero. Byte sensors can display MB or MiB through Home Assistant's entity unit setting.
+RAM Used is the host's total memory minus its available memory. RAM Usage uses the percentage from the API. Use the Home Assistant entity unit setting to display byte sensors in MB or MiB.
 
-Docker Total CPU is the sum of running-container CPU readings divided by the host's logical CPU count, so it represents 0–100% of total host capacity. For example, Docker's raw 225.5% on a 12-thread host becomes 18.79%. Docker Total Memory % uses the same actual-byte total as Docker Total Memory Used, divided by total host RAM; it does not sum percentages based on different container limits. Both aggregate percentages are bounded to 0–100% for transiently inconsistent snapshots. Missing host denominators or incomplete readings stay unknown. Individual container sensors retain Docker's per-core CPU and per-limit memory percentages. Automations using the old aggregate scales may need threshold adjustments. Unraid's separate Docker vdisk/folder bar measures storage; the Docker segment of its RAM chart measures memory.
+Docker Total Memory Used adds the memory in use by each running container. The containers can have different memory limits. If any running container gives no reading or an invalid reading, the total stays unknown. A zero reading counts as zero.
 
-Docker totals require the container-statistics subscription. If the API stream stops publishing, these sensors can freeze at their last values, or show `Unknown` after a Home Assistant restart, while container inventory remains available. A stalled collector in Unraid API 4.37.7 is tracked in [Unraid API #2120](https://github.com/unraid/api/issues/2120); restarting only the Unraid API service restored the stream in live testing. The integration raises a repair notice after 5 quiet minutes with containers running.
+Docker Total CPU adds CPU readings from running containers. It divides this sum by the host's logical CPU count. For example, a Docker reading of 225.5% on a host with 12 logical CPUs gives 18.79%. Docker Total Memory % divides Docker Total Memory Used by the total host RAM.
 
-ZFS ARC used memory and percentage require an upstream API extension ([Unraid API #2119](https://github.com/unraid/api/issues/2119), [Python client #131](https://github.com/tinkerologie/unraid-api/issues/131)). Generic free/buffer/cache metrics cannot identify ARC usage, so this integration does not estimate it.
+The integration limits both percentages to 0–100% when measurements are temporarily inconsistent. The integration needs the host total and all necessary readings to give a percentage. Each container sensor still uses Docker's per-core CPU percentage or per-limit memory percentage. If an automation uses the old summary scale, check its thresholds.
+
+In Unraid, the Docker vdisk or folder bar shows storage use. The Docker segment of the RAM chart shows memory use.
+
+Docker totals require the container statistics subscription. If the stream stops, the sensors can keep their last values. After a Home Assistant restart, they can show `Unknown`. The container inventory remains available. The integration shows a repair notice after five minutes without statistics while containers run.
+
+[Unraid API #2120](https://github.com/unraid/api/issues/2120) describes a collector fault in Unraid API 4.37.7. In a live test, a restart of the Unraid API service restored the stream.
+
+The integration cannot calculate ZFS ARC memory use from free, buffer, and cache measurements. This feature requires changes to the [Unraid API](https://github.com/unraid/api/issues/2119) and the [Python client](https://github.com/tinkerologie/unraid-api/issues/131).
 
 ### Binary Sensors
 
@@ -205,7 +213,9 @@ ZFS ARC used memory and percentage require an upstream API extension ([Unraid AP
 | Docker Containers | Start/stop containers |
 | Virtual Machines  | Start/stop VMs        |
 
-Docker switches remain **on** while containers are paused. Turning a paused container off first unpauses it, then stops it. Pause and Unpause buttons are configuration entities, disabled by default; enable them under **Settings > Devices & services > Unraid > Entities** to show Pause/Resume controls in the Docker card. Pause and Stop require confirmation; Resume does not. Restart is disabled in the card while paused.
+A Docker switch stays **on** while its container is paused. If you set the switch to **off**, the integration resumes the container and then stops it.
+
+Home Assistant disables the Pause and Unpause configuration entities by default. Enable them under **Settings > Devices & services > Unraid > Entities** to show the Pause and Resume controls. The Docker card asks for confirmation for Pause and Stop. Resume requires no confirmation. The card disables Restart while a container is paused.
 
 ### Buttons
 
@@ -222,7 +232,7 @@ To track UPS power consumption in Home Assistant's Energy Dashboard:
 
 1. Go to **Settings** → **Devices & Services**
 2. Find Unraid and click **Configure**
-3. Set **UPS capacity (VA)** to your UPS rating (e.g., 1000 for a 1000VA UPS)
+3. Set **UPS capacity (VA)** to your UPS rating (for example, 1000 for a 1000VA UPS)
 4. The UPS Power sensor will show calculated wattage based on load percentage
 
 **Formula**: `Power (W) = Load% × Capacity (VA) × 0.6 (power factor)`
@@ -244,22 +254,22 @@ The integration includes a suite of 8 modern custom Lovelace cards bundled direc
 
 | Card | Tag | Description |
 | :--- | :--- | :--- |
-| **Server Overview** | `custom:unraid-server-card` | System uptime, OS version, registration badge, CPU/RAM utilization progress rings, motherboard temperatures (Unraid API 4.37.6+), primary network info, live traffic, and boot device. |
-| **Storage & Disks** | `custom:unraid-storage-card` | Storage matrix showing array status, parity sync status and history, capacity progress rings, and individual disk health (temperatures, spin states, and read/write I/O). |
+| **Server Overview** | `custom:unraid-server-card` | Uptime, OS version, registration, CPU and RAM use, primary network, live traffic, and boot device. Motherboard temperatures require Unraid API 4.37.6+. |
+| **Storage & Disks** | `custom:unraid-storage-card` | Array status, parity sync status and history, and capacity rings. Disk rows show health, temperature, rotation state, and read and write I/O. |
 | **User Shares** | `custom:unraid-shares-card` | User shares with disk usage progress bars, used/free/total capacity, and share protection states (`Protected` vs. `Unprotected`). |
-| **Network Interfaces** | `custom:unraid-network-card` | Physical NICs, bonds, and bridges with real-time throughput metrics (rates and totals), link speed badges, active link state chips, MTU, MAC addresses, and clickable WebGUI links. |
+| **Network Interfaces** | `custom:unraid-network-card` | Physical NICs, bonds, and bridges. The card shows current rates, totals, link speed and state, MTU, MAC addresses, and links to the WebGUI. |
 | **Docker Containers** | `custom:unraid-docker-card` | Container manager displaying active containers, status badges, CPU/memory footprints, autostart toggles, and start/stop/restart/pause/resume controls. |
 | **Power & UPS** | `custom:unraid-ups-card` | Power & UPS monitor with battery charge rings, electrical load, AC voltages, estimated runtime, and adaptive status coloring. |
 | **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine status, running/stopped filters, custom labels, and lifecycle controls. |
 | **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
 
-Previously discovered hardware temperature entities are retained when readings are absent; they show unknown until telemetry returns. Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
+The integration keeps known hardware temperature entities if readings stop. These entities show an unknown value until readings return. Hardware temperature entities require Unraid API 4.37.6 or later and supported sensors. Older or unknown API versions omit temperature queries to preserve disk standby. On supported servers, entities appear automatically when valid readings become available, including after setup. Reload the integration after upgrading the server API so capability detection runs again.
 
 Server memory subtitles use the native RAM-used sensor, matching the percentage gauge without counting cached memory as used. Storage capacities use the current entity attributes and keep unknown readings distinct from zero. Disk rows combine metrics by device identity when unambiguous, including entity IDs with Home Assistant collision suffixes. Network discovery excludes explicitly foreign registry ownership, and traffic labels respect Home Assistant display units and locale.
 
 ### Docker and VM labels and filters
 
-Docker and VM cards display actual workload names. Use `title` to customize the card header and optional label maps to shorten individual names. Map keys are the exact, case-sensitive Unraid workload names (without a leading `/` for Docker containers). Older entities without `container_name` or `vm_name` attributes use the entity slug as their map key (for example, `ha` for `switch.cube_virtual_machine_ha`), rather than the displayed friendly name:
+Docker and VM cards display actual workload names. Use `title` to customize the card header and optional label maps to shorten individual names. Map keys are the exact, case-sensitive Unraid workload names (without a leading `/` for Docker containers). For older entities without `container_name` or `vm_name`, use the entity slug as the map key. For example, use `ha` for `switch.cube_virtual_machine_ha`.
 
 ```yaml
 type: custom:unraid-docker-card
@@ -277,35 +287,43 @@ vm_labels:
 default_filter: running
 ```
 
-`default_filter` supports `all` (the default), `running`, or `stopped`; Docker also supports `paused` and `updates`. Choose **Default Filter** in the visual editor to persist the initial tab. Runtime tabs can still change the current view. Label maps are configured in YAML and preserved by the editor. Full workload names remain available in tooltips, and cards using older entities fall back to their friendly names.
+`default_filter` supports `all` (the default), `running`, and `stopped`. Docker cards also support `paused` and `updates`. Use **Default Filter** in the visual editor to set the initial tab. Select a tab to change the current view.
+
+Set label maps in YAML. The editor preserves these maps. Tooltips show the full workload names. Cards use the friendly name if an older entity has no workload name attribute.
 
 ### Card appearance and accessibility
 
-All eight cards follow Home Assistant theme colours, typography, spacing and radii, including light, dark and custom themes. Controls have visible keyboard focus and 40px text or 48px icon touch targets. Status is shown in text as well as colour. Reduced-motion preferences are respected. Unknown readings show a placeholder rather than a false zero; unknown workloads are excluded from Running/Stopped filters and their power controls are disabled.
+All eight cards use the colors, type, spacing, and corner radii of the selected Home Assistant theme. This includes light, dark, and custom themes. Controls show keyboard focus and have 40px text or 48px icon touch targets. Cards show status in text and color. Cards use the reduced motion preference.
 
-The unified dashboard uses accessible tabs: Left/Right moves focus (following RTL direction), Home/End jumps to the first/last tab, and Enter/Space opens the focused section. Workload names, share rows, network interfaces and metric gauges open the native more-info dialog by keyboard or pointer. Long names keep full-name tooltips. Cards use content-driven Sections heights so long lists remain reachable; narrow layouts wrap controls and respect RTL.
+Cards show a placeholder for unknown readings. The Running and Stopped filters exclude workloads with an unknown state. Cards disable power controls for those workloads.
+
+Use the arrow keys to move focus between dashboard tabs. The direction follows the display language. Press Home or End to move to the first or last tab. Press Enter or Space to open the selected section.
+
+Use the keyboard or pointer to open the Home Assistant more-info dialog. Select a workload name, share row, network interface, or gauge. Tooltips show full names. Section heights adjust to show long lists. Narrow layouts wrap controls and support right-to-left languages.
 
 | Editor option | Cards | Default |
 | --- | --- | --- |
 | `server`, `title` | All | Automatic server, default title |
 | `show_system_info` | Server, unified dashboard | `true` |
 | `view_mode` | Docker, unified dashboard | `grid` |
-| `default_filter` | Docker, VM, unified dashboard | `all`, `running`, `stopped`; `paused` and `updates` apply to Docker only |
-| `container_labels`, `vm_labels` | Corresponding card, unified dashboard | YAML only; preserved by the editor |
+| `default_filter` | Docker, VM, unified dashboard | `all`, `running`, `stopped`. `paused` and `updates` apply to Docker only |
+| `container_labels`, `vm_labels` | Corresponding card, unified dashboard | YAML only. The editor keeps these labels. |
 
-The visual editor uses Home Assistant's own form controls: a device picker that lists only Unraid servers, a text field, drop-down lists and a switch. It shows each card's defaults without writing them to the card's YAML, and clearing a field returns it to the default. A card whose `server` is a name rather than a picked device, or whose option has a value that card doesn't offer, opens in the code editor instead, so nothing is rewritten silently.
+The visual editor uses Home Assistant form controls. The device picker lists only Unraid servers. Other controls include a text field, drop-down lists, and a switch. The editor shows defaults without writing them to YAML. Clear a field to use its default value.
 
-The frontend uses **TypeScript 7.0.2**, pinned in both its package manifest and lockfile. CI installs with `npm ci` and runs `tsc --noEmit`, unit tests, the bundle build and Chromium regression tests. The design follows Home Assistant's [custom-card guidance](https://contributors.home-assistant.io/frontend/custom-ui/card/) and [accessibility foundations](https://contributors.home-assistant.io/design/foundations/accessibility/) with fallbacks for the supported HA 2026.9 baseline.
+The code editor opens if `server` contains a server name or an option has an unsupported value. This preserves the existing YAML.
+
+The frontend uses **TypeScript 7.0.2**, pinned in both its package manifest and lockfile. CI installs with `npm ci` and runs `tsc --noEmit`, unit tests, the bundle build and Chromium regression tests. The cards follow the Home Assistant [custom-card guidance](https://contributors.home-assistant.io/frontend/custom-ui/card/) and [accessibility guidance](https://contributors.home-assistant.io/design/foundations/accessibility/). The cards include fallbacks for Home Assistant 2026.9.
 
 ### Interactive More-Info Dialogs
 
-Clicking on CPU, RAM, or Storage rings, as well as uptime, network, and battery metrics, automatically opens Home Assistant's native **More-Info dialog** with historical usage graphs, attributes, and settings.
+Select a CPU, RAM, or storage ring to open the Home Assistant **More-Info dialog**. You can also select an uptime, network, or battery reading. The dialog shows history graphs, attributes, and settings.
 
 ### Dashboard Layout & Native View Tabs (2026+ Best Practice)
 
-For the best experience across mobile and desktop, configure your Unraid dashboard using Home Assistant's **Sections view** combined with the unified `custom:unraid-dashboard-card` or dedicated view tabs/subviews.
+Use Home Assistant **Sections view** to configure a dashboard for mobile and desktop. Add the `custom:unraid-dashboard-card` or use separate view tabs and subviews.
 
-> **Entity ID Placeholders**: Replace `<your_server>` with your server name (e.g., `cube`, `tower`) and `<model>` with your UPS model (e.g., `pr1000elcdrt1u`). You can check your exact entity IDs under **Settings → Devices & Services → Unraid**.
+> **Entity ID Placeholders**: Replace `<your_server>` with your server name (for example, `cube`, `tower`) and `<model>` with your UPS model (for example, `pr1000elcdrt1u`). You can check your exact entity IDs under **Settings → Devices & Services → Unraid**.
 
 ```yaml
 views:
@@ -400,20 +418,20 @@ views:
 
 ### Connection Issues
 
-- **Verify API Key**: Ensure the key is valid and has appropriate permissions
+- **Verify API Key**: Make sure the key is valid and has appropriate permissions
 - **Network Access**: Confirm Home Assistant can reach the Unraid server
-- **Firewall**: Ensure HTTPS port (443) is accessible
+- **Firewall**: Make sure HTTPS port (443) is accessible
 - **Unraid API Version**: Requires GraphQL API v4.31.1+ (install the Unraid Connect plugin to update)
 
 ### Missing Entities
 
-- Check if the service is running (Docker, VMs, UPS)
+- Check the service status (Docker, VMs, UPS).
 - Verify devices exist on the Unraid server
 - Check Home Assistant logs for errors
 
 ### Entities Not Updating
 
-- System sensors update every 30 seconds, storage sensors every 5 minutes
+- System sensors update each 30 seconds, storage sensors each 5 minutes
 - Use `homeassistant.update_entity` service to force immediate refresh
 - Check Unraid server responsiveness
 - View integration diagnostics for coordinator status
@@ -435,19 +453,19 @@ To remove the integration:
 3. Click the three-dot menu (⋮) and select **Delete**
 4. Confirm removal
 
-If you installed via HACS, you can also uninstall from HACS after removing the integration.
+If you installed the integration with HACS, uninstall it from HACS after you remove the integration.
 
 ## Known Limitations
 
 - **GraphQL API Required**: This integration requires the Unraid GraphQL API v4.31.1 or later. The API can be updated independently of the Unraid OS version — install the Unraid Connect plugin to keep it updated
 - **No Network Discovery**: Unraid servers must be manually configured (no SSDP/mDNS discovery)
-- **Disk SMART Data**: SMART queries can be slow on large arrays; storage polling is less frequent to compensate
+- **Disk SMART Data**: SMART queries can be slow on large arrays. The integration polls storage less frequently.
 - **Container/VM Actions**: Start/stop operations may take up to 60 seconds to complete
 - **SSL Certificates**: Self-signed certificates require enabling "Allow insecure connections" (or configuring custom CA)
 
 ## Custom Polling Intervals
 
-Polling intervals are fixed per Home Assistant Core integration guidelines. If you need more frequent updates for specific sensors (e.g., disk temperatures for fan control), use the `homeassistant.update_entity` service with a time-pattern automation:
+The integration uses fixed polling intervals, as specified by the Home Assistant Core integration guidelines. For more frequent sensor updates, call `homeassistant.update_entity` from a time-pattern automation. For example, use this procedure to update a disk temperature sensor for fan control.
 
 ```yaml
 automation:

@@ -76,7 +76,7 @@ pytest --no-cov                  # Skip coverage for speed
 
 ## Registries
 
-Use the real registries from the `hass` fixture; never mock them:
+Use the real registries from the `hass` fixture. Do not mock the registries.
 
 ```python
 entry = MockConfigEntry(domain=DOMAIN, data={...}, unique_id="...")
@@ -85,30 +85,31 @@ ent_reg = er.async_get(hass)
 dev_reg = dr.async_get(hass)
 ```
 
-Look devices up per config entry (`dev_reg.async_get_device_by_identifier(
-(DOMAIN, uuid), entry.entry_id)`). Deprecated core APIs raise `RuntimeError`
-under pytest because there is no integration frame, so fix the code, not the test.
+Find devices by config entry.
+Use `dev_reg.async_get_device_by_identifier((DOMAIN, uuid), entry.entry_id)`. Deprecated core APIs raise `RuntimeError`
+under pytest because there is no integration frame. Correct the integration code.
 
 ## Deprecation Checks
 
-Every test fails when the integration raises a `DeprecationWarning` or
-`PendingDeprecationWarning` (`filterwarnings` in `pyproject.toml`), or when Home
-Assistant logs a deprecation report about `unraid` (the autouse
-`deprecation_report_guard` fixture in `conftest.py`). Fix the integration; never
+Tests fail on `DeprecationWarning` or `PendingDeprecationWarning` from the integration.
+See `filterwarnings` in `pyproject.toml`. Tests also fail if Home Assistant
+logs a deprecation report about `unraid`. The autouse
+`deprecation_report_guard` fixture in `conftest.py` detects these reports.
+ Fix the integration. Do not
 weaken the filter, the three report patterns or the guard. A test that emits a
 report on purpose requests `deprecation_report_guard` and clears it. Import-time
 reports are caught by `script/ha_next.py import-check`, which
-`test_deprecation_currency.py` runs in a fresh interpreter; keep its patterns
+`test_deprecation_currency.py` runs in a fresh interpreter. Keep its patterns
 identical to `conftest.py`.
 
 ## Full-Integration Setup
 
 `await hass.config_entries.async_setup(entry.entry_id)` loads the integration
-and therefore **every** entry of the domain. Patch
-`custom_components.unraid.async_register_frontend` and
-`custom_components.unraid.UnraidWebSocketManager` (with `AsyncMock`
-`async_start`/`async_stop`), and give each mocked client `AsyncMock`s for every
-method the coordinators await (see `tests/test_coordinator.py::mock_api_client`).
+and all entries for the domain. Patch
+`custom_components.unraid.async_register_frontend`. Patch
+`custom_components.unraid.UnraidWebSocketManager` with `AsyncMock` for
+`async_start` and `async_stop`. Use `AsyncMock` for each client method that
+a coordinator awaits. See `tests/test_coordinator.py::mock_api_client`.
 
 ## Assertions
 

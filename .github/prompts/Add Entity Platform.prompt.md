@@ -4,7 +4,7 @@ description: Add a new entity platform to the Unraid integration
 
 # Add Entity Platform
 
-Add a new entity platform (e.g., `number`, `select`, `climate`) to the ha-unraid integration.
+Add a new entity platform (for example, `number`, `select`, `climate`) to the ha-unraid integration.
 
 ## Context
 
@@ -27,7 +27,7 @@ Read these files before starting:
    ]
    ```
 
-2. **Create the platform file** (e.g., `custom_components/unraid/number.py`):
+2. **Create the platform file** (for example, `custom_components/unraid/number.py`):
    - Import `AddEntitiesCallback` from `homeassistant.helpers.entity_platform`
    - Import `UnraidConfigEntry` from `.__init__`
    - Define `PARALLEL_UPDATES` (0 for read-only, 1 for write)

@@ -17,7 +17,7 @@ If not provided, ask for:
 **Entity Implementation:**
 
 - Create entity class in the appropriate platform file (`sensor.py`, `binary_sensor.py`, `switch.py`, `button.py`)
-- Inherit from both the HA platform entity and `UnraidBaseEntity` (e.g., `SensorEntity, UnraidBaseEntity`)
+- Inherit from both the HA platform entity and `UnraidBaseEntity` (for example, `SensorEntity, UnraidBaseEntity`)
 - Set `_attr_translation_key` for translated names
 - Access data from `self.coordinator.data` (typed as coordinator data class)
 
@@ -39,7 +39,7 @@ If not provided, ask for:
 
 - Add entity name to `strings.json` under `entity.{platform}.{translation_key}.name`
 - Add icon to `icons.json` under `entity.{platform}.{translation_key}.default`
-- Use `_attr_translation_placeholders` for dynamic name parts (e.g., disk name)
+- Use `_attr_translation_placeholders` for dynamic name parts (for example, disk name)
 
 **Registration:**
 

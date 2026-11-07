@@ -37,7 +37,7 @@ UnraidAPIError            → UpdateFailed           (retries next interval)
 
 ### 3. Check optional service queries
 
-Docker, VMs, UPS, shares, and all infra queries fail gracefully. If these return empty when they shouldn't, check:
+Docker, VMs, UPS, shares, and all infra queries fail gracefully. If these return empty when they should not, check:
 - Is the service actually enabled on Unraid?
 - Does the API endpoint exist in this Unraid version?
 - Is the `_query_optional_*` method catching the right exception type?

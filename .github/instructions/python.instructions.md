@@ -18,7 +18,7 @@ Refer to `AGENTS.md` for full project documentation.
 
 ## Naming Conventions
 
-- Classes: `Unraid` prefix (e.g., `UnraidSystemCoordinator`, `UnraidBaseEntity`)
+- Classes: `Unraid` prefix (for example, `UnraidSystemCoordinator`, `UnraidBaseEntity`)
 - Constants: `UPPER_SNAKE_CASE` with `Final` type annotation
 - Private methods: `_underscore_prefix`
 - Logger: `_LOGGER = logging.getLogger(__name__)`
@@ -34,7 +34,7 @@ Refer to `AGENTS.md` for full project documentation.
 ## Async Patterns
 
 - All I/O must be async (`await`)
-- Never use blocking calls in async context
+- Do not use blocking calls in async context
 - Use `async_get_clientsession(hass)` for HTTP sessions
 - Catch specific exceptions, never bare `except:`
 
@@ -60,9 +60,9 @@ except Exception as err:
 
 - API data comes as Pydantic v2 models from `unraid-api` library
 - Enum values from API: compare with `.upper()` for case insensitivity
-- Constants live in `const.py` — don't hardcode values
+- Constants live in `const.py` — do not hardcode values
 - Use `entry.runtime_data` (not `hass.data[DOMAIN]`) for runtime data access
-- Schemas: `import probatio as vol` (HA 2026.9+ validation engine); never `import voluptuous`
-- Flow step return types: `ConfigFlowResult` (config/options flows), `RepairsFlowResult` (repairs); never the untyped `FlowResult`
+- Schemas: `import probatio as vol` (HA 2026.9+ validation engine). Do not use `import voluptuous`.
+- Flow step return types: `ConfigFlowResult` (config/options flows), `RepairsFlowResult` (repairs). Do not use the untyped `FlowResult`.
 - Runtime is Python 3.14.2+ (`requires-python`, ruff `target-version = "py314"`)
 - Check `AGENTS.md` → "Home Assistant API Currency (2026.10+)" before using registry, device-info, config-flow or unit APIs

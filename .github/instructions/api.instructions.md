@@ -22,16 +22,15 @@ Data flow must stay:
 ### Never bypass `unraid-api` (mandatory for all AI agents)
 
 All server communication MUST go through the `unraid-api` library
-(`UnraidClient`). Do **not** add direct GraphQL/HTTP/websocket/SSH calls, and do
-**not** re-implement, patch, vendor, or work around the library to land a fix
-faster.
+(`UnraidClient`). Do not add direct GraphQL, HTTP, WebSocket, or SSH calls.
+Do not reimplement, patch, vendor, or bypass the library.
 
-If a fix needs something `unraid-api` does not expose (missing field/query/
-mutation/subscription, or a library bug): **STOP — do not work around it here.**
-Open an issue on the library and direct the user there:
-**https://github.com/tinkerologie/unraid-api**. Consume the new capability via
-`UnraidClient` once the library ships it. See `AGENTS.md` → "Critical Rule:
-Never Bypass `unraid-api`".
+Stop if the library has a bug or lacks the necessary field, query, mutation, or subscription.
+Do not add a workaround here. Open an issue in **https://github.com/tinkerologie/unraid-api**.
+Give the user the issue link.
+
+Use the new function through `UnraidClient` after the library releases it.
+See "Critical Rule: Never Bypass `unraid-api`" in `AGENTS.md`.
 
 #### Forbidden patterns (CI will reject these)
 
@@ -85,7 +84,7 @@ data = await client.get_system_info()
 ## Compatibility Checks
 
 - Check API version from `get_server_info().api_version` against `MIN_API_VERSION` during config flow.
-- No Unraid OS version requirement — the API is upgradeable independently via Unraid Connect.
+- No Unraid OS version requirement — the API is upgradeable independently through Unraid Connect.
 
 ## Dependency Management
 

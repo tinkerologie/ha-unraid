@@ -37,6 +37,6 @@ Current rule list: https://developers.home-assistant.io/docs/core/integration-qu
 - Update status when implementing new quality scale requirements
 - Always include a `comment` explaining `exempt` or `todo` status
 - Current target: **Platinum** level
-- Every rule must be listed (shorthand `rule: done` is fine; `exempt` needs a `comment`)
-- `test-coverage` must stay **>=95%** per module; Codecov patch gate is 90%
-- Review after adding new features to ensure all quality scale rules still apply
+- List each rule. You can use `rule: done`. Add a `comment` for each `exempt` rule.
+- Keep `test-coverage` at **>=95%** for each module. Codecov requires 90% coverage for changes.
+- Review after adding new features to make sure all quality scale rules still apply

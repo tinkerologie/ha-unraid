@@ -7,12 +7,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for proposing an enhancement. Complete this form with clear problem context, proposed architecture, and acceptance criteria so contributors, AI agents, and CodeRabbit AI (@coderabbitai plan) can generate a concrete implementation plan.
+        Use this form to describe the problem, the proposed change, and how to test the change. Contributors, AI agents, and CodeRabbit AI (@coderabbitai plan) can use this information to make a plan.
   - type: dropdown
     id: affected-area
     attributes:
       label: Affected area
-      description: Which part of the project would this improve most directly?
+      description: Which part of the project will this change improve?
       options:
         - Coordinator and data updates
         - Entity platforms (sensors, binary sensors, switches, buttons, etc.)
@@ -28,23 +28,23 @@ body:
     id: problem-statement
     attributes:
       label: Problem statement
-      description: What problem, limitation, or friction does this enhancement solve?
-      placeholder: Explain the user problem or use case first, not just the proposed fix.
+      description: What problem does this change correct?
+      placeholder: Describe the problem or the task the user needs to do.
     validations:
       required: true
   - type: textarea
     id: proposed-solution
     attributes:
       label: Proposed solution and architecture
-      description: Describe the desired capability, new APIs, entities, or components. Mention specific modules or interfaces to touch.
-      placeholder: Detail the architectural approach and implementation design.
+      description: Describe the new function, APIs, entities, or components. Identify the modules or interfaces to change.
+      placeholder: Describe the proposed design.
     validations:
       required: true
   - type: textarea
     id: acceptance-criteria
     attributes:
       label: Acceptance criteria
-      description: List the verifiable conditions required to consider this enhancement complete. This gives AI agents and CodeRabbit a clear plan target.
+      description: List the conditions that show the change is complete. Include a way to check each condition.
       placeholder: |
         - [ ] New functionality exposed with full test coverage
         - [ ] Linter and type checks pass locally
@@ -56,7 +56,7 @@ body:
     attributes:
       label: Alternatives considered
       description: Share workarounds, alternative APIs, or other approaches already considered.
-      placeholder: Describe alternative options and why they were not chosen.
+      placeholder: Describe other options. Give the reasons you did not select them.
     validations:
       required: false
   - type: textarea

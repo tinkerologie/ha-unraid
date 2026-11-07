@@ -45,7 +45,7 @@ Query them separately with `list[...] | None` return types:
 
 - **Return `None` on caught error** (`UnraidAPIError`, `UnraidConnectionError`, `UnraidTimeoutError`) so query failure is distinct from an empty resource list.
 - **Cache last known-good data**: Coordinators maintain `_cached_containers`, `_cached_vms`, `_cached_ups_devices`, and `_cached_network_metrics` to preserve entities during transient failures.
-- **Re-raise `UnraidAuthenticationError`** to ensure auth failures are never swallowed.
+- **Re-raise `UnraidAuthenticationError`** to make sure auth failures are never swallowed.
 
 ```python
 async def _query_optional_docker(self) -> list[DockerContainer] | None:
