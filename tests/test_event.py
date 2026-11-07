@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.unraid.coordinator import UnraidNotificationEventData
 from custom_components.unraid.event import UnraidNotificationsEventEntity
+from custom_components.unraid.notification_events import UnraidNotificationEventData
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ async def test_notifications_event_entity_subscribes_and_unsubscribes(
     mock_system_coordinator, mock_server_info
 ) -> None:
     """Test event entity registers and unregisters coordinator callback."""
-    mock_system_coordinator.async_add_event_listener = MagicMock(
+    mock_system_coordinator.notification_events.async_subscribe = MagicMock(
         return_value=MagicMock()
     )
 
@@ -46,7 +46,7 @@ async def test_notifications_event_entity_subscribes_and_unsubscribes(
 
     await entity.async_added_to_hass()
 
-    mock_system_coordinator.async_add_event_listener.assert_called_once()
+    mock_system_coordinator.notification_events.async_subscribe.assert_called_once()
     # async_on_remove is called twice: once by CoordinatorEntity (parent class)
     # for the coordinator listener, and once by this entity for the event listener
     assert entity.async_on_remove.call_count == 2
@@ -61,13 +61,12 @@ async def test_notifications_event_entity_triggers_event_on_callback(
 
     def _capture_callback(
         callback: Callable[[UnraidNotificationEventData], None],
-        _target_event_id: str,
     ) -> Callable[[], None]:
         nonlocal captured_callback
         captured_callback = callback
         return lambda: None
 
-    mock_system_coordinator.async_add_event_listener = _capture_callback
+    mock_system_coordinator.notification_events.async_subscribe = _capture_callback
 
     entity = UnraidNotificationsEventEntity(
         coordinator=mock_system_coordinator,

@@ -7,6 +7,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Changed
+
+- Deliver notification events through a dedicated per-server module backed by the typed notification reader in unraid-api 1.16.0 ([#427](https://github.com/tinkerologie/ha-unraid/issues/427)).
+
 ### Fixed
 
 - Count distinct successful Docker inventory observations before removing container entities. Containers recreated with the same name can rediscover their entities without an integration reload ([#426](https://github.com/tinkerologie/ha-unraid/issues/426)).

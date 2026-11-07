@@ -9,17 +9,15 @@ from typing import TYPE_CHECKING
 from homeassistant.components.event import EventEntity, EventEntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import (
-    NOTIFICATION_EVENT_TYPE_CREATED,
-    UnraidNotificationEventData,
-    UnraidSystemCoordinator,
-)
+from .coordinator import UnraidSystemCoordinator
 from .entity import UnraidBaseEntity, async_delegate_entity_id_changed
+from .notification_events import NOTIFICATION_EVENT_TYPE_CREATED
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from . import UnraidConfigEntry
+    from .notification_events import UnraidNotificationEventData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,9 +88,8 @@ class UnraidNotificationsEventEntity(
             )
             self.async_write_ha_state()
 
-        unsubscribe = self.coordinator.async_add_event_listener(
-            _handle_notification_event,
-            NOTIFICATION_EVENT_TYPE_CREATED,
+        unsubscribe = self.coordinator.notification_events.async_subscribe(
+            _handle_notification_event
         )
         self.async_on_remove(unsubscribe)
 
