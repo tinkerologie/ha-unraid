@@ -190,3 +190,9 @@ These rules apply to every contributor, including AI coding agents. The full org
    days later unless there is new activity. These labels are exempt:
    - Issues: `pinned`, `security`, `confirmed`, `work-in-progress`, `priority: critical`, `priority: high`.
    - Pull requests: `pinned`, `security`, `work-in-progress`.
+
+## Domain and architecture
+
+Contributor terminology is defined in [GLOSSARY.md](GLOSSARY.md). Existing
+architecture decisions and their source evidence are indexed in
+[docs/adr/README.md](docs/adr/README.md).

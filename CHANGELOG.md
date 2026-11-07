@@ -7,6 +7,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### Added
+
+- Contributor domain glossary and numbered records of existing architecture decisions, with links to implementation and regression tests.
+
 
 ## [2026.11.1] - 2026-11-05
 
