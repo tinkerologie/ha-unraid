@@ -30,7 +30,7 @@ custom_components/unraid/
 
 ### API Client
 
-**Library:** `unraid-api>=1.15.1` (PyPI)
+**Library:** `unraid-api>=1.16.0` (PyPI)
 
 The integration uses the `unraid-api` library which provides:
 
