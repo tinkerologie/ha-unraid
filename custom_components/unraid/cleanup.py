@@ -41,7 +41,7 @@ if TYPE_CHECKING:
         UnraidStorageCoordinator,
         UnraidSystemCoordinator,
     )
-    from .docker_entities import DockerEntityLifecycle
+    from .docker_entities import DockerEntityLifecycle, DockerRegistryKey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -287,7 +287,8 @@ def _collect_stale_dynamic_entities(
     expected: frozenset[str],
     failed_categories: set[str],
     docker_entities: DockerEntityLifecycle,
-    fresh_docker_inventory: bool,
+    docker_expected: set[DockerRegistryKey] | None,
+    storage_ready: bool,
 ) -> tuple[list[er.RegistryEntry], set[str]]:
     """Inspect registered entities and collect candidates for removal."""
     orphans: list[er.RegistryEntry] = []
@@ -308,11 +309,20 @@ def _collect_stale_dynamic_entities(
 
         category = _get_dynamic_resource_category(resource_id)
         if category == "containers":
-            if fresh_docker_inventory:
-                if uid in expected:
-                    present_uids.add(uid)
-                elif docker_entities.is_stale(uid, _MISSING_STREAK_THRESHOLD):
-                    orphans.append(entity_entry)
+            platform = entity_entry.entity_id.partition(".")[0]
+            if docker_expected is None or not is_docker_resource_id(
+                resource_id, platform
+            ):
+                continue
+            key = (platform, uid)
+            if key in docker_expected:
+                docker_entities.entity_seen(key)
+            elif storage_ready and docker_entities.is_stale(
+                key, _MISSING_STREAK_THRESHOLD
+            ):
+                orphans.append(entity_entry)
+            continue
+        if not storage_ready:
             continue
 
         if category and category in failed_categories:
@@ -374,21 +384,13 @@ def async_cleanup_stale_entities(
         storage_coordinator:  Storage data coordinator.
 
     """
-    # Guard: skip if either coordinator's last update failed (transient errors
-    # must never cause entity loss).
+    # A failed system update cannot supply a new Docker observation.
     if not system_coordinator.last_update_success:
         _LOGGER.debug(
             "Cleanup skipped for entry %s: system coordinator last update failed",
             entry_id,
         )
         return
-    if not storage_coordinator.last_update_success:
-        _LOGGER.debug(
-            "Cleanup skipped for entry %s: storage coordinator last update failed",
-            entry_id,
-        )
-        return
-
     sys_data = system_coordinator.data
     stor_data = storage_coordinator.data
 
@@ -398,19 +400,16 @@ def async_cleanup_stale_entities(
             entry_id,
         )
         return
-    if not isinstance(stor_data, UnraidStorageData):
-        _LOGGER.debug(
-            "Cleanup skipped for entry %s: storage coordinator data not ready",
-            entry_id,
-        )
-        return
-
-    # Build the complete set of unique_ids that should exist right now.
-    expected = build_expected_dynamic_unique_ids(server_uuid, sys_data, stor_data)
-
-    # Collect registered entities for this config entry.
-    ent_reg = er.async_get(hass)
-    registered = er.async_entries_for_config_entry(ent_reg, entry_id)
+    storage_ready = storage_coordinator.last_update_success and isinstance(
+        stor_data, UnraidStorageData
+    )
+    # Non-Docker deletion still requires both coordinators. Docker must also
+    # record successful presence during a storage outage to clear prior misses.
+    expected = (
+        build_expected_dynamic_unique_ids(server_uuid, sys_data, stor_data)
+        if storage_ready and isinstance(stor_data, UnraidStorageData)
+        else frozenset()
+    )
 
     failed_categories: set[str] = set()
     for coordinator in (system_coordinator, storage_coordinator):
@@ -425,6 +424,22 @@ def async_cleanup_stale_entities(
         sys_data.docker_inventory_generation,
         successful="containers" not in failed_categories,
     )
+    docker_expected = (
+        {
+            kind.registry_key(f"{server_uuid}_", container.name)
+            for container in sys_data.containers
+            for kind in DockerEntityKind
+        }
+        if fresh_docker_inventory
+        else None
+    )
+    if not storage_ready and docker_expected is None:
+        return
+
+    # Collect registered entities for this config entry.
+    ent_reg = er.async_get(hass)
+    registered = er.async_entries_for_config_entry(ent_reg, entry_id)
+
     orphans, present_uids = _collect_stale_dynamic_entities(
         entry_id=entry_id,
         server_uuid_prefix=f"{server_uuid}_",
@@ -432,18 +447,22 @@ def async_cleanup_stale_entities(
         expected=expected,
         failed_categories=failed_categories,
         docker_entities=docker_entities,
-        fresh_docker_inventory=fresh_docker_inventory,
+        docker_expected=docker_expected,
+        storage_ready=storage_ready,
     )
 
     # Reset streaks for resources that came back and drop counters for
     # entities that are no longer registered (removed above or elsewhere).
     registered_uids = {e.unique_id for e in registered}
-    for uid in list(_missing_streaks):
-        if uid in present_uids or uid not in registered_uids:
-            _missing_streaks.pop(uid, None)
+    if storage_ready:
+        for uid in list(_missing_streaks):
+            if uid in present_uids or uid not in registered_uids:
+                _missing_streaks.pop(uid, None)
 
     if fresh_docker_inventory:
-        docker_entities.retain_streaks(registered_uids, present_uids)
+        docker_entities.retain_streaks(
+            {(e.entity_id.partition(".")[0], e.unique_id) for e in registered}
+        )
 
     if not orphans:
         return
@@ -462,7 +481,9 @@ def async_cleanup_stale_entities(
         )
         _missing_streaks.pop(entity_entry.unique_id, None)
         ent_reg.async_remove(entity_entry.entity_id)
-        docker_entities.entity_removed(entity_entry.unique_id)
+        docker_entities.entity_removed(
+            (entity_entry.entity_id.partition(".")[0], entity_entry.unique_id)
+        )
 
     # Remove any devices that are now empty after entity removal.
     _async_remove_orphaned_devices(hass, entry_id)

@@ -1339,13 +1339,10 @@ async def async_setup_entry(
     # Containers created after setup get sensors on the next coordinator
     # refresh — no integration reload needed.
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.docker_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="binary_sensor",
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.containers if system_coordinator.data else []
-            ),
-            get_key=lambda container: container.name.lstrip("/"),
             create_entities=lambda container: [
                 ContainerUpdateAvailableBinarySensor(
                     system_coordinator, server_uuid, server_name, container

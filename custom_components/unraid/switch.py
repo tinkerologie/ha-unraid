@@ -872,6 +872,7 @@ async def async_setup_entry(
     entry.async_on_unload(
         system_coordinator.docker_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="switch",
             async_add_entities=async_add_entities,
             create_entities=lambda container: [
                 DockerContainerSwitch(

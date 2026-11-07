@@ -11,7 +11,8 @@ registry continuity over immediate deletion, at the cost of retaining stale
 resources during outages and a grace period after removal.
 
 Docker cleanup counts each successful inventory observation once. Cached lists,
-failed requests, and storage refreshes cannot advance its counter. Other cleanup
+failed requests, and storage-only refreshes cannot advance its counter. Successful
+Docker presence clears absence evidence during storage failures. Other cleanup
 categories still count eligible cleanup passes.
 Other optional values have their own fallback behavior. See
 [optional queries and caches](../../custom_components/unraid/coordinator.py),
