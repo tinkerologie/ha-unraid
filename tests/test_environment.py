@@ -115,7 +115,10 @@ def test_guard_works_before_bootstrap_dependencies_exist() -> None:
 
 
 @pytest.mark.parametrize("script_name", ["test", "upgrade", "setup/bootstrap"])
-@pytest.mark.parametrize("scenario", ["mixed", "interrupted", "newer"])
+@pytest.mark.parametrize(
+    "scenario",
+    ["mixed", "legacy", "interrupted", "missing", "healthy", "newer", "mixed-newer"],
+)
 def test_plugin_migration(tmp_path: Path, script_name: str, scenario: str) -> None:
     """Restore the shared module and refuse changes to a newer environment."""
     script_dir = tmp_path / "script"
@@ -131,14 +134,20 @@ def test_plugin_migration(tmp_path: Path, script_name: str, scenario: str) -> No
     (bin_dir / "activate").write_text(":\n")
     module = tmp_path / "plugin-module"
     calls = tmp_path / "uv-called"
-    if scenario == "mixed":
+    retired = ""
+    if scenario in {"mixed", "mixed-newer"}:
+        retired = "pytest-home-assistant"
+    elif scenario == "legacy":
+        retired = "pytest-homeassistant-custom-component"
+    newer = scenario in {"newer", "mixed-newer"}
+    if retired or scenario == "healthy":
         module.touch()
     commands = {
         bin_dir / "python": """case "$*" in
-*pytest-homeassistant-custom-component) exit 1 ;;
-*pytest-home-assistant) test "$PLUGIN_SCENARIO" = mixed ;;
-*pytest-homeassistant) exit 0 ;;
-*check_test_baseline.py) test "$PLUGIN_SCENARIO" != newer ;;
+*pytest-homeassistant-custom-component|*pytest-home-assistant)
+    test "$3" = "$PLUGIN_RETIRED" ;;
+*pytest-homeassistant) test "$PLUGIN_SCENARIO" != missing ;;
+*check_test_baseline.py) test "$PLUGIN_BASELINE_OK" = yes ;;
 *"import pytest_homeassistant") test -f "$PLUGIN_MODULE" ;;
 *"version('homeassistant')"*) echo 2026.11.0 ;;
 *) exit 1 ;;
@@ -146,9 +155,8 @@ esac
 """,
         bin_dir / "uv": """printf '%s\\n' "$*" >> "$UV_CALL_LOG"
 case "$*" in
-"pip show pytest-home-assistant") test "$PLUGIN_SCENARIO" = mixed ;;
-"pip show "*) exit 1 ;;
-"pip uninstall pytest-home-assistant") rm -f "$PLUGIN_MODULE" ;;
+"pip show "*) test "$3" = "$PLUGIN_RETIRED" ;;
+"pip uninstall "*) test "$3" = "$PLUGIN_RETIRED" && rm -f "$PLUGIN_MODULE" ;;
 "pip install "*"--reinstall-package pytest-homeassistant"*) touch "$PLUGIN_MODULE" ;;
 "pip install "*) exit 0 ;;
 *) exit 1 ;;
@@ -170,6 +178,8 @@ esac
         "REMOTE_CONTAINERS": "",
         "PLUGIN_MODULE": str(module),
         "PLUGIN_SCENARIO": scenario,
+        "PLUGIN_RETIRED": retired,
+        "PLUGIN_BASELINE_OK": "no" if newer else "yes",
         "UV_CALL_LOG": str(calls),
     }
     result = subprocess.run(  # noqa: S603 - fixed script and controlled test environment
@@ -180,13 +190,13 @@ esac
         check=False,
         timeout=10,
     )
-    if scenario == "newer":
+    if newer:
         assert result.returncode == 1
         assert not calls.exists()
     else:
         assert result.returncode == 0, result.stdout + result.stderr
         assert module.exists()
-        if scenario == "mixed":
-            assert (
-                "pip uninstall pytest-home-assistant" in calls.read_text().splitlines()
-            )
+        if retired:
+            assert f"pip uninstall {retired}" in calls.read_text().splitlines()
+        if scenario == "healthy" and script_name == "test":
+            assert not calls.exists()
