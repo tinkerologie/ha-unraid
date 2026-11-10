@@ -12,7 +12,13 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 - Apply ASD-STE100 Issue 9 to project documentation. Add a writing guide for contributors.
 - Deliver notification events through a module for each server. The module uses the typed notification reader in unraid-api 1.16.0 ([#427](https://github.com/tinkerologie/ha-unraid/issues/427)).
 
+### Removed
+
+- Stop creating the Docker statistics repair and clear existing notices. Docker sensors continue to use the statistics stream ([#423](https://github.com/tinkerologie/ha-unraid/issues/423)).
+
 ### Fixed
+
+- Restore both HA Next checks with the renamed Home Assistant pytest plugin. Use Home Assistant 2026.11.0 for the test baseline ([#431](https://github.com/tinkerologie/ha-unraid/issues/431), [#432](https://github.com/tinkerologie/ha-unraid/issues/432)).
 
 - Count each successful Docker inventory observation once before entity cleanup. The integration finds the entities again if you create a container with the same name. It does this without a reload ([#426](https://github.com/tinkerologie/ha-unraid/issues/426)).
 

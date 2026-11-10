@@ -218,8 +218,8 @@ def core_commit(ref: str) -> str:
 def plugin_requirement(commit: str) -> str:
     """Build an immutable official test plugin requirement for a Core commit."""
     return (
-        f"pytest-home-assistant @ git+{CORE_REPO}@{commit}"
-        "#subdirectory=packages/pytest-home-assistant"
+        f"pytest-homeassistant @ git+{CORE_REPO}@{commit}"
+        "#subdirectory=packages/pytest-homeassistant"
     )
 
 

@@ -120,9 +120,11 @@ fi
 log_header "Installing all dependencies"
 log_info "Using pyproject.toml extras: dev + test"
 python "$SCRIPT_DIR/../check_test_baseline.py"
-if uv pip show pytest-homeassistant-custom-component >/dev/null 2>&1; then
-    uv pip uninstall pytest-homeassistant-custom-component
-fi
+for retired_plugin in pytest-homeassistant-custom-component pytest-home-assistant; do
+    if uv pip show "$retired_plugin" >/dev/null 2>&1; then
+        uv pip uninstall "$retired_plugin"
+    fi
+done
 uv pip install -e ".[dev,test]"
 
 log_info "Home Assistant and the official pytest plugin use the aligned pyproject.toml pins"

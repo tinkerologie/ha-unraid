@@ -64,17 +64,27 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# The official plugin must be present, even when pytest was already installed.
+# The current distribution must supply the shared pytest_homeassistant module.
+has_distribution() {
+    python -c 'from importlib.metadata import version; import sys; version(sys.argv[1])' "$1" >/dev/null 2>&1
+}
+
 bootstrap_tests=false
-if ! python -c "import pytest_homeassistant" 2>/dev/null; then
+if ! has_distribution pytest-homeassistant; then
     python "$SCRIPT_DIR/check_test_baseline.py"
     bootstrap_tests=true
 fi
-if uv pip show pytest-homeassistant-custom-component >/dev/null 2>&1; then
-    uv pip uninstall pytest-homeassistant-custom-component
-fi
+for retired_plugin in pytest-homeassistant-custom-component pytest-home-assistant; do
+    if has_distribution "$retired_plugin"; then
+        if [[ "$bootstrap_tests" == false ]]; then
+            python "$SCRIPT_DIR/check_test_baseline.py"
+        fi
+        uv pip uninstall "$retired_plugin"
+        bootstrap_tests=true
+    fi
+done
 if [[ "$bootstrap_tests" == true ]]; then
-    log_info "Official HA pytest plugin not found. Installing test dependencies..."
+    log_info "Installing the current Home Assistant test dependencies..."
     uv pip install -e ".[test]"
 fi
 

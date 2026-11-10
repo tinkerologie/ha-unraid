@@ -249,7 +249,7 @@ Key patterns:
 - Use HA translation system for user-facing errors: `translation_domain=DOMAIN`, `translation_key="..."`, `translation_placeholders={...}`
 - Wrap API errors in `HomeAssistantError` for entity actions (switch on/off, button press)
 - Raise `ConfigEntryAuthFailed` for a rejected API key. Home Assistant starts the reauthentication flow and creates a repair issue. Do not create a second issue.
-- Create repair issues only for problems the user can correct and that Home Assistant does not report. One example is `docker_stats_stalled`. Clear the issue when the problem stops.
+- Create repair issues only for problems the user can correct and that Home Assistant does not report. Clear the issue when the problem stops.
 
 ### Models & Data
 
@@ -290,15 +290,13 @@ Home Assistant 2026.11 follow-ups (#394), keep them when touching these areas:
   (`entity.py`). Otherwise 2026.11 removes and re-adds it on an entity ID change,
   and 2027.11 drops that fallback. `tests/test_entity.py` fails on a class that
   misses it.
-- For a repair issue about one config entry, include the entry ID in the issue ID
-  (`docker_stats_stalled_issue_id(entry_id)`). Include `data={"entry_id": ...}`.
-  Pass `config_entry_id=` only if `ir.async_create_issue` accepts it
-  (2026.11+, see `_ISSUES_TAKE_CONFIG_ENTRY`).
-  `async_setup` deletes the old `auth_failed` issues from before #420, even for disabled entries.
-  `async_remove_entry` also deletes these issues.
+- Include the entry ID in a repair issue that applies to one config entry.
+  `async_setup` clears retired authentication and Docker statistics repairs,
+  including those for disabled entries. `async_remove_entry` clears repairs
+  for the removed entry.
 - `manifest.json` has `categories` (`computers_network.nas_servers`). Hassfest
   from a Core older than 2026.11 rejects the key, so validate locally with
-  `HA_VERSION=2026.11.0b1` or later. The Hassfest image in CI accepts this key.
+  `HA_VERSION=2026.11.0` or later. The Hassfest image in CI accepts this key.
 - Each `async_show_form`/`async_show_menu`/`async_show_progress` passes
   `step_id` (required from 2027.5).
 
@@ -325,7 +323,7 @@ uv pip install -e ".[dev]"
 ./script/setup
 ```
 
-The test extra pins Home Assistant separately from the runtime minimum. The `[tool.uv.sources]` section pins the Core commit for `pytest-home-assistant` until the package is on PyPI.
+The test extra pins Home Assistant separately from the runtime minimum. The `[tool.uv.sources]` section pins the Core commit for `pytest-homeassistant` until the package is on PyPI.
 
 To update the test baseline, change the HA test pin and the plugin commit together.
 Run `uv lock`. Run all tests. Use uv to install dependencies from the pinned source. `script/setup/bootstrap` removes the retired plugin
@@ -353,7 +351,7 @@ tests/
 
 ### Patterns
 
-- Use the official `pytest-home-assistant` plugin. Import helpers from `pytest_homeassistant.common`.
+- Use the official `pytest-homeassistant` plugin. Import helpers from `pytest_homeassistant.common`.
 - Mock `UnraidClient` methods, not HTTP calls
 - Use `pytest-asyncio` with `asyncio_mode = "auto"`
 - Fixtures provide pre-built coordinator data classes

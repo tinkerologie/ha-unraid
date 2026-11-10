@@ -41,9 +41,11 @@ log_info "Home Assistant and the official pytest plugin move together through py
 
 python "$SCRIPT_DIR/check_test_baseline.py"
 
-if uv pip show pytest-homeassistant-custom-component >/dev/null 2>&1; then
-    uv pip uninstall pytest-homeassistant-custom-component
-fi
+for retired_plugin in pytest-homeassistant-custom-component pytest-home-assistant; do
+    if uv pip show "$retired_plugin" >/dev/null 2>&1; then
+        uv pip uninstall "$retired_plugin"
+    fi
+done
 uv pip install --upgrade -e ".[dev,test]"
 
 log_success "Development dependencies updated with the aligned HA test baseline"

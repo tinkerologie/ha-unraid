@@ -3713,15 +3713,11 @@ async def test_asyncsetupentry_removes_non_monitorable_network_entities(hass) ->
 
 
 @pytest.mark.asyncio
-async def test_docker_statistics_consumers_match_sensor_definitions(hass) -> None:
-    """The repair's consumer identities stay aligned with actual setup entities."""
-    from homeassistant.helpers import entity_registry as er
+async def test_setup_creates_docker_statistics_sensors(hass) -> None:
+    """Setup creates aggregate and per-container statistics sensors."""
     from pytest_homeassistant.common import MockConfigEntry
 
-    from custom_components.unraid import (
-        UnraidRuntimeData,
-        _docker_stats_consumers_enabled,
-    )
+    from custom_components.unraid import UnraidRuntimeData
     from custom_components.unraid.sensor import async_setup_entry
 
     entry = MockConfigEntry(domain="unraid", data={"host": "192.168.1.100"})
@@ -3754,20 +3750,7 @@ async def test_docker_statistics_consumers_match_sensor_definitions(hass) -> Non
         ContainerMemoryUsedSensor,
         ContainerMemoryLimitSensor,
     }
-    seen_statistics_classes = set()
-    registry = er.async_get(hass)
-    for entity in entities:
-        registered = registry.async_get_or_create(
-            "sensor", "unraid", entity.unique_id, config_entry=entry
-        )
-        expected = type(entity) in statistics_classes
-        assert _docker_stats_consumers_enabled(hass, entry) is expected, (
-            entity.unique_id
-        )
-        if expected:
-            seen_statistics_classes.add(type(entity))
-        registry.async_remove(registered.entity_id)
-    assert seen_statistics_classes == statistics_classes
+    assert statistics_classes <= {type(entity) for entity in entities}
 
 
 @pytest.mark.asyncio

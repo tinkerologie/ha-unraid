@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant.common import MockConfigEntry
 from unraid_api.exceptions import (
     UnraidAPIError,
@@ -30,22 +27,11 @@ from custom_components.unraid.const import (
     CONF_IGNORE_SSL,
     DEFAULT_PORT,
     DOMAIN,
-    docker_stats_stalled_issue_id,
 )
 
 # =============================================================================
 # Fixtures
 # =============================================================================
-
-
-@pytest.fixture(autouse=True)
-def mock_track_interval() -> Generator[MagicMock]:
-    """Keep the Docker statistics check from leaving a timer behind."""
-    with patch(
-        "custom_components.unraid.async_track_time_interval",
-        return_value=MagicMock(),
-    ) as mock_track:
-        yield mock_track
 
 
 @pytest.fixture
@@ -114,48 +100,6 @@ async def test_setup_entry_successful(
     assert isinstance(mock_config_entry.runtime_data, UnraidRuntimeData)
     assert mock_config_entry.runtime_data.server_info["uuid"] == "test-uuid-123"
     assert mock_config_entry.runtime_data.server_info["name"] == "tower"
-
-
-async def test_setup_checks_docker_stats_until_unload(
-    hass: HomeAssistant,
-    issue_registry: ir.IssueRegistry,
-    mock_config_entry: MockConfigEntry,
-    mock_unraid_client: MagicMock,
-    mock_coordinator: MagicMock,
-    mock_track_interval: MagicMock,
-) -> None:
-    """The timer raises the repair issue, and unloading the entry clears it."""
-    mock_config_entry.add_to_hass(hass)
-    with (
-        patch(
-            "custom_components.unraid.UnraidSystemCoordinator",
-            return_value=mock_coordinator,
-        ),
-        patch(
-            "custom_components.unraid.UnraidStorageCoordinator",
-            return_value=mock_coordinator,
-        ),
-        patch(
-            "custom_components.unraid.UnraidInfraCoordinator",
-            return_value=mock_coordinator,
-        ),
-        patch("custom_components.unraid.async_get_clientsession"),
-        patch.object(
-            hass.config_entries, "async_forward_entry_setups", return_value=None
-        ),
-    ):
-        await async_setup_entry(hass, mock_config_entry)
-
-    issue_id = docker_stats_stalled_issue_id(mock_config_entry.entry_id)
-    check = mock_track_interval.call_args.args[1]
-    manager = mock_config_entry.runtime_data.websocket_manager
-    with patch.object(manager, "docker_stats_stalled", return_value=True):
-        check(datetime.now(UTC))
-    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
-
-    await mock_config_entry._async_process_on_unload(hass)
-    await manager.async_stop()
-    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_setup_entry_auth_error(

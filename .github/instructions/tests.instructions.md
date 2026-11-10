@@ -9,7 +9,7 @@ Refer to `AGENTS.md` for full project documentation.
 ## Test Framework
 
 - `pytest` with `pytest-asyncio` (`asyncio_mode = "auto"`)
-- Official `pytest-home-assistant` plugin for HA fixtures and `pytest_homeassistant.common` helpers
+- Official `pytest-homeassistant` plugin for HA fixtures and `pytest_homeassistant.common` helpers
 - Plugin-provided `pytest_homeassistant.syrupy.HomeAssistantSnapshotExtension` for snapshots
 - `pytest-cov` for coverage reporting
 - `syrupy` for snapshot testing
