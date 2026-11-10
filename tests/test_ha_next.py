@@ -93,6 +93,11 @@ def test_newest_homeassistant_prefers_stable_and_skips_unusable() -> None:
     assert skipped == ["2026.12.0b1", "2026.12.0b0"]
 
 
+def test_newest_homeassistant_selects_installable_beta() -> None:
+    releases = HA_RELEASES | {"2026.12.0b2": [_file()]}
+    assert ha_next.newest_homeassistant(releases, "3.14.2") == ("2026.12.0b2", [])
+
+
 def test_newest_homeassistant_without_candidates() -> None:
     with pytest.raises(LookupError, match=r"Python 3\.13"):
         ha_next.newest_homeassistant({"2026.1.0": [_file(">=3.14")]}, "3.13")

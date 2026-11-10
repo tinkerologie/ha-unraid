@@ -46,7 +46,7 @@ for retired_plugin in pytest-homeassistant-custom-component pytest-home-assistan
         uv pip uninstall "$retired_plugin"
     fi
 done
-uv pip install --upgrade -e ".[dev,test]"
+uv pip install --upgrade --reinstall-package pytest-homeassistant -e ".[dev,test]"
 
 log_success "Development dependencies updated with the aligned HA test baseline"
 

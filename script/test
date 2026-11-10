@@ -70,7 +70,8 @@ has_distribution() {
 }
 
 bootstrap_tests=false
-if ! has_distribution pytest-homeassistant; then
+if ! has_distribution pytest-homeassistant ||
+    ! python -c 'import pytest_homeassistant' >/dev/null 2>&1; then
     python "$SCRIPT_DIR/check_test_baseline.py"
     bootstrap_tests=true
 fi
@@ -85,7 +86,7 @@ for retired_plugin in pytest-homeassistant-custom-component pytest-home-assistan
 done
 if [[ "$bootstrap_tests" == true ]]; then
     log_info "Installing the current Home Assistant test dependencies..."
-    uv pip install -e ".[test]"
+    uv pip install --reinstall-package pytest-homeassistant -e ".[test]"
 fi
 
 # Ensure cleanup runs even when tests fail (set -e would exit before cleanup)

@@ -141,3 +141,58 @@ def test_setup_stops_before_package_changes(tmp_path: Path, script_name: str) ->
     )
     assert result.returncode == 1
     assert not calls.exists()
+
+
+@pytest.mark.parametrize("retired_present", [True, False])
+def test_test_script_restores_current_plugin(
+    tmp_path: Path, retired_present: bool
+) -> None:
+    """Restore shared module files removed by a retired or interrupted install."""
+    script_dir = tmp_path / "script"
+    lib_dir = script_dir / ".lib"
+    lib_dir.mkdir(parents=True)
+    (lib_dir / "output.sh").write_text((ROOT / "script/.lib/output.sh").read_text())
+    test_script = script_dir / "test"
+    test_script.write_text((ROOT / "script/test").read_text())
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    module = tmp_path / "plugin-module"
+    if retired_present:
+        module.touch()
+    commands = {
+        bin_dir / "python": """case "$*" in
+*pytest-homeassistant-custom-component) exit 1 ;;
+*pytest-home-assistant) test "$RETIRED_PRESENT" = yes ;;
+*pytest-homeassistant|*check_test_baseline.py) exit 0 ;;
+*"import pytest_homeassistant") test -f "$PLUGIN_MODULE" ;;
+*) exit 1 ;;
+esac
+""",
+        bin_dir / "uv": """case "$*" in
+"pip uninstall pytest-home-assistant") rm -f "$PLUGIN_MODULE" ;;
+"pip install "*"--reinstall-package pytest-homeassistant"*) touch "$PLUGIN_MODULE" ;;
+"pip install "*) exit 0 ;;
+*) exit 1 ;;
+esac
+""",
+        bin_dir / "pytest": 'test -f "$PLUGIN_MODULE"\n',
+        script_dir / "clean": "exit 0\n",
+    }
+    for path, command in commands.items():
+        path.write_text(f"#!/bin/sh\n{command}")
+        path.chmod(0o755)
+    env = os.environ | {
+        "VIRTUAL_ENV": str(tmp_path),
+        "PATH": f"{bin_dir}{os.pathsep}{os.defpath}",
+        "PLUGIN_MODULE": str(module),
+        "RETIRED_PRESENT": "yes" if retired_present else "no",
+    }
+    result = subprocess.run(  # noqa: S603 - fixed script and controlled test environment
+        ["bash", str(test_script)],  # noqa: S607
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

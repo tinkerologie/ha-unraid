@@ -125,7 +125,7 @@ for retired_plugin in pytest-homeassistant-custom-component pytest-home-assistan
         uv pip uninstall "$retired_plugin"
     fi
 done
-uv pip install -e ".[dev,test]"
+uv pip install --reinstall-package pytest-homeassistant -e ".[dev,test]"
 
 log_info "Home Assistant and the official pytest plugin use the aligned pyproject.toml pins"
 
