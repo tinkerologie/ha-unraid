@@ -114,61 +114,40 @@ def test_guard_works_before_bootstrap_dependencies_exist() -> None:
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("script_name", ["upgrade", "test"])
-def test_setup_stops_before_package_changes(tmp_path: Path, script_name: str) -> None:
-    """A failed preflight must stop before even querying/uninstalling packages."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    python = bin_dir / "python"
-    python.write_text("#!/bin/sh\nexit 1\n")
-    python.chmod(0o755)
-    calls = tmp_path / "uv-called"
-    uv = bin_dir / "uv"
-    uv.write_text('#!/bin/sh\n: > "$UPGRADE_CALL_LOG"\nexit 86\n')
-    uv.chmod(0o755)
-    env = os.environ | {
-        "VIRTUAL_ENV": str(tmp_path),
-        "PATH": f"{bin_dir}{os.pathsep}{os.defpath}",
-        "UPGRADE_CALL_LOG": str(calls),
-    }
-    result = subprocess.run(  # noqa: S603 - fixed script and controlled test environment
-        ["bash", str(ROOT / "script" / script_name)],  # noqa: S607
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=10,
-    )
-    assert result.returncode == 1
-    assert not calls.exists()
-
-
-@pytest.mark.parametrize("retired_present", [True, False])
-def test_test_script_restores_current_plugin(
-    tmp_path: Path, retired_present: bool
-) -> None:
-    """Restore shared module files removed by a retired or interrupted install."""
+@pytest.mark.parametrize("script_name", ["test", "upgrade", "setup/bootstrap"])
+@pytest.mark.parametrize("scenario", ["mixed", "interrupted", "newer"])
+def test_plugin_migration(tmp_path: Path, script_name: str, scenario: str) -> None:
+    """Restore the shared module and refuse changes to a newer environment."""
     script_dir = tmp_path / "script"
     lib_dir = script_dir / ".lib"
     lib_dir.mkdir(parents=True)
     (lib_dir / "output.sh").write_text((ROOT / "script/.lib/output.sh").read_text())
-    test_script = script_dir / "test"
-    test_script.write_text((ROOT / "script/test").read_text())
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
+    script = script_dir / script_name
+    script.parent.mkdir(exist_ok=True)
+    script.write_text((ROOT / "script" / script_name).read_text())
+    venv_dir = tmp_path / ".local/ha-venv"
+    bin_dir = venv_dir / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "activate").write_text(":\n")
     module = tmp_path / "plugin-module"
-    if retired_present:
+    calls = tmp_path / "uv-called"
+    if scenario == "mixed":
         module.touch()
     commands = {
         bin_dir / "python": """case "$*" in
 *pytest-homeassistant-custom-component) exit 1 ;;
-*pytest-home-assistant) test "$RETIRED_PRESENT" = yes ;;
-*pytest-homeassistant|*check_test_baseline.py) exit 0 ;;
+*pytest-home-assistant) test "$PLUGIN_SCENARIO" = mixed ;;
+*pytest-homeassistant) exit 0 ;;
+*check_test_baseline.py) test "$PLUGIN_SCENARIO" != newer ;;
 *"import pytest_homeassistant") test -f "$PLUGIN_MODULE" ;;
+*"version('homeassistant')"*) echo 2026.11.0 ;;
 *) exit 1 ;;
 esac
 """,
-        bin_dir / "uv": """case "$*" in
+        bin_dir / "uv": """printf '%s\\n' "$*" >> "$UV_CALL_LOG"
+case "$*" in
+"pip show pytest-home-assistant") test "$PLUGIN_SCENARIO" = mixed ;;
+"pip show "*) exit 1 ;;
 "pip uninstall pytest-home-assistant") rm -f "$PLUGIN_MODULE" ;;
 "pip install "*"--reinstall-package pytest-homeassistant"*) touch "$PLUGIN_MODULE" ;;
 "pip install "*) exit 0 ;;
@@ -181,18 +160,33 @@ esac
     for path, command in commands.items():
         path.write_text(f"#!/bin/sh\n{command}")
         path.chmod(0o755)
+    (bin_dir / "python3").symlink_to("python")
     env = os.environ | {
-        "VIRTUAL_ENV": str(tmp_path),
+        "VIRTUAL_ENV": str(venv_dir),
         "PATH": f"{bin_dir}{os.pathsep}{os.defpath}",
+        "GITHUB_ACTIONS": "true",
+        "GITHUB_WORKSPACE": str(tmp_path),
+        "CODESPACES": "",
+        "REMOTE_CONTAINERS": "",
         "PLUGIN_MODULE": str(module),
-        "RETIRED_PRESENT": "yes" if retired_present else "no",
+        "PLUGIN_SCENARIO": scenario,
+        "UV_CALL_LOG": str(calls),
     }
     result = subprocess.run(  # noqa: S603 - fixed script and controlled test environment
-        ["bash", str(test_script)],  # noqa: S607
+        ["bash", str(script)],  # noqa: S607
         env=env,
         capture_output=True,
         text=True,
         check=False,
         timeout=10,
     )
-    assert result.returncode == 0, result.stdout + result.stderr
+    if scenario == "newer":
+        assert result.returncode == 1
+        assert not calls.exists()
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert module.exists()
+        if scenario == "mixed":
+            assert (
+                "pip uninstall pytest-home-assistant" in calls.read_text().splitlines()
+            )
