@@ -7,6 +7,8 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 
 ## [Unreleased]
 
+## [2026.11.2] - 2026-11-10
+
 ### Changed
 
 - Apply ASD-STE100 Issue 9 to project documentation. Add a writing guide for contributors.
