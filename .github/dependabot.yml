@@ -61,7 +61,7 @@ updates:
     # The plugin's exact test dependency pins also move with that baseline.
     ignore:
       - dependency-name: homeassistant
-      - dependency-name: pytest-home-assistant
+      - dependency-name: pytest-homeassistant
       - dependency-name: pytest
       - dependency-name: pytest-asyncio
       - dependency-name: syrupy

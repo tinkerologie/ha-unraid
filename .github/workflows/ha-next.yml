@@ -122,9 +122,9 @@ jobs:
           {
             echo "## HA Next: ${CHANNEL}"
             echo
-            echo "| Channel | Home Assistant | Plugin Core ref | Import check | Pytest | Hassfest |"
-            echo "| --- | --- | --- | --- | --- | --- |"
-            echo "| ${CHANNEL} | ${HA_VERSION:-unresolved} | ${PLUGIN_REF:-unresolved} | ${IMPORT_CHECK:-not run} | ${PYTEST:-not run} | ${HASSFEST:-not run} |"
+            echo "| Channel | Home Assistant | Plugin Core ref | Resolve | Install | Import check | Pytest | Hassfest |"
+            echo "| --- | --- | --- | --- | --- | --- | --- | --- |"
+            echo "| ${CHANNEL} | ${HA_VERSION:-unresolved} | ${PLUGIN_REF:-unresolved} | ${RESOLVE:-not run} | ${INSTALL:-not run} | ${IMPORT_CHECK:-not run} | ${PYTEST:-not run} | ${HASSFEST:-not run} |"
             if [ -n "$NOTE" ]; then
               echo
               echo "$NOTE"
@@ -156,7 +156,11 @@ jobs:
             [ "$outcome" = success ] || failed=true
           done
           if [ "$failed" = true ]; then
-            echo "::error::The next Home Assistant breaks or deprecates something the integration uses; see the summary."
+            if [ "$RESOLVE" != success ] || [ "$INSTALL" != success ]; then
+              echo "::error::HA Next could not set up the test environment. See the resolve and install results."
+            else
+              echo "::error::HA Next found a compatibility problem. See the check results."
+            fi
             exit 1
           fi
 
@@ -198,9 +202,9 @@ jobs:
               ["resolve", "install", "import_check", "pytest", "hassfest"].every((k) => o[k] === "success");
 
             const table = [
-              "| Channel | Home Assistant | Plugin Core ref | Import check | Pytest | Hassfest |",
-              "| --- | --- | --- | --- | --- | --- |",
-              `| ${channel} | ${result.ha_version} | ${result.plugin_ref || "unresolved"} | ${o.import_check} | ${o.pytest} | ${o.hassfest} |`,
+              "| Channel | Home Assistant | Plugin Core ref | Resolve | Install | Import check | Pytest | Hassfest |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |",
+              `| ${channel} | ${result.ha_version} | ${result.plugin_ref || "unresolved"} | ${o.resolve} | ${o.install} | ${o.import_check} | ${o.pytest} | ${o.hassfest} |`,
             ].join("\n");
             const details = [table, "", result.note, "", `Run: ${runUrl}`].join("\n");
 
@@ -233,12 +237,15 @@ jobs:
               return;
             }
 
+            const setupFailed = o.resolve !== "success" || o.install !== "success";
             const failure = [
               `The HA Next workflow failed on the \`${channel}\` channel against Home Assistant ${result.ha_version}.`,
               "",
               details,
               "",
-              "Fix the integration code rather than weakening the checks; see the deprecation section of `AGENTS.md`.",
+              setupFailed
+                ? "The checks could not run. See the resolve and install results."
+                : "Fix the integration code. See the deprecation section of `AGENTS.md`.",
             ].join("\n");
             if (issue) {
               await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: failure });

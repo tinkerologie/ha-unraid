@@ -12,8 +12,10 @@ from syrupy.assertion import SnapshotAssertion
 def test_official_plugin_loaded(pytestconfig: pytest.Config) -> None:
     """The official plugin entry point supplies the HA fixtures."""
     assert pytestconfig.pluginmanager.hasplugin("pytest_homeassistant")
-    with pytest.raises(PackageNotFoundError):
-        distribution("pytest-homeassistant-custom-component")
+    assert distribution("pytest-homeassistant")
+    for retired in ("pytest-homeassistant-custom-component", "pytest-home-assistant"):
+        with pytest.raises(PackageNotFoundError):
+            distribution(retired)
 
 
 def test_deprecation_guard_precedes_hass(

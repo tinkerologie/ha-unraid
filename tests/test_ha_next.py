@@ -7,12 +7,16 @@ import importlib.util
 import logging
 import subprocess
 import sys
+import tomllib
 import warnings
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "script" / "ha_next.py"
@@ -37,6 +41,7 @@ def _file(requires_python: str | None = ">=3.14.2", yanked: bool = False) -> dic
 
 HA_RELEASES = {
     "2026.10.4": [_file()],
+    "2026.11.0": [_file()],
     "2026.11.0b1": [_file()],
     "2026.11.0b0": [_file()],
     "2026.12.0b0": [_file(">=3.15")],  # newer, but not for Python 3.14
@@ -82,10 +87,15 @@ def ls_remote(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
     return calls
 
 
-def test_newest_homeassistant_includes_betas_and_skips_unusable() -> None:
+def test_newest_homeassistant_prefers_stable_and_skips_unusable() -> None:
     version, skipped = ha_next.newest_homeassistant(HA_RELEASES, "3.14.2")
-    assert version == "2026.11.0b1"
+    assert version == "2026.11.0"
     assert skipped == ["2026.12.0b1", "2026.12.0b0"]
+
+
+def test_newest_homeassistant_selects_installable_beta() -> None:
+    releases = HA_RELEASES | {"2026.12.0b2": [_file()]}
+    assert ha_next.newest_homeassistant(releases, "3.14.2") == ("2026.12.0b2", [])
 
 
 def test_newest_homeassistant_without_candidates() -> None:
@@ -103,12 +113,12 @@ def test_resolve_pypi_uses_plugin_from_selected_tag(
     pypi: dict[str, Any], ls_remote: list[list[str]]
 ) -> None:
     assert ha_next.resolve("pypi", "3.14.2") == {
-        "ha_requirement": "homeassistant==2026.11.0b1",
-        "hassfest_ref": "2026.11.0b1",
-        "ha_version": "2026.11.0b1",
+        "ha_requirement": "homeassistant==2026.11.0",
+        "hassfest_ref": "2026.11.0",
+        "ha_version": "2026.11.0",
         "plugin_requirement": (
-            f"pytest-home-assistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
-            "#subdirectory=packages/pytest-home-assistant"
+            f"pytest-homeassistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
+            "#subdirectory=packages/pytest-homeassistant"
         ),
         "plugin_ref": COMMIT[:12],
         "note": (
@@ -121,8 +131,8 @@ def test_resolve_pypi_uses_plugin_from_selected_tag(
             "git",
             "ls-remote",
             ha_next.CORE_REPO,
-            "refs/tags/2026.11.0b1",
-            "refs/tags/2026.11.0b1^{}",
+            "refs/tags/2026.11.0",
+            "refs/tags/2026.11.0^{}",
         ]
     ]
     assert pypi["_fetched"] == [ha_next.PYPI_JSON.format(project=ha_next.HA_PROJECT)]
@@ -152,14 +162,33 @@ def test_resolve_dev_pins_core_and_plugin(
         "hassfest_ref": COMMIT,
         "ha_version": f"dev@{COMMIT[:12]}",
         "plugin_requirement": (
-            f"pytest-home-assistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
-            "#subdirectory=packages/pytest-home-assistant"
+            f"pytest-homeassistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
+            "#subdirectory=packages/pytest-homeassistant"
         ),
         "plugin_ref": COMMIT[:12],
         "note": "",
     }
     assert ls_remote == [["git", "ls-remote", ha_next.CORE_REPO, "refs/heads/dev"]]
     assert pypi["_fetched"] == []
+
+
+@pytest.mark.parametrize("channel", ["pypi", "dev"])
+def test_channel_override_matches_project_plugin(
+    channel: str, pypi: dict[str, Any], ls_remote: list[list[str]]
+) -> None:
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+    override = Requirement(ha_next.resolve(channel, "3.14.2")["plugin_requirement"])
+    plugin = next(
+        Requirement(item)
+        for item in project["project"]["optional-dependencies"]["test"]
+        if item.startswith("pytest-home")
+    )
+    assert canonicalize_name(override.name) == canonicalize_name(plugin.name)
+    assert override.url is not None
+    fragment = parse_qs(urlsplit(override.url).fragment)
+    assert fragment["subdirectory"] == [
+        project["tool"]["uv"]["sources"][plugin.name]["subdirectory"]
+    ]
 
 
 @pytest.mark.parametrize(
@@ -188,7 +217,7 @@ def test_missing_release_tag_fails(
         lambda args, **_: subprocess.CompletedProcess(args, 0, "", ""),
     )
     assert ha_next.main(["resolve", "--channel", "pypi"]) == 1
-    assert "Cannot resolve Core ref 2026.11.0b1" in capsys.readouterr().err
+    assert "Cannot resolve Core ref 2026.11.0" in capsys.readouterr().err
 
 
 def test_resolve_dev_reports_git_failure(
@@ -216,7 +245,7 @@ def test_main_writes_github_output(
     assert written.startswith("existing=1\nha_requirement=homeassistant @ ")
     assert f"hassfest_ref={COMMIT}\n" in written
     assert (
-        f"plugin_requirement=pytest-home-assistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
+        f"plugin_requirement=pytest-homeassistant @ git+{ha_next.CORE_REPO}@{COMMIT}"
         in written
     )
     assert f"plugin_ref={COMMIT[:12]}\n" in written

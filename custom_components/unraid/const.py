@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from datetime import timedelta
 from typing import Final
 
 # =============================================================================
@@ -136,22 +135,6 @@ WS_RETRY_BACKOFF_FACTOR: Final = 2.0
 # within this window are suppressed to prevent refresh storms.
 WS_REFRESH_DEBOUNCE_SECONDS: Final = 10  # seconds
 
-# Running containers with no statistics event for this long means the stream stopped
-WS_STATS_STALL_SECONDS: Final = 300  # seconds (5 minutes)
-DOCKER_STATS_CHECK_INTERVAL: Final = timedelta(minutes=1)
-DOCKER_STATS_AGGREGATE_RESOURCES: Final = frozenset(
-    {"docker_total_cpu", "docker_total_memory_pct", "docker_total_memory_bytes"}
-)
-DOCKER_STATS_CONTAINER_PREFIX: Final = "container_"
-DOCKER_STATS_CONTAINER_SUFFIXES: Final = (
-    "cpu",
-    "memory",
-    "memory_pct",
-    "memory_used",
-    "memory_limit",
-)
-
-
 # =============================================================================
 # Repair Issue IDs
 # =============================================================================
@@ -166,12 +149,12 @@ def legacy_auth_failed_issue_id(entry_id: str) -> str:
     return f"{LEGACY_REPAIR_AUTH_FAILED}_{entry_id}"
 
 
-REPAIR_DOCKER_STATS_STALLED: Final = "docker_stats_stalled"
+LEGACY_REPAIR_DOCKER_STATS_STALLED: Final = "docker_stats_stalled"
 
 
 def docker_stats_stalled_issue_id(entry_id: str) -> str:
-    """Return the ID of a config entry's Docker statistics repair issue."""
-    return f"{REPAIR_DOCKER_STATS_STALLED}_{entry_id}"
+    """Return the ID of a config entry's retired Docker statistics repair issue."""
+    return f"{LEGACY_REPAIR_DOCKER_STATS_STALLED}_{entry_id}"
 
 
 # =============================================================================

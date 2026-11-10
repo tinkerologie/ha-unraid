@@ -81,13 +81,14 @@ A pull request must pass all automated checks before merge.
 ### Prerequisites and Setup
 
 - Python 3.12 or later
-- Virtual environment with dependencies installed (`script/setup/bootstrap` or `uv pip install -e ".[test,dev]"`)
+- Virtual environment with dependencies installed by `script/setup/bootstrap`. In a new environment, you can also use `uv pip install -e ".[test,dev]"`.
 - Pre-commit (`pre-commit install`)
 
-Tests use Home Assistant's official `pytest-home-assistant` plugin. The test
+Tests use Home Assistant's official `pytest-homeassistant` plugin. The test
 extra pins Home Assistant. The `[tool.uv.sources]` section pins the matching Core plugin commit.
 Update both pins together. Then regenerate `uv.lock`. Use uv to honor that source.
-Bootstrap removes the retired custom-component plugin from existing environments.
+Use `script/upgrade` to update an existing environment. It removes retired pytest
+plugin distributions and reinstalls the current plugin.
 The runtime HA minimum is unchanged by the test baseline.
 Bootstrap, upgrade, develop and automatic test setup stop before downgrading a
 newer installed HA. Use a separate test virtual environment to preserve recorder data.
@@ -113,7 +114,7 @@ pre-commit run --all-files
 python3 script/ha_next.py import-check
 
 # Validate with Hassfest; HA_VERSION selects the Core tag or dev (needs uv for 2026.11+)
-HA_VERSION=2026.11.0b1 ./script/hassfest
+HA_VERSION=2026.11.0 ./script/hassfest
 ```
 
 ### Deprecation checks

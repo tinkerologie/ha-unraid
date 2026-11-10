@@ -190,7 +190,7 @@ The integration limits both percentages to 0–100% when measurements are tempor
 
 In Unraid, the Docker vdisk or folder bar shows storage use. The Docker segment of the RAM chart shows memory use.
 
-Docker totals require the container statistics subscription. If the stream stops, the sensors can keep their last values. After a Home Assistant restart, they can show `Unknown`. The container inventory remains available. The integration shows a repair notice after five minutes without statistics while containers run.
+Docker totals require the container statistics subscription. If the stream stops, the sensors can keep their last values. After a Home Assistant restart, they can show `Unknown`. The container inventory remains available.
 
 [Unraid API #2120](https://github.com/unraid/api/issues/2120) describes a collector fault in Unraid API 4.37.7. In a live test, a restart of the Unraid API service restored the stream.
 

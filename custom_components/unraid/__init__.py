@@ -7,11 +7,9 @@ Provides monitoring and control for system metrics, storage, Docker, and VMs.
 
 from __future__ import annotations
 
-import inspect
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING
 
 from homeassistant.const import (
     CONF_API_KEY,
@@ -28,7 +26,6 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
 from unraid_api import ServerInfo, UnraidClient
 from unraid_api.exceptions import (
     UnraidAPIError,
@@ -43,13 +40,8 @@ from .cleanup import async_cleanup_stale_entities
 from .const import (
     CONF_IGNORE_SSL,
     DEFAULT_PORT,
-    DOCKER_STATS_AGGREGATE_RESOURCES,
-    DOCKER_STATS_CHECK_INTERVAL,
-    DOCKER_STATS_CONTAINER_PREFIX,
-    DOCKER_STATS_CONTAINER_SUFFIXES,
     DOMAIN,
     LEGACY_REPAIR_AUTH_FAILED,
-    REPAIR_DOCKER_STATS_STALLED,
     docker_stats_stalled_issue_id,
     is_placeholder_uuid,
     legacy_auth_failed_issue_id,
@@ -335,106 +327,31 @@ def _normalize_ssl_config(
     return use_ssl, ignore_ssl, not ignore_ssl
 
 
-# Home Assistant 2026.11 can tie a repair issue to its config entry and deletes
-# it with the entry; earlier releases don't accept the argument.
-_ISSUES_TAKE_CONFIG_ENTRY: Final = (
-    "config_entry_id" in inspect.signature(ir.async_create_issue).parameters
-)
-
-
-def _is_legacy_auth_issue(issue_id: str) -> bool:
-    """Return whether an issue ID belongs to a pre-#420 authentication issue."""
-    # Before #394 one issue, keyed only by domain, covered every server.
-    return issue_id == LEGACY_REPAIR_AUTH_FAILED or issue_id.startswith(
-        legacy_auth_failed_issue_id("")
-    )
-
-
 @callback
-def _async_delete_legacy_auth_issues(
+def _async_delete_legacy_issues(
     hass: HomeAssistant, entry_id: str | None = None
 ) -> None:
-    """
-    Delete authentication repair issues left by earlier releases.
-
-    Before #420 the integration raised its own fixable ``auth_failed`` issue
-    next to the reauth issue Home Assistant raises for ``ConfigEntryAuthFailed``.
-    Its fix flow is gone, so a leftover issue would show a broken Fix button.
-    Without ``entry_id`` every such issue goes, including those of disabled
-    entries, which Home Assistant never sets up. When every Unraid entry is
-    disabled the integration isn't loaded and nothing can run; the issue goes
-    once an entry is enabled again or removed (``async_remove_entry``).
-    """
+    """Delete retired authentication and Docker statistics repair issues."""
     if entry_id is not None:
-        issue_ids = [legacy_auth_failed_issue_id(entry_id), LEGACY_REPAIR_AUTH_FAILED]
+        issue_ids = (
+            LEGACY_REPAIR_AUTH_FAILED,
+            legacy_auth_failed_issue_id(entry_id),
+            docker_stats_stalled_issue_id(entry_id),
+        )
     else:
         issue_ids = [
             issue_id
             for domain, issue_id in ir.async_get(hass).issues
-            if domain == DOMAIN and _is_legacy_auth_issue(issue_id)
+            if domain == DOMAIN
+            and (
+                issue_id == LEGACY_REPAIR_AUTH_FAILED
+                or issue_id.startswith(
+                    (legacy_auth_failed_issue_id(""), docker_stats_stalled_issue_id(""))
+                )
+            )
         ]
     for issue_id in issue_ids:
         ir.async_delete_issue(hass, DOMAIN, issue_id)
-
-
-@callback
-def _docker_stats_consumers_enabled(
-    hass: HomeAssistant, entry: UnraidConfigEntry
-) -> bool:
-    """Return whether this entry has an enabled Docker statistics sensor."""
-    prefix = f"{entry.runtime_data.server_info['uuid']}_"
-    registry = er.async_get(hass)
-    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if (
-            entity.domain != "sensor"
-            or entity.platform != DOMAIN
-            or entity.disabled_by is not None
-            or not entity.unique_id.startswith(prefix)
-        ):
-            continue
-        resource = entity.unique_id.removeprefix(prefix)
-        if resource in DOCKER_STATS_AGGREGATE_RESOURCES:
-            return True
-        if not resource.startswith(DOCKER_STATS_CONTAINER_PREFIX):
-            continue
-        container_resource = resource.removeprefix(DOCKER_STATS_CONTAINER_PREFIX)
-        if any(
-            container_resource.endswith(f"_{suffix}")
-            and len(container_resource) > len(suffix) + 1
-            for suffix in DOCKER_STATS_CONTAINER_SUFFIXES
-        ):
-            return True
-    return False
-
-
-@callback
-def _async_update_docker_stats_issue(
-    hass: HomeAssistant, entry: UnraidConfigEntry
-) -> None:
-    """Raise or clear this entry's Docker statistics repair issue."""
-    issue_id = docker_stats_stalled_issue_id(entry.entry_id)
-    stalled = entry.runtime_data.websocket_manager.docker_stats_stalled(
-        consumers_enabled=_docker_stats_consumers_enabled(hass, entry)
-    )
-    if stalled is None:
-        return
-    if not stalled:
-        ir.async_delete_issue(hass, DOMAIN, issue_id)
-        return
-    belongs_to: dict[str, Any] = {}
-    if _ISSUES_TAKE_CONFIG_ENTRY:
-        belongs_to["config_entry_id"] = entry.entry_id
-    ir.async_create_issue(
-        hass,
-        DOMAIN,
-        issue_id,
-        is_fixable=False,
-        severity=ir.IssueSeverity.WARNING,
-        translation_key=REPAIR_DOCKER_STATS_STALLED,
-        translation_placeholders={"server": entry.title},
-        data={"entry_id": entry.entry_id},
-        **belongs_to,
-    )
 
 
 async def _async_connect_and_get_server_info(
@@ -545,7 +462,7 @@ async def _async_refresh_coordinators(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
     """Set up the Unraid component and register dashboard frontend."""
-    _async_delete_legacy_auth_issues(hass)
+    _async_delete_legacy_issues(hass)
     await async_register_frontend(hass)
     return True
 
@@ -642,22 +559,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bo
         )
     )
 
-    @callback
-    def _async_check_docker_stats(_now: datetime) -> None:
-        """Check the Docker statistics stream."""
-        _async_update_docker_stats_issue(hass, entry)
-
-    entry.async_on_unload(
-        async_track_time_interval(
-            hass, _async_check_docker_stats, DOCKER_STATS_CHECK_INTERVAL
-        )
-    )
-    entry.async_on_unload(
-        lambda: ir.async_delete_issue(
-            hass, DOMAIN, docker_stats_stalled_issue_id(entry.entry_id)
-        )
-    )
-
     # Register cleanup listeners on each coordinator so stale entities are
     # pruned automatically after every successful refresh cycle.  The cleanup
     # runs on both the system and storage coordinators so that a refresh of
@@ -709,7 +610,7 @@ async def async_remove_config_entry_device(
 
 async def async_remove_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> None:
     """Delete repair issues that Home Assistant doesn't delete with the entry."""
-    _async_delete_legacy_auth_issues(hass, entry.entry_id)
+    _async_delete_legacy_issues(hass, entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bool:

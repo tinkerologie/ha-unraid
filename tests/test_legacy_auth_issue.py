@@ -129,20 +129,25 @@ async def test_loading_deletes_every_leftover_issue(
     entry.add_to_hass(hass)
     disabled.add_to_hass(hass)
     _raise_legacy_issues(hass, entry, disabled)
-    unrelated = docker_stats_stalled_issue_id(entry.entry_id)
-    ir.async_create_issue(
-        hass,
-        DOMAIN,
-        unrelated,
-        is_fixable=False,
-        severity=ir.IssueSeverity.WARNING,
-        translation_key="docker_stats_stalled",
-    )
+    for issue_id in (
+        docker_stats_stalled_issue_id(entry.entry_id),
+        docker_stats_stalled_issue_id(disabled.entry_id),
+        "unrelated",
+    ):
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            is_persistent=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=issue_id,
+        )
 
     await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
 
-    assert _unraid_issue_ids(hass) == {unrelated}
+    assert _unraid_issue_ids(hass) == {"unrelated"}
 
 
 async def test_removing_the_entry_deletes_leftover_issues(
@@ -152,6 +157,16 @@ async def test_removing_the_entry_deletes_leftover_issues(
     entry = _entry("tower")
     entry.add_to_hass(hass)
     _raise_legacy_issues(hass, entry)
+
+    issue_id = docker_stats_stalled_issue_id(entry.entry_id)
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="docker_stats_stalled",
+    )
 
     await async_remove_entry(hass, entry)
 

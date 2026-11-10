@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
-from datetime import UTC, datetime
+import asyncio
+from collections.abc import AsyncIterator
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from pytest_homeassistant.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
+from unraid_api import DockerContainer, DockerContainerStats
 from unraid_api.exceptions import (
     UnraidAPIError,
     UnraidAuthenticationError,
@@ -36,16 +40,6 @@ from custom_components.unraid.const import (
 # =============================================================================
 # Fixtures
 # =============================================================================
-
-
-@pytest.fixture(autouse=True)
-def mock_track_interval() -> Generator[MagicMock]:
-    """Keep the Docker statistics check from leaving a timer behind."""
-    with patch(
-        "custom_components.unraid.async_track_time_interval",
-        return_value=MagicMock(),
-    ) as mock_track:
-        yield mock_track
 
 
 @pytest.fixture
@@ -116,46 +110,46 @@ async def test_setup_entry_successful(
     assert mock_config_entry.runtime_data.server_info["name"] == "tower"
 
 
-async def test_setup_checks_docker_stats_until_unload(
+async def test_silent_docker_stream_does_not_create_repair(
     hass: HomeAssistant,
     issue_registry: ir.IssueRegistry,
     mock_config_entry: MockConfigEntry,
     mock_unraid_client: MagicMock,
-    mock_coordinator: MagicMock,
-    mock_track_interval: MagicMock,
 ) -> None:
-    """The timer raises the repair issue, and unloading the entry clears it."""
+    """Keep a silent statistics subscription free of repairs."""
     mock_config_entry.add_to_hass(hass)
-    with (
-        patch(
-            "custom_components.unraid.UnraidSystemCoordinator",
-            return_value=mock_coordinator,
-        ),
-        patch(
-            "custom_components.unraid.UnraidStorageCoordinator",
-            return_value=mock_coordinator,
-        ),
-        patch(
-            "custom_components.unraid.UnraidInfraCoordinator",
-            return_value=mock_coordinator,
-        ),
-        patch("custom_components.unraid.async_get_clientsession"),
-        patch.object(
-            hass.config_entries, "async_forward_entry_setups", return_value=None
-        ),
-    ):
-        await async_setup_entry(hass, mock_config_entry)
+    mock_unraid_client.typed_get_containers_safe.return_value = [
+        DockerContainer(id="container-1", name="media", state="RUNNING")
+    ]
+    stream_started = asyncio.Event()
+    sample: asyncio.Future[DockerContainerStats] = asyncio.Future()
 
-    issue_id = docker_stats_stalled_issue_id(mock_config_entry.entry_id)
-    check = mock_track_interval.call_args.args[1]
-    manager = mock_config_entry.runtime_data.websocket_manager
-    with patch.object(manager, "docker_stats_stalled", return_value=True):
-        check(datetime.now(UTC))
-    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
+    async def silent_stream() -> AsyncIterator[DockerContainerStats]:
+        stream_started.set()
+        yield await sample
 
-    await mock_config_entry._async_process_on_unload(hass)
-    await manager.async_stop()
-    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+    mock_unraid_client.subscribe_container_stats.side_effect = silent_stream
+    sensor = er.async_get(hass).async_get_or_create(
+        "sensor",
+        DOMAIN,
+        "test-uuid-123_docker_total_cpu",
+        config_entry=mock_config_entry,
+    )
+    clock = MagicMock()
+    clock.monotonic.return_value = 0
+    with patch("custom_components.unraid.websocket.time", clock):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+        assert stream_started.is_set()
+        assert er.async_get(hass).async_get(sensor.entity_id).disabled_by is None
+
+        clock.monotonic.return_value = 360
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=6))
+        await hass.async_block_till_done()
+
+        issue_id = docker_stats_stalled_issue_id(mock_config_entry.entry_id)
+        assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
 
 
 async def test_setup_entry_auth_error(
