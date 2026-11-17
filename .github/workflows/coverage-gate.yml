@@ -28,8 +28,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   coverage:
-    if: (github.event_name != 'status' || (github.event.context == 'codecov/patch' && github.event.state != 'pending' && !contains(github.event.branches.*.name,
-      'main'))) && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request')
+    # Reconcile every patch-status transition, including pending and fork branches named main.
+    if: >-
+      (github.event_name != 'status' || github.event.context == 'codecov/patch') &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request')
     uses: tinkerologie/.github/.github/workflows/coverage-gate.yml@bf6df49397202ecd15229b8f19b5ac9c4fb4e46d # shared governance
     permissions:
       contents: read
