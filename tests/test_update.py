@@ -162,8 +162,7 @@ def test_latest_version_when_update_none() -> None:
     )
     entity = _make_update_entity(container)
 
-    # None is falsy, so no update shown
-    assert entity.latest_version == "1.25.0"
+    assert entity.latest_version is None
 
 
 def test_entity_picture_from_icon_url() -> None:

@@ -189,24 +189,23 @@ class DockerContainerUpdateEntity(
             return None
         return _parse_image_tag(container.image)
 
+    def _get_update_status(self) -> bool | None:
+        """Return the effective status for this container."""
+        data: UnraidSystemData | None = self.coordinator.data
+        container = self._get_container()
+        if data is None or container is None:
+            return None
+        return data.container_update_available(container)
+
     @property
     def latest_version(self) -> str | None:
-        """
-        Return the latest available version.
-
-        The Unraid GraphQL API only reports whether an update is available via
-        a boolean flag — it does not provide the target version number. When an
-        update is available a descriptive marker is returned so Home Assistant
-        shows the update; otherwise ``installed_version`` is returned so no
-        update is shown.
-        """
-        container = self._get_container()
-        if container is None:
-            return None
-
-        if container.isUpdateAvailable:
+        """Return an update marker, the installed version, or an unknown version."""
+        status = self._get_update_status()
+        if status is True:
             return _VERSION_UPDATE_AVAILABLE
-        return _parse_image_tag(container.image)
+        if status is False:
+            return self.installed_version
+        return None
 
     @property
     def release_url(self) -> str | None:
@@ -236,8 +235,7 @@ class DockerContainerUpdateEntity(
         when an update is available, pointing the user to the release URL (when
         present) for upstream changes.
         """
-        container = self._get_container()
-        if container is None or not container.isUpdateAvailable:
+        if self._get_update_status() is not True:
             return None
         return (
             DOCKER_UPDATE_SUMMARY if self.release_url else DOCKER_UPDATE_SUMMARY_NO_LINK
@@ -248,11 +246,12 @@ class DockerContainerUpdateEntity(
         container = self._get_container()
         if container is None:
             return None
+        update_available = self._get_update_status()
         status = (
             _VERSION_UPDATE_AVAILABLE
-            if container.isUpdateAvailable
+            if update_available is True
             else DOCKER_UPDATE_NO_UPDATE
-            if container.isUpdateAvailable is False
+            if update_available is False
             else DOCKER_UPDATE_UNKNOWN
         )
         notes = [

@@ -730,11 +730,12 @@ class ContainerUpdateAvailableBinarySensor(
     @property
     def is_on(self) -> bool | None:
         """Return True if container has an update available."""
+        data: UnraidSystemData | None = self.coordinator.data
         container = self._get_container()
-        if container is None:
+        if data is None or container is None:
             return None
-        # Treat None (unknown) as False — no update detected
-        return container.isUpdateAvailable or False
+        # Keep the legacy binary sensor off when the status is unknown.
+        return data.container_update_available(container) is True
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

@@ -975,7 +975,7 @@ class ContainerUpdatesCountSensor(UnraidSensorEntity[UnraidSystemCoordinator]):
         data: UnraidSystemData | None = self.coordinator.data
         if data is None:
             return None
-        return sum(1 for c in data.containers if c.isUpdateAvailable is True)
+        return sum(data.container_update_available(c) is True for c in data.containers)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -984,7 +984,9 @@ class ContainerUpdatesCountSensor(UnraidSensorEntity[UnraidSystemCoordinator]):
         if data is None:
             return {}
         updatable = [
-            c.name.lstrip("/") for c in data.containers if c.isUpdateAvailable is True
+            c.name.lstrip("/")
+            for c in data.containers
+            if data.container_update_available(c) is True
         ]
         return {"containers": updatable} if updatable else {}
 

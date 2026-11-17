@@ -7,6 +7,10 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 
 ## [Unreleased]
 
+### Fixed
+
+- Show `unknown` when Unraid cannot determine if a Docker container update is available. Count only containers with a known available update ([#422](https://github.com/tinkerologie/ha-unraid/issues/422), [#444](https://github.com/tinkerologie/ha-unraid/issues/444)).
+
 ## [2026.11.2] - 2026-11-10
 
 ### Changed

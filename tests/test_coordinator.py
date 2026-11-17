@@ -171,6 +171,7 @@ def mock_api_client():
         return_value=make_notification_overview()
     )
     client.typed_get_containers_safe = AsyncMock(return_value=[])
+    client.get_container_update_statuses = AsyncMock(return_value=[])
     client.get_network_metrics = AsyncMock(return_value=[])
     client.typed_get_vms = AsyncMock(return_value=[])
     client.typed_get_ups_devices = AsyncMock(return_value=[])
@@ -1940,6 +1941,20 @@ async def test_system_optional_queries_fail_gracefully(
     coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
 
     assert await getattr(coordinator, method)() == expected
+
+
+@pytest.mark.asyncio
+async def test_docker_update_status_auth_failure(
+    hass, mock_api_client, mock_config_entry
+):
+    """Start reauthentication when the status query rejects the credentials."""
+    mock_api_client.get_container_update_statuses.side_effect = (
+        UnraidAuthenticationError("Invalid API key")
+    )
+    coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
+
+    with pytest.raises(ConfigEntryAuthFailed, match="Authentication failed"):
+        await coordinator._async_update_data()
 
 
 @pytest.mark.asyncio
