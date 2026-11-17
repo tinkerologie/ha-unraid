@@ -7,6 +7,8 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 
 ## [Unreleased]
 
+## [2026.11.3] - 2026-11-17
+
 ### Added
 
 - Show data rebuilds, parity syncs, checks, and disk clears in the array operation sensors and storage card ([#439](https://github.com/tinkerologie/ha-unraid/issues/439)).
