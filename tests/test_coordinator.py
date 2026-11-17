@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -37,6 +37,9 @@ from custom_components.unraid.coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 # =============================================================================
 # Helper Functions to Create Test Models
@@ -1945,8 +1948,8 @@ async def test_system_optional_queries_fail_gracefully(
 
 @pytest.mark.asyncio
 async def test_docker_update_status_auth_failure(
-    hass, mock_api_client, mock_config_entry
-):
+    hass: HomeAssistant, mock_api_client: MagicMock, mock_config_entry: MagicMock
+) -> None:
     """Start reauthentication when the status query rejects the credentials."""
     mock_api_client.get_container_update_statuses.side_effect = (
         UnraidAuthenticationError("Invalid API key")

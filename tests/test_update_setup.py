@@ -19,12 +19,17 @@ from unraid_api.models import ContainerUpdateStatus, DockerContainer
 from custom_components.unraid.const import DOMAIN
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+    from unittest.mock import MagicMock
+
     from homeassistant.core import HomeAssistant
-    from pytest_homeassistant.common import MockHAClientWebSocket
+    from pytest_homeassistant.typing import MockHAClientWebSocket, WebSocketGenerator
 
 
 @pytest.fixture
-async def update_entry(hass, mock_unraid_client):
+async def update_entry(
+    hass: HomeAssistant, mock_unraid_client: MagicMock
+) -> AsyncIterator[MockConfigEntry]:
     """Set up and unload an entry with real coordinator and platform setup."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -69,8 +74,12 @@ async def refresh_docker(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     ],
 )
 async def test_update_flag_through_registered_state(
-    hass, mock_unraid_client, update_entry, image, tag
-):
+    hass: HomeAssistant,
+    mock_unraid_client: MagicMock,
+    update_entry: MockConfigEntry,
+    image: str,
+    tag: str,
+) -> None:
     """Distinguish a missing flag from a negative flag on an older Unraid API."""
     statuses = mock_unraid_client.get_container_update_statuses
     statuses.side_effect = UnraidAPIError("Cannot query field containerUpdateStatuses")
@@ -87,7 +96,9 @@ async def test_update_flag_through_registered_state(
     unique_id = f"{uuid}_container_update_example"
     entity_id = registry.async_get_entity_id("update", DOMAIN, unique_id)
     assert entity_id is not None
-    assert hass.states.get(entity_id).state == "off"
+    state = hass.states.get(entity_id)
+    assert state is not None
+    assert state.state == "off"
 
     for flag, expected_state, latest in [
         (None, "unknown", None),
@@ -105,6 +116,7 @@ async def test_update_flag_through_registered_state(
         await refresh_docker(hass, update_entry)
         assert registry.async_get_entity_id("update", DOMAIN, unique_id) == entity_id
         state = hass.states.get(entity_id)
+        assert state is not None
         assert state.state == expected_state
         assert state.attributes["installed_version"] == tag
         assert state.attributes["latest_version"] == latest
@@ -121,6 +133,7 @@ async def assert_reporting(
     """Show the same effective status across the Home Assistant entities."""
     update_id, legacy_id, count_id = entity_ids
     update_state = hass.states.get(update_id)
+    assert update_state is not None
     assert update_state.state == expected
     available = expected == "on"
     latest = {
@@ -130,8 +143,11 @@ async def assert_reporting(
     }
     assert update_state.attributes["latest_version"] == latest[expected]
     assert bool(update_state.attributes["release_summary"]) is available
-    assert hass.states.get(legacy_id).state == ("on" if available else "off")
+    legacy_state = hass.states.get(legacy_id)
+    assert legacy_state is not None
+    assert legacy_state.state == ("on" if available else "off")
     count = hass.states.get(count_id)
+    assert count is not None
     assert count.state == ("1" if available else "0")
     assert count.attributes.get("containers") == (["example"] if available else None)
     await ws.send_json_auto_id({"type": "update/release_notes", "entity_id": update_id})
@@ -154,15 +170,15 @@ async def assert_reporting(
     ],
 )
 async def test_webgui_unknown_and_recovery_through_registered_state(
-    hass,
-    mock_unraid_client,
-    update_entry,
-    hass_ws_client,
-    image,
-    status_name,
-    status,
-    reverse,
-):
+    hass: HomeAssistant,
+    mock_unraid_client: MagicMock,
+    update_entry: MockConfigEntry,
+    hass_ws_client: WebSocketGenerator,
+    image: str,
+    status_name: str,
+    status: str | None,
+    reverse: bool,
+) -> None:
     """Retain the last unknown status until a successful query clears it."""
     inventory = mock_unraid_client.typed_get_containers_safe
     inventory.return_value = [
@@ -237,8 +253,8 @@ async def test_webgui_unknown_and_recovery_through_registered_state(
 
 
 async def test_docker_refresh_requested_while_status_query_is_running(
-    hass, mock_unraid_client, update_entry
-):
+    hass: HomeAssistant, mock_unraid_client: MagicMock, update_entry: MockConfigEntry
+) -> None:
     """Honor a second Docker refresh requested after inventory has been read."""
     assert await hass.config_entries.async_setup(update_entry.entry_id)
     await hass.async_block_till_done()
