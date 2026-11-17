@@ -17,7 +17,7 @@ This Home Assistant integration monitors and controls Unraid servers through the
 
 ## Installation
 
-### HACS (Recommended)
+### Marketplace (Recommended)
 
 [![Open the Unraid repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tinkerologie&repository=ha-unraid&category=integration)
 
