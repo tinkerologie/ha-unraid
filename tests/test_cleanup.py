@@ -17,6 +17,7 @@ from custom_components.unraid.cleanup import (
 )
 from custom_components.unraid.const import DOMAIN
 from custom_components.unraid.docker_entities import DockerEntityLifecycle
+from custom_components.unraid.vm_entities import VmEntityLifecycle
 from tests.conftest import make_storage_data, make_system_data
 
 # Fake server UUID used throughout these tests
@@ -419,6 +420,7 @@ class TestAsyncCleanupStaleEntities:
         coord.last_update_success = last_update_success
         coord.data = make_system_data() if data_override is _SENTINEL else data_override
         coord.docker_entities = DockerEntityLifecycle()
+        coord.vm_entities = VmEntityLifecycle()
         coord.optional_query_status = (
             {
                 "containers": True,

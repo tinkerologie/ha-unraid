@@ -54,6 +54,7 @@ from unraid_api.models import (
     VmDomain,
 )
 
+from .array_operation import ArrayOperation
 from .const import (
     DOCKER_POLL_INTERVAL,
     DOCKER_UPDATE_STATUS_UNKNOWN,
@@ -64,6 +65,7 @@ from .const import (
 )
 from .docker_entities import DockerEntityLifecycle, container_name
 from .notification_events import NotificationEventDelivery
+from .vm_entities import VmEntityLifecycle
 
 if TYPE_CHECKING:
     from unraid_api.models import ContainerUpdateStatus
@@ -88,6 +90,7 @@ class UnraidSystemData:
     plugin_operations: list[PluginInstallOperation] = field(default_factory=list)
     docker_inventory_generation: int = 0
     docker_update_statuses: tuple[ContainerUpdateStatus, ...] = ()
+    vm_inventory_generation: int = 0
 
     @cached_property
     def _unknown_docker_update_names(self) -> frozenset[str]:
@@ -113,6 +116,7 @@ class UnraidStorageData:
     array: UnraidArray
     shares: list[Share] = field(default_factory=list)
     parity_history: list[ParityHistoryEntry] = field(default_factory=list)
+    operation: ArrayOperation = field(default_factory=ArrayOperation)
 
     # Convenience properties delegating to array
     @property
@@ -217,6 +221,8 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         # Cached VM list to keep the last known-good value across failed
         # optional queries.
         self._cached_vms: list[VmDomain] = []
+        self._vm_inventory_generation = 0
+        self.vm_entities = VmEntityLifecycle()
         # Cached UPS device list to keep the last known-good value across
         # failed optional queries.
         self._cached_ups_devices: list[UPSDevice] = []
@@ -559,6 +565,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         self._optional_query_status["vms"] = vms_result is not None
         if vms_result is not None:
             self._cached_vms = vms_result
+            self._vm_inventory_generation += 1
 
         self._optional_query_status["ups_devices"] = ups_result is not None
         if ups_result is not None:
@@ -668,6 +675,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
                 plugin_operations=plugin_operations,
                 docker_inventory_generation=self._docker_inventory_generation,
                 docker_update_statuses=self._cached_docker_update_statuses,
+                vm_inventory_generation=self._vm_inventory_generation,
             )
 
         except UnraidAuthenticationError as err:
@@ -758,6 +766,16 @@ class UnraidStorageCoordinator(TimestampDataUpdateCoordinator[UnraidStorageData]
             _LOGGER.debug("Parity history not available: %s", err)
             return []
 
+    async def _query_optional_operation_vars(self) -> Vars | None:
+        """Fetch the current operation variables without caching failed reads."""
+        try:
+            return await self.api_client.typed_get_vars()
+        except UnraidAuthenticationError:
+            raise
+        except UnraidAPIError as err:
+            _LOGGER.debug("Array operation data not available: %s", err)
+            return None
+
     # Action wrappers for entity control operations
     async def async_start_array(self) -> None:
         """Start the Unraid array."""
@@ -812,9 +830,10 @@ class UnraidStorageCoordinator(TimestampDataUpdateCoordinator[UnraidStorageData]
             array = await self.api_client.typed_get_array()
 
             # Phase 2: Optional queries — run concurrently; each fails gracefully
-            shares_result, parity_history = await asyncio.gather(
+            shares_result, parity_history, variables = await asyncio.gather(
                 self._query_optional_shares(),
                 self._query_optional_parity_history(),
+                self._query_optional_operation_vars(),
             )
             self._optional_query_status["shares"] = shares_result is not None
             if shares_result is not None:
@@ -832,6 +851,9 @@ class UnraidStorageCoordinator(TimestampDataUpdateCoordinator[UnraidStorageData]
                 array=array,
                 shares=self._cached_shares,
                 parity_history=parity_history,
+                operation=ArrayOperation.from_snapshot(
+                    variables, array.parityCheckStatus
+                ),
             )
 
         except UnraidAuthenticationError as err:

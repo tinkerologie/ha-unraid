@@ -115,6 +115,7 @@ from custom_components.unraid.sensor import (
     format_bytes,
     parse_docker_mem_usage,
 )
+from custom_components.unraid.vm_entities import VmEntityLifecycle
 from tests.conftest import make_infra_data, make_storage_data, make_system_data
 
 # =============================================================================
@@ -3618,6 +3619,7 @@ async def test_asyncsetupentry_creates_system_sensors(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -3690,6 +3692,7 @@ async def test_asyncsetupentry_removes_non_monitorable_network_entities(hass) ->
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
     storage_coordinator.data = make_storage_data()
@@ -3724,6 +3727,7 @@ async def test_setup_creates_docker_statistics_sensors(hass) -> None:
     entry.add_to_hass(hass)
     system = MagicMock(spec=UnraidSystemCoordinator)
     system.docker_entities = DockerEntityLifecycle()
+    system.vm_entities = VmEntityLifecycle()
     system.data = make_system_data(
         containers=[DockerContainer(id="c1", name="media_cpu_memory", state="RUNNING")]
     )
@@ -3769,6 +3773,7 @@ async def test_asyncsetupentry_creates_ups_sensors(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data(ups_devices=[ups])
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -3810,6 +3815,7 @@ async def test_asyncsetupentry_creates_disk_sensors(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -3847,6 +3853,7 @@ async def test_asyncsetupentry_no_storage_data(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -3886,6 +3893,7 @@ async def test_asyncsetupentry_creates_share_sensors(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -3924,6 +3932,7 @@ async def test_asyncsetupentry_creates_cache_disk_sensors(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -3973,6 +3982,7 @@ async def test_asyncsetupentry_no_ups_sensors_when_no_ups(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data(ups_devices=[])
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -4020,6 +4030,7 @@ async def test_asyncsetupentry_uses_ups_capacity_from_options(hass) -> None:
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data(ups_devices=[ups])
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -4064,6 +4075,7 @@ async def test_asyncsetupentry_creates_parity_disk_temperature_sensors(hass) -> 
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data()
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)
@@ -7935,6 +7947,7 @@ async def test_async_setup_entry_registers_vm_and_container_ram_sensors(
 
     system_coordinator = MagicMock(spec=UnraidSystemCoordinator)
     system_coordinator.docker_entities = DockerEntityLifecycle()
+    system_coordinator.vm_entities = VmEntityLifecycle()
     system_coordinator.data = make_system_data(vms=[vm], containers=[container])
 
     storage_coordinator = MagicMock(spec=UnraidStorageCoordinator)

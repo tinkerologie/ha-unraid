@@ -269,6 +269,21 @@
       "array_usage": {
         "name": "Array usage"
       },
+      "array_operation": {
+        "name": "Array operation",
+        "state": {
+          "idle": "Idle",
+          "parity_check": "Parity check",
+          "read_check": "Read check",
+          "parity_sync": "Parity sync",
+          "data_rebuild": "Data rebuild",
+          "disk_clear": "Disk clear",
+          "other": "Other"
+        }
+      },
+      "array_operation_progress": {
+        "name": "Array operation progress"
+      },
       "parity_progress": {
         "name": "Parity progress"
       },

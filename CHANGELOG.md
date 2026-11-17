@@ -7,9 +7,14 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 
 ## [Unreleased]
 
+### Added
+
+- Show data rebuilds, parity syncs, checks, and disk clears in the array operation sensors and storage card ([#439](https://github.com/tinkerologie/ha-unraid/issues/439)).
+
 ### Fixed
 
 - Show `unknown` when Unraid cannot determine if a Docker container update is available. Count only containers with a known available update ([#422](https://github.com/tinkerologie/ha-unraid/issues/422), [#444](https://github.com/tinkerologie/ha-unraid/issues/444)).
+- Count each successful VM inventory once before entity cleanup. Restore the entities if a VM with the same name returns ([#438](https://github.com/tinkerologie/ha-unraid/issues/438)).
 
 ## [2026.11.2] - 2026-11-10
 

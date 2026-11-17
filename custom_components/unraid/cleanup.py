@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
 from homeassistant.helpers import device_registry as dr
@@ -33,17 +34,32 @@ from homeassistant.helpers import entity_registry as er
 
 from .coordinator import UnraidStorageData, UnraidSystemData
 from .docker_entities import DockerEntityKind, is_docker_resource_id
+from .vm_entities import VmEntityKind, is_vm_resource_id
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from homeassistant.core import HomeAssistant
 
     from .coordinator import (
         UnraidStorageCoordinator,
         UnraidSystemCoordinator,
     )
-    from .docker_entities import DockerEntityLifecycle, DockerRegistryKey
+    from .docker_entities import DockerEntityLifecycle
+    from .entity_lifecycle import RegistryKey
+    from .vm_entities import VmEntityLifecycle
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _InventoryObservation:
+    """Registry identities from one successful resource inventory."""
+
+    lifecycle: DockerEntityLifecycle | VmEntityLifecycle
+    present: set[RegistryKey]
+    matches: Callable[[str, str], bool]
+
 
 # ---------------------------------------------------------------------------
 # Transient-absence grace period
@@ -76,13 +92,6 @@ _missing_streaks: dict[str, int] = {}
 # "ups_" covers all UPS sensor/binary_sensor entities.
 # Hardware temperature entities are retained: telemetry is not hardware inventory.
 _DYNAMIC_RESOURCE_ID_PREFIXES: Final[tuple[str, ...]] = (
-    "vm_switch_",  # per-VM switch
-    "vm_status_",  # per-VM status sensor
-    "vm_force_stop_",  # per-VM force-stop button
-    "vm_reboot_",  # per-VM reboot button
-    "vm_pause_",  # per-VM pause button
-    "vm_resume_",  # per-VM resume button
-    "vm_reset_",  # per-VM reset button
     "disk_",  # all disk entities (all disk types and metrics)
     "share_",  # per-share usage sensor
     "ups_",  # all UPS sensor / binary_sensor entities
@@ -117,7 +126,7 @@ def _is_dynamic_resource_id(resource_id: str) -> bool:
 
     # Per-container stats/update sensors: container_{name}_{cpu|memory|...}
     # Only those NOT in the static allow-list count as dynamic.
-    if is_docker_resource_id(resource_id):
+    if is_docker_resource_id(resource_id) or is_vm_resource_id(resource_id):
         return True
 
     # Network-interface throughput and state sensors
@@ -136,7 +145,7 @@ def _get_dynamic_resource_category(resource_id: str) -> str | None:
     """Return the resource category for dynamic entities, or None."""
     if is_docker_resource_id(resource_id):
         return "containers"
-    if resource_id.startswith("vm_"):
+    if is_vm_resource_id(resource_id):
         return "vms"
     if resource_id.startswith(("ups_", "share_")):
         return "ups_devices" if resource_id.startswith("ups_") else "shares"
@@ -154,27 +163,22 @@ def _get_dynamic_resource_category(resource_id: str) -> str | None:
 def _build_system_dynamic_unique_ids(
     pfx: str,
     sys_data: UnraidSystemData,
+    *,
+    include_inventories: bool,
 ) -> set[str]:
     """Return dynamic unique_ids from system coordinator data."""
     expected: set[str] = set()
 
-    for container in sys_data.containers or []:
-        expected.update(
-            f"{pfx}{kind.resource_id(container.name)}" for kind in DockerEntityKind
-        )
+    if include_inventories:
+        for container in sys_data.containers or []:
+            expected.update(
+                f"{pfx}{kind.resource_id(container.name)}" for kind in DockerEntityKind
+            )
 
-    for vm in sys_data.vms or []:
-        expected.update(
-            {
-                f"{pfx}vm_switch_{vm.name}",
-                f"{pfx}vm_status_{vm.name}",
-                f"{pfx}vm_force_stop_{vm.name}",
-                f"{pfx}vm_reboot_{vm.name}",
-                f"{pfx}vm_pause_{vm.name}",
-                f"{pfx}vm_resume_{vm.name}",
-                f"{pfx}vm_reset_{vm.name}",
-            }
-        )
+        for vm in sys_data.vms or []:
+            expected.update(
+                f"{pfx}{kind.resource_id(vm.name)}" for kind in VmEntityKind
+            )
 
     for ups in sys_data.ups_devices or []:
         for suffix in (
@@ -255,6 +259,8 @@ def build_expected_dynamic_unique_ids(
     server_uuid: str,
     sys_data: UnraidSystemData,
     stor_data: UnraidStorageData,
+    *,
+    include_inventories: bool = True,
 ) -> frozenset[str]:
     """
     Return every unique_id that *should* exist for dynamic resources.
@@ -263,6 +269,7 @@ def build_expected_dynamic_unique_ids(
         server_uuid: The Unraid server UUID used as the unique_id prefix.
         sys_data:    Latest snapshot from the system coordinator.
         stor_data:   Latest snapshot from the storage coordinator.
+        include_inventories: Include containers and VMs.
 
     Returns:
         Frozenset of ``"{server_uuid}_{resource_id}"`` strings for all dynamic
@@ -270,7 +277,9 @@ def build_expected_dynamic_unique_ids(
 
     """
     pfx = f"{server_uuid}_"
-    expected = _build_system_dynamic_unique_ids(pfx, sys_data)
+    expected = _build_system_dynamic_unique_ids(
+        pfx, sys_data, include_inventories=include_inventories
+    )
     expected.update(_build_storage_dynamic_unique_ids(pfx, stor_data))
     return frozenset(expected)
 
@@ -286,8 +295,7 @@ def _collect_stale_dynamic_entities(
     registered: list[er.RegistryEntry],
     expected: frozenset[str],
     failed_categories: set[str],
-    docker_entities: DockerEntityLifecycle,
-    docker_expected: set[DockerRegistryKey] | None,
+    observations: dict[str, _InventoryObservation],
     storage_ready: bool,
 ) -> tuple[list[er.RegistryEntry], set[str]]:
     """Inspect registered entities and collect candidates for removal."""
@@ -308,18 +316,16 @@ def _collect_stale_dynamic_entities(
             continue
 
         category = _get_dynamic_resource_category(resource_id)
-        if category == "containers":
+        if category in ("containers", "vms"):
+            observation = observations.get(category)
             platform = entity_entry.entity_id.partition(".")[0]
-            if docker_expected is None or not is_docker_resource_id(
-                resource_id, platform
-            ):
+            if observation is None or not observation.matches(resource_id, platform):
                 continue
+            lifecycle = observation.lifecycle
             key = (platform, uid)
-            if key in docker_expected:
-                docker_entities.entity_seen(key)
-            elif storage_ready and docker_entities.is_stale(
-                key, _MISSING_STREAK_THRESHOLD
-            ):
+            if key in observation.present:
+                lifecycle.entity_seen(key)
+            elif storage_ready and lifecycle.is_stale(key, _MISSING_STREAK_THRESHOLD):
                 orphans.append(entity_entry)
             continue
         if not storage_ready:
@@ -362,6 +368,69 @@ def _collect_stale_dynamic_entities(
     return orphans, present_uids
 
 
+def _collect_inventory_observations(
+    system_coordinator: UnraidSystemCoordinator,
+    sys_data: UnraidSystemData,
+    server_prefix: str,
+    failed_categories: set[str],
+) -> dict[str, _InventoryObservation]:
+    """Prepare registry keys only when a fresh, successful inventory arrives."""
+    observations: dict[str, _InventoryObservation] = {}
+    for category, lifecycle, generation, resources, kinds, matches in (
+        (
+            "containers",
+            system_coordinator.docker_entities,
+            sys_data.docker_inventory_generation,
+            sys_data.containers,
+            DockerEntityKind,
+            is_docker_resource_id,
+        ),
+        (
+            "vms",
+            system_coordinator.vm_entities,
+            sys_data.vm_inventory_generation,
+            sys_data.vms,
+            VmEntityKind,
+            is_vm_resource_id,
+        ),
+    ):
+        if lifecycle.begin_observation(
+            generation, successful=category not in failed_categories
+        ):
+            observations[category] = _InventoryObservation(
+                lifecycle,
+                {
+                    kind.registry_key(server_prefix, resource.name)
+                    for resource in resources
+                    for kind in kinds
+                },
+                matches,
+            )
+    return observations
+
+
+def _retain_streaks(
+    registered: list[er.RegistryEntry],
+    present_uids: set[str],
+    observations: dict[str, _InventoryObservation],
+    *,
+    storage_ready: bool,
+) -> None:
+    """Drop counters for resources that returned or no longer have entries."""
+    if storage_ready:
+        registered_uids = {entry.unique_id for entry in registered}
+        for removed in _missing_streaks.keys() - (registered_uids - present_uids):
+            _missing_streaks.pop(removed)
+
+    if observations:
+        registered_keys = {
+            (entity.entity_id.partition(".")[0], entity.unique_id)
+            for entity in registered
+        }
+        for observation in observations.values():
+            observation.lifecycle.retain_streaks(registered_keys)
+
+
 def async_cleanup_stale_entities(
     hass: HomeAssistant,
     entry_id: str,
@@ -384,7 +453,7 @@ def async_cleanup_stale_entities(
         storage_coordinator:  Storage data coordinator.
 
     """
-    # A failed system update cannot supply a new Docker observation.
+    # A failed system update cannot supply a new inventory observation.
     if not system_coordinator.last_update_success:
         _LOGGER.debug(
             "Cleanup skipped for entry %s: system coordinator last update failed",
@@ -403,10 +472,12 @@ def async_cleanup_stale_entities(
     storage_ready = storage_coordinator.last_update_success and isinstance(
         stor_data, UnraidStorageData
     )
-    # Non-Docker deletion still requires both coordinators. Docker must also
-    # record successful presence during a storage outage to clear prior misses.
+    # Docker and VM inventories still record presence during a storage outage.
+    # All deletion requires healthy data from both coordinators.
     expected = (
-        build_expected_dynamic_unique_ids(server_uuid, sys_data, stor_data)
+        build_expected_dynamic_unique_ids(
+            server_uuid, sys_data, stor_data, include_inventories=False
+        )
         if storage_ready and isinstance(stor_data, UnraidStorageData)
         else frozenset()
     )
@@ -419,21 +490,11 @@ def async_cleanup_stale_entities(
                 cat for cat, success in statuses.items() if not success
             )
 
-    docker_entities = system_coordinator.docker_entities
-    fresh_docker_inventory = docker_entities.begin_observation(
-        sys_data.docker_inventory_generation,
-        successful="containers" not in failed_categories,
+    server_prefix = f"{server_uuid}_"
+    observations = _collect_inventory_observations(
+        system_coordinator, sys_data, server_prefix, failed_categories
     )
-    docker_expected = (
-        {
-            kind.registry_key(f"{server_uuid}_", container.name)
-            for container in sys_data.containers
-            for kind in DockerEntityKind
-        }
-        if fresh_docker_inventory
-        else None
-    )
-    if not storage_ready and docker_expected is None:
+    if not storage_ready and not observations:
         return
 
     # Collect registered entities for this config entry.
@@ -442,27 +503,15 @@ def async_cleanup_stale_entities(
 
     orphans, present_uids = _collect_stale_dynamic_entities(
         entry_id=entry_id,
-        server_uuid_prefix=f"{server_uuid}_",
+        server_uuid_prefix=server_prefix,
         registered=registered,
         expected=expected,
         failed_categories=failed_categories,
-        docker_entities=docker_entities,
-        docker_expected=docker_expected,
+        observations=observations,
         storage_ready=storage_ready,
     )
 
-    # Reset streaks for resources that came back and drop counters for
-    # entities that are no longer registered (removed above or elsewhere).
-    registered_uids = {e.unique_id for e in registered}
-    if storage_ready:
-        for uid in list(_missing_streaks):
-            if uid in present_uids or uid not in registered_uids:
-                _missing_streaks.pop(uid, None)
-
-    if fresh_docker_inventory:
-        docker_entities.retain_streaks(
-            {(e.entity_id.partition(".")[0], e.unique_id) for e in registered}
-        )
+    _retain_streaks(registered, present_uids, observations, storage_ready=storage_ready)
 
     if not orphans:
         return
@@ -481,9 +530,13 @@ def async_cleanup_stale_entities(
         )
         _missing_streaks.pop(entity_entry.unique_id, None)
         ent_reg.async_remove(entity_entry.entity_id)
-        docker_entities.entity_removed(
-            (entity_entry.entity_id.partition(".")[0], entity_entry.unique_id)
+        category = _get_dynamic_resource_category(
+            entity_entry.unique_id[len(server_prefix) :]
         )
+        if category is not None and (observation := observations.get(category)):
+            observation.lifecycle.entity_removed(
+                (entity_entry.entity_id.partition(".")[0], entity_entry.unique_id)
+            )
 
     # Remove any devices that are now empty after entity removal.
     _async_remove_orphaned_devices(hass, entry_id)

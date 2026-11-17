@@ -31,9 +31,9 @@ from .docker_entities import DockerEntityKind
 from .entity import (
     UnraidBaseEntity,
     UnraidCoordinator,
-    async_add_dynamic_resource_entities,
     deduplicate_disks,
 )
+from .vm_entities import VmEntityKind
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -406,7 +406,7 @@ class VirtualMachineSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
             server_uuid=server_uuid,
             server_name=server_name,
             # Use VM NAME for stable unique_id (not ID which may change)
-            resource_id=f"vm_switch_{self._vm_name}",
+            resource_id=VmEntityKind.SWITCH.resource_id(self._vm_name),
             name=f"VM {vm.name}",
         )
         self._attr_translation_placeholders = {"name": self._vm_name}
@@ -891,13 +891,10 @@ async def async_setup_entry(
         )
     )
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.vm_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="switch",
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.vms if system_coordinator.data else []
-            ),
-            get_key=lambda vm: vm.name,
             create_entities=lambda vm: [
                 VirtualMachineSwitch(
                     system_coordinator,

@@ -24,6 +24,7 @@ from .entity import (
     async_add_dynamic_resource_entities,
     deduplicate_disks,
 )
+from .vm_entities import VmEntityKind
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -515,7 +516,7 @@ class VMButtonBase(UnraidButtonEntity[UnraidSystemCoordinator]):
         server_uuid: str,
         server_name: str,
         vm: VmDomain,
-        action: str,
+        kind: VmEntityKind,
         server_info: dict | None = None,
     ) -> None:
         """
@@ -526,17 +527,18 @@ class VMButtonBase(UnraidButtonEntity[UnraidSystemCoordinator]):
             server_uuid: Server UUID for unique_id
             server_name: Server name for device info
             vm: VM model from coordinator data
-            action: Action identifier (e.g., "force_stop", "reboot")
+            kind: VM button kind
             server_info: Optional server info dict for device registration
 
         """
         self._vm_name = vm.name
         self._vm_id = vm.id
+        action = kind.name.lower()
         super().__init__(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"vm_{action}_{self._vm_name}",
+            resource_id=kind.resource_id(self._vm_name),
             name=f"{action.replace('_', ' ').title()} VM {vm.name}",
             server_info=server_info,
         )
@@ -558,7 +560,12 @@ class VMForceStopButton(VMButtonBase):
     ) -> None:
         """Initialize VM force stop button."""
         super().__init__(
-            coordinator, server_uuid, server_name, vm, "force_stop", server_info
+            coordinator,
+            server_uuid,
+            server_name,
+            vm,
+            VmEntityKind.FORCE_STOP,
+            server_info,
         )
 
     async def async_press(self) -> None:
@@ -593,7 +600,7 @@ class VMRebootButton(VMButtonBase):
     ) -> None:
         """Initialize VM reboot button."""
         super().__init__(
-            coordinator, server_uuid, server_name, vm, "reboot", server_info
+            coordinator, server_uuid, server_name, vm, VmEntityKind.REBOOT, server_info
         )
 
     async def async_press(self) -> None:
@@ -628,7 +635,7 @@ class VMPauseButton(VMButtonBase):
     ) -> None:
         """Initialize VM pause button."""
         super().__init__(
-            coordinator, server_uuid, server_name, vm, "pause", server_info
+            coordinator, server_uuid, server_name, vm, VmEntityKind.PAUSE, server_info
         )
 
     async def async_press(self) -> None:
@@ -663,7 +670,7 @@ class VMResumeButton(VMButtonBase):
     ) -> None:
         """Initialize VM resume button."""
         super().__init__(
-            coordinator, server_uuid, server_name, vm, "resume", server_info
+            coordinator, server_uuid, server_name, vm, VmEntityKind.RESUME, server_info
         )
 
     async def async_press(self) -> None:
@@ -698,7 +705,7 @@ class VMResetButton(VMButtonBase):
     ) -> None:
         """Initialize VM reset button."""
         super().__init__(
-            coordinator, server_uuid, server_name, vm, "reset", server_info
+            coordinator, server_uuid, server_name, vm, VmEntityKind.RESET, server_info
         )
 
     async def async_press(self) -> None:
@@ -1030,13 +1037,10 @@ async def async_setup_entry(
     # VM control buttons provide actions not available through the VM switch:
     # force stop, reboot, pause/resume, and hard reset.
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.vm_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="button",
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.vms if system_coordinator.data else []
-            ),
-            get_key=lambda vm: vm.name,
             create_entities=lambda vm: [
                 VMForceStopButton(
                     system_coordinator, server_uuid, server_name, vm, server_info

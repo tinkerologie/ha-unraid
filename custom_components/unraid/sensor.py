@@ -28,6 +28,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from unraid_api import format_bytes
 
+from .array_operation import ArrayOperationKind
 from .const import (
     CONF_UPS_CAPACITY_VA,
     CONF_UPS_NOMINAL_POWER,
@@ -48,6 +49,7 @@ from .entity import (
     async_delegate_entity_id_changed,
     deduplicate_disks,
 )
+from .vm_entities import VmEntityKind
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -1324,6 +1326,62 @@ class ParityProgressSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
         if data is None or data.parity_status is None:
             return None
         return data.parity_status.progress
+
+
+class ArrayOperationSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
+    """Sensor that identifies the work in progress on the array."""
+
+    _attr_translation_key = "array_operation"
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(
+        self, coordinator: UnraidStorageCoordinator, server_uuid: str, server_name: str
+    ) -> None:
+        """Initialize the array operation sensor."""
+        super().__init__(
+            coordinator, server_uuid, server_name, "array_operation", "Array operation"
+        )
+        self._attr_options = [kind.value for kind in ArrayOperationKind]
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the kind of operation reported by the server."""
+        data: UnraidStorageData | None = self.coordinator.data
+        return data.operation.kind if data else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the server action and pause state."""
+        data: UnraidStorageData | None = self.coordinator.data
+        if data is None:
+            return {}
+        return {"action": data.operation.action, "paused": data.operation.paused}
+
+
+class ArrayOperationProgressSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
+    """Sensor for the server-reported progress of the active operation."""
+
+    _attr_translation_key = "array_operation_progress"
+    _attr_native_unit_of_measurement = UnitOfRatio.PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self, coordinator: UnraidStorageCoordinator, server_uuid: str, server_name: str
+    ) -> None:
+        """Initialize the array operation progress sensor."""
+        super().__init__(
+            coordinator,
+            server_uuid,
+            server_name,
+            "array_operation_progress",
+            "Array operation progress",
+        )
+
+    @property
+    def native_value(self) -> int | None:
+        """Return progress when the server reports active work."""
+        data: UnraidStorageData | None = self.coordinator.data
+        return data.operation.progress if data else None
 
 
 class LastParityCheckDateSensor(UnraidSensorEntity[UnraidStorageCoordinator]):
@@ -3608,7 +3666,7 @@ class VirtualMachineStatusSensor(UnraidSensorEntity[UnraidSystemCoordinator]):
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"vm_status_{self._vm_name}",
+            resource_id=VmEntityKind.STATUS.resource_id(self._vm_name),
             name=f"VM {vm.name} Status",
             server_info=server_info,
         )
@@ -3721,6 +3779,8 @@ async def async_setup_entry(
             ArrayStateSensor(storage_coordinator, server_uuid, server_name),
             ArrayUsageSensor(storage_coordinator, server_uuid, server_name),
             ParityProgressSensor(storage_coordinator, server_uuid, server_name),
+            ArrayOperationSensor(storage_coordinator, server_uuid, server_name),
+            ArrayOperationProgressSensor(storage_coordinator, server_uuid, server_name),
             ParitySpeedSensor(storage_coordinator, server_uuid, server_name),
             ParityElapsedSensor(storage_coordinator, server_uuid, server_name),
             ParityEstimatedSensor(storage_coordinator, server_uuid, server_name),
@@ -3854,13 +3914,10 @@ async def async_setup_entry(
     # Virtual machine status sensors. VMs created after setup get sensors on
     # the next coordinator refresh — no reload needed.
     entry.async_on_unload(
-        async_add_dynamic_resource_entities(
+        system_coordinator.vm_entities.async_register_platform(
             coordinator=system_coordinator,
+            platform="sensor",
             async_add_entities=async_add_entities,
-            get_resources=lambda: (
-                system_coordinator.data.vms if system_coordinator.data else []
-            ),
-            get_key=lambda vm: vm.name,
             create_entities=lambda vm: [
                 VirtualMachineStatusSensor(
                     system_coordinator,

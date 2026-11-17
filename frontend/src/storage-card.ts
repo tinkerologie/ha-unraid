@@ -16,6 +16,15 @@ import {
 } from "./icons";
 import { registerDashboardCard } from "./register-dashboard-card";
 
+const ARRAY_OPERATION_LABELS = new Map<string, string>([
+  ["parity_check", "Parity Check"],
+  ["read_check", "Read Check"],
+  ["parity_sync", "Parity Sync"],
+  ["data_rebuild", "Data Rebuild"],
+  ["disk_clear", "Disk Clear"],
+  ["other", "Array Operation"],
+]);
+
 export type DiskHealthLevel = "healthy" | "warning" | "error";
 
 export interface DiskItem {
@@ -343,7 +352,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
   private getParityViewState(): {
     validity: "valid" | "invalid" | "unknown";
     activity: "idle" | "running" | "paused" | "unknown";
-    progressPct: number;
+    progressPct: number | null;
   } {
     const parityValid = this.getEntity("parity_valid", "binary_sensor");
     const parityRunning = this.getEntity("parity_check_running", "binary_sensor");
@@ -400,16 +409,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
       }
     }
 
-    // Progress: only used for display percentage when numeric
-    let progressPct = 0;
-    if (this.isUsable(parityProgress)) {
-      const val = Number(parityProgress!.state);
-      if (!isNaN(val)) {
-        progressPct = Math.round(val);
-      }
-    }
-
-    return { validity, activity, progressPct };
+    return { validity, activity, progressPct: this.percentValue(parityProgress) };
   }
 
   protected override render(): TemplateResult {
@@ -423,8 +423,25 @@ export class UnraidStorageCard extends BaseUnraidCard {
     const totalStr = this.attributeText(arrayUsage, ["total", "capacity_total"]);
     const freeStr = this.attributeText(arrayUsage, ["free", "capacity_free"]);
 
-    const { validity, activity, progressPct } = this.getParityViewState();
+    const parity = this.getParityViewState();
+    const { validity } = parity;
+    const operation = this.getEntity("array_operation", "sensor");
+    const operationKind = operation?.state;
+    const operationLabel = ARRAY_OPERATION_LABELS.get(operationKind ?? "");
+    let { activity, progressPct } = parity;
+    if (operationLabel) {
+      activity = operation?.attributes.paused === true ? "paused" : "running";
+      const operationProgress = this.getEntity("array_operation_progress", "sensor");
+      if (operationProgress) progressPct = this.percentValue(operationProgress);
+    } else if (operationKind === "idle") {
+      activity = "idle";
+    }
     const isChecking = activity === "running" || activity === "paused";
+    // The switch uses the array snapshot. Hide it if the separate Vars read disagrees.
+    const showParityControl =
+      (!operationLabel && operationKind !== "idle") ||
+      ((operationKind === "idle" || operationKind === "parity_check" || operationKind === "read_check") &&
+        paritySwitch?.state === (isChecking ? "on" : "off"));
 
     let badgeClass = "badge-standby";
     let badgeText = "Parity Status Unknown";
@@ -449,10 +466,10 @@ export class UnraidStorageCard extends BaseUnraidCard {
     `;
 
     let parityTitle: string;
-    if (activity === "running") {
-      parityTitle = `Parity Check In Progress (${progressPct}%)`;
-    } else if (activity === "paused") {
-      parityTitle = `Parity Check Paused (${progressPct}%)`;
+    if (isChecking) {
+      const activityLabel = activity === "paused" ? "Paused" : "In Progress";
+      const progressLabel = progressPct === null ? "" : ` (${progressPct}%)`;
+      parityTitle = `${operationLabel ?? "Parity Check"} ${activityLabel}${progressLabel}`;
     } else if (validity === "valid") {
       parityTitle = "Parity Status: Valid";
     } else if (validity === "invalid") {
@@ -528,7 +545,7 @@ export class UnraidStorageCard extends BaseUnraidCard {
           </div>
           <div class="row-right">
             ${
-              paritySwitch
+              paritySwitch && showParityControl
                 ? html`
                     <button
                       type="button"

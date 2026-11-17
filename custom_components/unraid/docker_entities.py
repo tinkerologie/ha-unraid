@@ -1,22 +1,16 @@
-"""Discover Docker entities and track their absence across fresh observations."""
+"""Stable Docker entity identities and inventory selection."""
 
 from __future__ import annotations
 
-import logging
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from unraid_api.models import DockerContainer
+
+from .entity_lifecycle import EntityLifecycle
+
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from homeassistant.helpers.entity import Entity
-    from unraid_api.models import DockerContainer
-
-    from .coordinator import UnraidSystemCoordinator
-
-_LOGGER = logging.getLogger(__name__)
-
-type DockerRegistryKey = tuple[str, str]
+    from .entity_lifecycle import RegistryKey
 
 
 def container_name(name: str) -> str:
@@ -45,7 +39,7 @@ class DockerEntityKind(Enum):
         _, prefix, suffix = self.value
         return f"{prefix}{container_name(name)}{suffix}"
 
-    def registry_key(self, server_prefix: str, name: str) -> DockerRegistryKey:
+    def registry_key(self, server_prefix: str, name: str) -> RegistryKey:
         """Build the platform-scoped registry identity."""
         platform, _, _ = self.value
         return platform, f"{server_prefix}{self.resource_id(name)}"
@@ -66,88 +60,13 @@ def is_docker_resource_id(resource_id: str, platform: str | None = None) -> bool
     return any(kind.matches(resource_id, platform) for kind in DockerEntityKind)
 
 
-class DockerEntityLifecycle:
-    """Own discovery and absence state for one config entry."""
+class DockerEntityLifecycle(EntityLifecycle[DockerContainer]):
+    """Select inventory and name keys for Docker resources."""
 
     def __init__(self) -> None:
-        """Initialize discovery and absence tracking."""
-        self._platforms: dict[object, dict[str, frozenset[DockerRegistryKey]]] = {}
-        self._observation = 0
-        self._missing: dict[DockerRegistryKey, int] = {}
-
-    def async_register_platform(
-        self,
-        coordinator: UnraidSystemCoordinator,
-        async_add_entities: Callable[[list[Entity]], None],
-        create_entities: Callable[[DockerContainer], list[Entity]],
-        *,
-        platform: str,
-    ) -> Callable[[], None]:
-        """Create entities on discovery and return the listener unsubscriber."""
-        known: dict[str, frozenset[DockerRegistryKey]] = {}
-        registration = object()
-        self._platforms[registration] = known
-
-        def sync() -> None:
-            data = coordinator.data
-            if data is None:
-                return
-            pending: list[Entity] = []
-            discovered: dict[str, frozenset[DockerRegistryKey]] = {}
-            for container in data.containers:
-                key = container_name(container.name)
-                if key in known or key in discovered:
-                    continue
-                try:
-                    entities = create_entities(container)
-                except Exception:
-                    _LOGGER.exception("Failed to create Docker entities for %s", key)
-                    continue
-                pending.extend(entities)
-                discovered[key] = frozenset(
-                    (platform, uid)
-                    for entity in entities
-                    if (uid := entity.unique_id) is not None
-                )
-            if pending:
-                async_add_entities(pending)
-                known.update(discovered)
-
-        sync()
-        unsubscribe = coordinator.async_add_listener(sync)
-
-        def remove_listener() -> None:
-            unsubscribe()
-            self._platforms.pop(registration, None)
-
-        return remove_listener
-
-    def begin_observation(self, generation: int, *, successful: bool) -> bool:
-        """Accept a successful inventory generation once for cleanup."""
-        if not successful or generation <= self._observation:
-            return False
-        self._observation = generation
-        return True
-
-    def entity_seen(self, key: DockerRegistryKey) -> None:
-        """Reset absence evidence when the resource reappears."""
-        self._missing.pop(key, None)
-
-    def is_stale(self, key: DockerRegistryKey, threshold: int) -> bool:
-        """Count one fresh absence of a registered entity."""
-        streak = self._missing.get(key, 0) + 1
-        self._missing[key] = streak
-        return streak >= threshold
-
-    def retain_streaks(self, registered: set[DockerRegistryKey]) -> None:
-        """Drop absence counters for entities no longer registered."""
-        for uid in self._missing.keys() - registered:
-            self._missing.pop(uid)
-
-    def entity_removed(self, key: DockerRegistryKey) -> None:
-        """Allow platforms to rediscover an entity after registry pruning."""
-        self._missing.pop(key, None)
-        for known in self._platforms.values():
-            for name, ids in list(known.items()):
-                if key in ids:
-                    del known[name]
+        """Track Docker names without their leading slash."""
+        super().__init__(
+            "Docker",
+            lambda data: data.containers,
+            lambda container: container_name(container.name),
+        )

@@ -41,7 +41,7 @@ def _sensor_classes_with(attr: str, value: object) -> list[tuple[type, object]]:
 def test_percentage_sensors_use_unit_of_ratio_enum() -> None:
     """Percentage sensors use UnitOfRatio.PERCENTAGE, which still reads "%"."""
     classes = _sensor_classes_with("native_unit_of_measurement", "%")
-    assert len(classes) == 13
+    assert len(classes) == 14
     for _cls, raw in classes:
         assert raw is UnitOfRatio.PERCENTAGE
     assert UnitOfRatio.PERCENTAGE == "%"

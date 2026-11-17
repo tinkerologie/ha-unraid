@@ -88,6 +88,21 @@
       "array_usage": {
         "default": "mdi:database"
       },
+      "array_operation": {
+        "default": "mdi:harddisk",
+        "state": {
+          "idle": "mdi:harddisk",
+          "parity_check": "mdi:shield-check-outline",
+          "read_check": "mdi:magnify-scan",
+          "parity_sync": "mdi:sync",
+          "data_rebuild": "mdi:harddisk-plus",
+          "disk_clear": "mdi:eraser",
+          "other": "mdi:progress-wrench"
+        }
+      },
+      "array_operation_progress": {
+        "default": "mdi:progress-clock"
+      },
       "parity_progress": {
         "default": "mdi:progress-check"
       },
