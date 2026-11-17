@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -37,6 +37,9 @@ from custom_components.unraid.coordinator import (
     UnraidStorageCoordinator,
     UnraidSystemCoordinator,
 )
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 # =============================================================================
 # Helper Functions to Create Test Models
@@ -171,6 +174,7 @@ def mock_api_client():
         return_value=make_notification_overview()
     )
     client.typed_get_containers_safe = AsyncMock(return_value=[])
+    client.get_container_update_statuses = AsyncMock(return_value=[])
     client.get_network_metrics = AsyncMock(return_value=[])
     client.typed_get_vms = AsyncMock(return_value=[])
     client.typed_get_ups_devices = AsyncMock(return_value=[])
@@ -1940,6 +1944,20 @@ async def test_system_optional_queries_fail_gracefully(
     coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
 
     assert await getattr(coordinator, method)() == expected
+
+
+@pytest.mark.asyncio
+async def test_docker_update_status_auth_failure(
+    hass: HomeAssistant, mock_api_client: MagicMock, mock_config_entry: MagicMock
+) -> None:
+    """Start reauthentication when the status query rejects the credentials."""
+    mock_api_client.get_container_update_statuses.side_effect = (
+        UnraidAuthenticationError("Invalid API key")
+    )
+    coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
+
+    with pytest.raises(ConfigEntryAuthFailed, match="Authentication failed"):
+        await coordinator._async_update_data()
 
 
 @pytest.mark.asyncio

@@ -16,7 +16,9 @@ All AI coding agents must follow these steps.
 8. Open the PR as a draft (`gh pr create --draft`).
 9. Wait for all CI checks on the draft PR to pass.
 10. Complete the required verification. Then mark the PR as ready for review (`gh pr ready`).
-11. Review and resolve all CodeRabbit and GitHub Copilot comments. Check that Codecov shows zero errors, zero warnings, and no decrease in coverage.
+11. Use only the free tiers of CodeRabbit and Greptile for automated PR reviews.
+    Resolve their actionable comments.
+    Check that Codecov shows zero errors, zero warnings, and no decrease in coverage.
 
 
 > **Single source of truth** for all AI agents working on this codebase.

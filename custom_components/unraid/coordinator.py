@@ -7,7 +7,8 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import timedelta
-from functools import partial
+from functools import cached_property, partial
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -55,13 +56,17 @@ from unraid_api.models import (
 
 from .const import (
     DOCKER_POLL_INTERVAL,
+    DOCKER_UPDATE_STATUS_UNKNOWN,
     DOMAIN,
     INFRA_POLL_INTERVAL,
     STORAGE_POLL_INTERVAL,
     SYSTEM_POLL_INTERVAL,
 )
-from .docker_entities import DockerEntityLifecycle
+from .docker_entities import DockerEntityLifecycle, container_name
 from .notification_events import NotificationEventDelivery
+
+if TYPE_CHECKING:
+    from unraid_api.models import ContainerUpdateStatus
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,6 +87,23 @@ class UnraidSystemData:
     network_interfaces: list[InfoNetworkInterface] = field(default_factory=list)
     plugin_operations: list[PluginInstallOperation] = field(default_factory=list)
     docker_inventory_generation: int = 0
+    docker_update_statuses: tuple[ContainerUpdateStatus, ...] = ()
+
+    @cached_property
+    def _unknown_docker_update_names(self) -> frozenset[str]:
+        """Index explicit unknowns, including duplicates with conflicting statuses."""
+        return frozenset(
+            container_name(status.name)
+            for status in self.docker_update_statuses
+            if status.updateStatus is None
+            or status.updateStatus.upper() == DOCKER_UPDATE_STATUS_UNKNOWN
+        )
+
+    def container_update_available(self, container: DockerContainer) -> bool | None:
+        """Use an explicit unknown status or fall back to the inventory flag."""
+        if container_name(container.name) in self._unknown_docker_update_names:
+            return None
+        return container.isUpdateAvailable
 
 
 @dataclass
@@ -187,6 +209,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         # entities stay populated. async_request_docker_refresh() forces an
         # immediate re-fetch after a container control action.
         self._cached_containers: list[DockerContainer] = []
+        self._cached_docker_update_statuses: tuple[ContainerUpdateStatus, ...] = ()
         self._last_docker_refresh: float = -DOCKER_POLL_INTERVAL
         self._force_docker_refresh: bool = True
         self._docker_inventory_generation = 0
@@ -210,6 +233,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         # False if failed).
         self._optional_query_status: dict[str, bool] = {
             "containers": True,
+            "container_update_statuses": True,
             "vms": True,
             "ups_devices": True,
             "network_metrics": True,
@@ -252,6 +276,18 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
             raise
         except (UnraidAPIError, UnraidConnectionError, UnraidTimeoutError) as err:
             _LOGGER.debug("Docker data not available: %s", err)
+            return None
+
+    async def _query_optional_container_update_statuses(
+        self,
+    ) -> list[ContainerUpdateStatus] | None:
+        """Fetch WebGUI update statuses when the optional API field is available."""
+        try:
+            return await self.api_client.get_container_update_statuses()
+        except UnraidAuthenticationError:
+            raise
+        except UnraidAPIError as err:
+            _LOGGER.debug("Container update statuses not available: %s", err)
             return None
 
     async def _query_optional_vms(self) -> list[VmDomain] | None:
@@ -474,12 +510,15 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
             time.monotonic() - self._last_docker_refresh >= DOCKER_POLL_INTERVAL
         )
         if fetch_docker:
+            # Consume this request before I/O so a newer request can queue a refresh.
+            self._force_docker_refresh = False
             (
-                (docker_result, vms_result, ups_result, mover_active),
+                (docker_result, update_statuses, vms_result, ups_result, mover_active),
                 (network_result, network_ifaces_result, plugin_ops_result),
             ) = await asyncio.gather(
                 asyncio.gather(
                     self._query_optional_docker(),
+                    self._query_optional_container_update_statuses(),
                     self._query_optional_vms(),
                     self._query_optional_ups(),
                     self._query_optional_mover_status(),
@@ -494,8 +533,12 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
             if docker_result is not None:
                 self._cached_containers = docker_result
                 self._docker_inventory_generation += 1
+            self._optional_query_status["container_update_statuses"] = (
+                update_statuses is not None
+            )
+            if update_statuses is not None:
+                self._cached_docker_update_statuses = tuple(update_statuses)
             self._last_docker_refresh = time.monotonic()
-            self._force_docker_refresh = False
         else:
             (
                 vms_result,
@@ -624,6 +667,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
                 network_interfaces=network_interfaces,
                 plugin_operations=plugin_operations,
                 docker_inventory_generation=self._docker_inventory_generation,
+                docker_update_statuses=self._cached_docker_update_statuses,
             )
 
         except UnraidAuthenticationError as err:

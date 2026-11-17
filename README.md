@@ -436,6 +436,13 @@ views:
 - Check Unraid server responsiveness
 - View integration diagnostics for coordinator status
 
+### Docker Update Status Is Unknown
+
+If Unraid cannot determine if a container update is available, the Docker update entity shows `unknown`.
+This can occur with Docker Compose containers.
+If the **Check Container Updates** button is available, press it to ask Unraid to check again.
+When the update status is unknown, use the Docker tab in Unraid to check for and install updates.
+
 ### Reauthentication
 
 If your API key becomes invalid:

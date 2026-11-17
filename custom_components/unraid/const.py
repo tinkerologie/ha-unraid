@@ -110,6 +110,7 @@ DOCKER_UPDATE_NOTE_LINKS: Final = (
 DOCKER_UPDATE_NO_UPDATE: Final = "No update reported"
 DOCKER_UPDATE_UNKNOWN: Final = "Unknown"
 DOCKER_UPDATE_UNAVAILABLE: Final = "Unavailable"
+DOCKER_UPDATE_STATUS_UNKNOWN: Final = "UNKNOWN"
 
 # =============================================================================
 # Polling Intervals (fixed per HA Core guidelines - not user-configurable)

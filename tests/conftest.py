@@ -418,6 +418,7 @@ def create_mock_unraid_client(
     # Docker containers (returns list of DockerContainer models)
     client.get_docker_containers = AsyncMock(return_value=containers or [])
     client.typed_get_containers_safe = client.get_docker_containers
+    client.get_container_update_statuses = AsyncMock(return_value=[])
     client.get_network_metrics = AsyncMock(return_value=[])
 
     # VMs (returns list of VmDomain models)
