@@ -5,6 +5,11 @@ on:
     - cron: 41 1 * * *
       timezone: Australia/Brisbane
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Preview stale decisions without labeling, commenting or closing
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -14,4 +19,6 @@ jobs:
       actions: write # actions/stale saves its progress in the Actions cache between capped runs
       issues: write # label, comment on, and close stale issues
       pull-requests: write # label, comment on, and close stale pull requests
-    uses: tinkerologie/.github/.github/workflows/stale.yml@bf6df49397202ecd15229b8f19b5ac9c4fb4e46d # shared governance
+    uses: tinkerologie/.github/.github/workflows/stale.yml@7e5c22ca873253fd90c454d2d4175930fad0557b # protected workflow-state labels
+    with:
+      debug-only: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}

@@ -550,5 +550,4 @@ These rules apply to each contributor, including AI coding agents. The full org-
    Do not decrease coverage targets or add coverage ignore rules to pass the check.
 8. **Stale items.** The bot adds `stale` to issues and PRs after 14 days without activity.
    It closes them 30 days later if there is no new activity. The bot skips these labels.
-   - Issues: `pinned`, `security`, `confirmed`, `work-in-progress`, `priority: critical`, `priority: high`, `ready-for-agent`, `ready-for-human`, `blocked`.
-   - Pull requests: `pinned`, `security`, `work-in-progress`.
+   - Stale exemptions follow the [organisation's protected-label policy](https://github.com/tinkerologie/.github/blob/main/GOVERNANCE.md#5-stale-items), including Matt Pocock workflow states. Repository-specific exemptions are in `.github/workflows/stale.yml`.
