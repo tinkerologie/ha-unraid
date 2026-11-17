@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   auto_tag:
+    timeout-minutes: 60
     name: Tag Release
     if: startsWith(github.ref, 'refs/heads/')
     runs-on: ubuntu-latest
@@ -159,6 +160,7 @@ jobs:
   # tag commit and signs a build provenance attestation. publish only verifies
   # and uploads those exact bytes.
   build:
+    timeout-minutes: 60
     name: Build and attest
     needs: auto_tag
     if: >-
@@ -357,6 +359,7 @@ jobs:
           retention-days: 7
 
   publish:
+    timeout-minutes: 60
     name: Publish
     needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' }}

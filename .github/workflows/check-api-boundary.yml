@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   api-boundary:
+    timeout-minutes: 10
     name: API Boundary
     runs-on: ubuntu-latest
     steps:

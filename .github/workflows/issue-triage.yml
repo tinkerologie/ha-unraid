@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   triage:
+    timeout-minutes: 10
     name: Triage
     runs-on: ubuntu-latest
     permissions:

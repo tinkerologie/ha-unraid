@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   hacs:
+    timeout-minutes: 30
     name: HACS
     runs-on: ubuntu-latest
     steps:
@@ -28,6 +29,7 @@ jobs:
           category: integration
 
   validate:
+    timeout-minutes: 30
     name: Hassfest
     runs-on: ubuntu-latest
     steps:

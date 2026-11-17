@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   check:
+    timeout-minutes: 10
     name: Check (${{ matrix.channel }})
     runs-on: ubuntu-latest
     permissions:
@@ -165,6 +166,7 @@ jobs:
           fi
 
   report:
+    timeout-minutes: 10
     name: Report (${{ matrix.channel }})
     needs: check
     # Only runs on main maintain the issues; a dispatch from a branch just checks.

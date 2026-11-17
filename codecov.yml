@@ -2,8 +2,11 @@
 # Reference: https://docs.codecov.com/docs/codecov-yaml
 
 codecov:
-  require_ci_to_pass: true
+  require_ci_to_pass: false
 
+  strict_yaml_branch: main
+  notify:
+    wait_for_ci: false
 coverage:
   precision: 2
   round: down
@@ -20,7 +23,9 @@ coverage:
         threshold: 0%
         informational: false
 
+        if_not_found: failure
 comment:
   layout: "reach,diff,flags,files,footer"
   behavior: default
   require_changes: false
+github_checks: false

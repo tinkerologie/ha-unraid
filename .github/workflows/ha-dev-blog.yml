@@ -24,6 +24,7 @@ concurrency:
 
 jobs:
   scan:
+    timeout-minutes: 10
     name: Scan recent posts
     runs-on: ubuntu-latest
     permissions:
@@ -63,6 +64,7 @@ jobs:
           retention-days: 14
 
   report:
+    timeout-minutes: 10
     name: Open issues
     needs: scan
     # Only runs on main open issues; a dispatch from a branch just scans.

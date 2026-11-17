@@ -1,0 +1,42 @@
+name: Coverage Gate
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  status:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: PR number, or 0 for all open PRs
+        type: number
+        default: 0
+      dry-run:
+        description: Report without creating or updating checks
+        type: boolean
+        default: false
+permissions: {}
+concurrency:
+  group: coverage-gate-${{ github.event.pull_request.head.sha || github.event.sha || github.event.workflow_run.head_sha || github.run_id }}
+  cancel-in-progress: false
+jobs:
+  coverage:
+    if: (github.event_name != 'status' || (github.event.context == 'codecov/patch' && github.event.state != 'pending' && !contains(github.event.branches.*.name,
+      'main'))) && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request')
+    uses: tinkerologie/.github/.github/workflows/coverage-gate.yml@bf6df49397202ecd15229b8f19b5ac9c4fb4e46d # shared governance
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+      checks: write
+    with:
+      source-pattern: ^custom_components/.*\.py$
+      pr-number: ${{ fromJSON(inputs.pr-number || 0) }}
+      dry-run: ${{ inputs.dry-run == true }}
