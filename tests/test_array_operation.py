@@ -48,7 +48,7 @@ def test_classify_array_operation(
 def test_operation_is_known_with_missing_parity_status() -> None:
     """Keep the operation kind when the array has no progress or pause state."""
     variables = Vars(mdResyncAction="clear", mdResyncPos="1")
-    for parity in (None, ParityCheck()):
+    for parity in (None, ParityCheck(progress=100)):
         snapshot = ArrayOperation.from_snapshot(variables, parity)
         assert snapshot.kind == "disk_clear"
         assert snapshot.progress is None

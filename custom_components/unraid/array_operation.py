@@ -72,17 +72,19 @@ class ArrayOperation:
             return cls()
 
         kind = _classify(variables.md_resync_pos, variables.md_resync_action)
-        active = kind not in (None, ArrayOperationKind.IDLE)
         paused = None
+        progress = None
         if kind is ArrayOperationKind.IDLE:
             paused = False
-        elif active and parity and parity.status:
-            paused = parity.status.casefold() == "paused"
+        elif kind is not None and parity and parity.is_running:
+            # The array read can still describe a finished job when Vars sees a new one.
+            paused = (parity.status or "").casefold() == "paused"
+            progress = parity.progress
         return cls(
             kind=kind,
             action=variables.md_resync_action,
             paused=paused,
-            progress=parity.progress if active and parity else None,
+            progress=progress,
             md_resync_pos=variables.md_resync_pos,
             md_resync=variables.md_resync,
             md_state=variables.md_state,

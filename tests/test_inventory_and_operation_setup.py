@@ -148,6 +148,7 @@ async def test_array_operation_transitions(
 
         for position, status, percent, expected, progress, paused in (
             ("0", "COMPLETED", 100, "idle", "unknown", False),
+            ("1", "COMPLETED", 100, "data_rebuild", "unknown", None),
             ("1", "RUNNING", 0, "data_rebuild", "0", False),
             ("500", "paused", 40, "data_rebuild", "40", True),
             ("0", "COMPLETED", 100, "idle", "unknown", False),
@@ -169,8 +170,8 @@ async def test_array_operation_transitions(
             assert progress_state is not None
             assert kind_state.state == expected
             assert kind_state.attributes["action"] == "recon D8"
-            assert kind_state.attributes["paused"] is paused
             assert progress_state.state == progress
+            assert kind_state.attributes["paused"] is paused
             parity_state = hass.states.get(parity_id)
             assert parity_state is not None
             assert parity_state.state == str(percent)
