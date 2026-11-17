@@ -296,31 +296,8 @@ jobs:
             echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for details." >> build/RELEASE_NOTES.md
           fi
 
-          # Add installation instructions
+          # Add download verification instructions
           {
-            echo ""
-            echo "---"
-            echo ""
-            echo "## 📦 Installation"
-            echo ""
-            echo "### Via HACS (Recommended)"
-            echo ""
-            echo "1. Open HACS in Home Assistant"
-            echo "2. Go to **Integrations**"
-            echo "3. Click the **⋮** menu → **Custom repositories**"
-            echo "4. Add this repository: \`https://github.com/${GITHUB_REPOSITORY}\`"
-            echo "5. Category: **Integration**"
-            echo "6. Click **Add**"
-            echo "7. Search for **Unraid**"
-            echo "8. Click **Download**"
-            echo "9. Restart Home Assistant"
-            echo ""
-            echo "### Manual Installation"
-            echo ""
-            echo "1. Download \`unraid.zip\`"
-            echo "2. Extract it into \`config/custom_components/unraid/\` (the integration's files are at the root of the zip)"
-            echo "3. Restart Home Assistant"
-            echo "4. Add the integration via **Settings** → **Devices & Services** → **Add Integration**"
             echo ""
             echo "---"
             echo ""
