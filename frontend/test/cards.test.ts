@@ -395,6 +395,57 @@ describe("Unraid Custom Cards", () => {
     document.body.removeChild(card);
   });
 
+  it.each([
+    ["data_rebuild", true, "40", "Data Rebuild Paused (40%)", false],
+    ["parity_sync", false, "unknown", "Parity Sync In Progress", false],
+    ["disk_clear", false, "0", "Disk Clear In Progress (0%)", false],
+    ["other", false, "unknown", "Array Operation In Progress", false],
+    ["read_check", false, "3", "Read Check In Progress (3%)", true],
+    ["parity_check", false, "3", "Parity Check In Progress (3%)", true],
+    ["parity_sync", false, undefined, "Parity Sync In Progress (50%)", false],
+    ["unavailable", false, "unknown", "Parity Check In Progress (50%)", true],
+    ["idle", false, "unknown", "Parity Status: Valid", false],
+    ["idle", false, "unknown", "Parity Status: Valid", false, "off"],
+    ["parity_check", false, "3", "Parity Check In Progress (3%)", false, "off"],
+  ])("renders the array operation %s with the appropriate control", async (
+    operation, paused, progress, title, showControl, switchState?: string
+  ) => {
+    const card = new UnraidStorageCard();
+    card.setConfig({ type: "custom:unraid-storage-card" });
+    const hass = createMockHass();
+    for (const [id, state, attributes] of [
+      ["sensor.cube_array_operation", operation, { paused }],
+      ["sensor.cube_array_operation_progress", progress, {}],
+      ["binary_sensor.cube_parity_check_running", "on", { status: "running" }],
+      ["sensor.cube_parity_progress", "50", {}],
+      ["switch.cube_parity_check", switchState ?? "on", {}],
+    ] as const) {
+      if (state !== undefined) {
+        hass.states[id] = {
+          entity_id: id, state, attributes, last_changed: "", last_updated: "",
+        };
+      }
+    }
+    card.hass = hass;
+    document.body.appendChild(card);
+    try {
+      await card.updateComplete;
+      expect(card.shadowRoot?.textContent).toContain(title);
+      expect(card.shadowRoot?.textContent).toContain("Parity Valid");
+      if (progress === "unknown" && operation !== "unavailable") {
+        expect(card.shadowRoot?.textContent).not.toContain("In Progress (");
+      }
+      expect(Boolean(card.shadowRoot?.querySelector('[aria-label="Cancel parity check"]')))
+        .toBe(showControl);
+      if (operation === "idle") {
+        expect(Boolean(card.shadowRoot?.querySelector('[aria-label="Check parity now"]')))
+          .toBe(switchState === "off");
+      }
+    } finally {
+      card.remove();
+    }
+  });
+
   it("renders UnraidStorageCard with Parity Valid when progress is 100 and check is not running", async () => {
     const card = new UnraidStorageCard();
     card.setConfig({ type: "custom:unraid-storage-card" });

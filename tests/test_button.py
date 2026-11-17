@@ -25,6 +25,7 @@ from custom_components.unraid.button import (
     async_setup_entry,
 )
 from custom_components.unraid.docker_entities import DockerEntityLifecycle
+from custom_components.unraid.vm_entities import VmEntityLifecycle
 
 # =============================================================================
 # Fixtures
@@ -823,6 +824,7 @@ async def test_setup_entry_creates_vm_buttons(hass):
     system_coordinator.data = MagicMock()
     system_coordinator.data.containers = []
     system_coordinator.data.vms = [vm1, vm2]
+    system_coordinator.vm_entities = VmEntityLifecycle()
 
     runtime_data = MagicMock()
     runtime_data.api_client = mock_api
@@ -873,6 +875,7 @@ async def test_setup_entry_creates_container_and_vm_buttons(hass):
     system_coordinator.data = MagicMock()
     system_coordinator.data.containers = [container]
     system_coordinator.data.vms = [vm]
+    system_coordinator.vm_entities = VmEntityLifecycle()
 
     runtime_data = MagicMock()
     runtime_data.api_client = mock_api

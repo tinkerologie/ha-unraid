@@ -10,10 +10,11 @@ It removes an entity after three applicable observations that do not contain the
 Failed queries do not count.
 A missing temperature value does not show that the server no longer has the temperature sensor.
 
-For Docker, cleanup counts each successful inventory observation once.
+For Docker and VMs, cleanup counts each successful inventory observation once.
 Results from the cache, failed requests, and storage updates alone do not increase the counter.
-A successful Docker query that shows the resource resets its counter, also during a storage failure.
+A successful inventory query that shows the resource resets its counter, also during a storage failure.
 Cleanup does not remove entities when either coordinator has failed.
+A container or VM with the same name can recover its removed entities without a reload.
 For other resource types, cleanup counts each applicable cleanup pass.
 
 The delay keeps entity settings during temporary outages.

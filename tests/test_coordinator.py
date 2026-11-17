@@ -1960,6 +1960,19 @@ async def test_docker_update_status_auth_failure(
         await coordinator._async_update_data()
 
 
+async def test_storage_operation_vars_auth_failure(
+    hass: HomeAssistant, mock_api_client: MagicMock, mock_config_entry: MagicMock
+) -> None:
+    """Request reauthentication when the array operation read rejects the API key."""
+    mock_api_client.typed_get_vars.side_effect = UnraidAuthenticationError(
+        "Invalid API key"
+    )
+    coordinator = _storage_coordinator(hass, mock_api_client, mock_config_entry)
+
+    with pytest.raises(ConfigEntryAuthFailed, match="Authentication failed"):
+        await coordinator._async_update_data()
+
+
 @pytest.mark.asyncio
 async def test_system_coordinator_last_known_good_docker_fallback(
     hass, mock_api_client, mock_config_entry

@@ -436,6 +436,13 @@ views:
 - Check Unraid server responsiveness
 - View integration diagnostics for coordinator status
 
+### Array Operation Progress
+
+The **Array operation** sensor shows the type of work on the array, such as a data rebuild or parity sync.
+The **Array operation progress** sensor shows the percentage from Unraid during active work.
+Home Assistant refreshes these sensors every five minutes.
+To refresh them manually, call `homeassistant.update_entity` for **Array operation**.
+
 ### Docker Update Status Is Unknown
 
 If Unraid cannot determine if a container update is available, the Docker update entity shows `unknown`.

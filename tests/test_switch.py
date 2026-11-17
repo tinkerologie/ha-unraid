@@ -25,6 +25,7 @@ from custom_components.unraid.switch import (
     _is_already_state_error,
     async_setup_entry,
 )
+from custom_components.unraid.vm_entities import VmEntityLifecycle
 from tests.conftest import make_storage_data, make_system_data
 
 # =============================================================================
@@ -1627,6 +1628,7 @@ async def test_setup_creates_vm_switches(hass) -> None:
 
     system_coordinator = MagicMock()
     system_coordinator.data = make_system_data(vms=[vm])
+    system_coordinator.vm_entities = VmEntityLifecycle()
 
     storage_coordinator = MagicMock()
     storage_coordinator.data = make_storage_data(array_state="STARTED")

@@ -7,8 +7,9 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
-from unraid_api.models import VmDomain
+from unraid_api.models import ParityCheck, Vars, VmDomain
 
+from custom_components.unraid.array_operation import ArrayOperation
 from custom_components.unraid.diagnostics import async_get_config_entry_diagnostics
 from tests.conftest import make_infra_data, make_storage_data, make_system_data
 
@@ -84,6 +85,37 @@ async def test_diagnostics_with_full_data(mock_hass, mock_config_entry):
     assert result["storage_coordinator"]["last_update_success"] is True
     assert result["infra_coordinator"]["last_update_success"] is True
     assert "entity_counts" in result
+
+
+async def test_diagnostics_array_operation_fields(
+    mock_hass: MagicMock, mock_config_entry: MagicMock
+) -> None:
+    """Export only allowlisted operation data and keep server redaction."""
+    parity = ParityCheck(status="PAUSED", progress=0)
+    data = make_storage_data()
+    data.array = data.array.model_copy(update={"parityCheckStatus": parity})
+    data.operation = ArrayOperation.from_snapshot(
+        Vars(
+            mdResyncAction="recon D8", mdResyncPos="3", mdResync=18, mdState="STARTED"
+        ),
+        parity,
+    )
+    mock_config_entry.runtime_data.storage_coordinator = MagicMock(data=data)
+    result = await async_get_config_entry_diagnostics(mock_hass, mock_config_entry)
+
+    assert result["storage_coordinator"]["array_operation"] == {
+        "kind": "data_rebuild",
+        "action": "recon D8",
+        "paused": True,
+        "progress": 0,
+        "md_resync_pos": "3",
+        "md_resync": 18,
+        "md_state": "STARTED",
+        "parity_status": "PAUSED",
+        "parity_progress": 0,
+    }
+    assert result["server_info"]["hostname"] == "**REDACTED**"
+    assert result["server_info"]["uuid"] == "**REDACTED**"
 
 
 @pytest.mark.asyncio

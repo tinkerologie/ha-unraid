@@ -87,6 +87,21 @@ async def async_get_config_entry_diagnostics(
         },
     }
 
+    if storage_data is not None:
+        operation = storage_data.operation
+        parity = storage_data.parity_status
+        diag_data["storage_coordinator"]["array_operation"] = {
+            "kind": operation.kind,
+            "action": operation.action,
+            "paused": operation.paused,
+            "progress": operation.progress,
+            "md_resync_pos": operation.md_resync_pos,
+            "md_resync": operation.md_resync,
+            "md_state": operation.md_state,
+            "parity_status": parity.status if parity else None,
+            "parity_progress": parity.progress if parity else None,
+        }
+
     # Redact potentially sensitive identifiers (UUID, hostname)
     # These are network identifiers that could identify the user's setup
     return async_redact_data(diag_data, {"uuid", "hostname"})
