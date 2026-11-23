@@ -15,11 +15,11 @@
     "lit": "3.3.3"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.0",
-    "@vitest/coverage-v8": "5.1.0",
+    "@playwright/test": "1.65.1",
+    "@vitest/coverage-v8": "5.1.1",
     "jsdom": "31.0.1",
     "typescript": "7.0.2",
     "vite": "8.3.8",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   }
 }
