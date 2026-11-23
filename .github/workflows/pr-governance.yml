@@ -375,7 +375,7 @@ jobs:
       issues: write
       pull-requests: write
       checks: read
-    uses: tinkerologie/.github/.github/workflows/governance-report.yml@bf6df49397202ecd15229b8f19b5ac9c4fb4e46d # shared governance
+    uses: tinkerologie/.github/.github/workflows/governance-report.yml@7e5c22ca873253fd90c454d2d4175930fad0557b # shared governance
     with:
       pr-number: ${{ github.event.pull_request.number }}
       result: ${{ needs.validate-template-and-issues.result }}

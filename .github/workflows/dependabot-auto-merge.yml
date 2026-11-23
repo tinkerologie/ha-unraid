@@ -15,7 +15,7 @@ jobs:
   auto-merge:
     name: Auto-merge
     if: github.event.pull_request.user.login == 'dependabot[bot]'
-    uses: tinkerologie/.github/.github/workflows/dependabot-auto-merge.yml@235f37f63360eaf10573b0bf1216767b712c1b96 # shared governance
+    uses: tinkerologie/.github/.github/workflows/dependabot-auto-merge.yml@7e5c22ca873253fd90c454d2d4175930fad0557b # shared governance
     with:
       native-auto-merge: true
     permissions:
