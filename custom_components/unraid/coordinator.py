@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import update_coordinator as ha_update_coordinator
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import (
     TimestampDataUpdateCoordinator,
@@ -75,6 +76,12 @@ if TYPE_CHECKING:
     from unraid_api.models import ContainerUpdateStatus
 
 _LOGGER = logging.getLogger(__name__)
+
+# UpdateFailedUnreachable was added in Home Assistant Core 2026.12.
+# Fall back to UpdateFailed on older supported releases (2026.9-2026.11).
+UpdateFailedUnreachable: type[UpdateFailed] = getattr(
+    ha_update_coordinator, "UpdateFailedUnreachable", UpdateFailed
+)
 
 
 @dataclass
@@ -703,8 +710,7 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         except (UnraidConnectionError, UnraidTimeoutError, RuntimeError) as err:
             self._previously_unavailable = True
             msg = f"Connection error: {err}"
-            _LOGGER.exception("System data update failed: %s", msg)
-            raise UpdateFailed(msg) from err
+            raise UpdateFailedUnreachable(msg) from err
         except UnraidAPIError as err:
             self._previously_unavailable = True
             msg = f"API error: {err}"
@@ -879,7 +885,7 @@ class UnraidStorageCoordinator(TimestampDataUpdateCoordinator[UnraidStorageData]
         # RuntimeError: catch aiohttp session-closed errors during HA shutdown
         except (UnraidConnectionError, UnraidTimeoutError, RuntimeError) as err:
             self._previously_unavailable = True
-            raise UpdateFailed(f"Connection error: {err}") from err
+            raise UpdateFailedUnreachable(f"Connection error: {err}") from err
         except UnraidAPIError as err:
             self._previously_unavailable = True
             raise UpdateFailed(f"API error: {err}") from err
@@ -1092,7 +1098,7 @@ class UnraidInfraCoordinator(TimestampDataUpdateCoordinator[UnraidInfraData]):
         # RuntimeError: catch aiohttp session-closed errors during HA shutdown
         except (UnraidConnectionError, UnraidTimeoutError, RuntimeError) as err:
             self._previously_unavailable = True
-            raise UpdateFailed(f"Connection error: {err}") from err
+            raise UpdateFailedUnreachable(f"Connection error: {err}") from err
         except UnraidAPIError as err:
             self._previously_unavailable = True
             raise UpdateFailed(f"API error: {err}") from err

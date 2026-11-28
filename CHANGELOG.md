@@ -14,6 +14,7 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 ### Changed
 
 - Require `unraid-api>=1.16.1` to eliminate the blocking `import_module` warning when reading Unraid notifications ([unraid-api#178](https://github.com/tinkerologie/unraid-api/issues/178)).
+- Raise `UpdateFailedUnreachable` on Home Assistant 2026.12 and later when the Unraid server cannot be reached. Home Assistant logs outages once at info level instead of error level ([#457](https://github.com/tinkerologie/ha-unraid/issues/457)).
 
 ## [2026.11.3] - 2026-11-17
 

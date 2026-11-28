@@ -124,6 +124,19 @@ async def test_update_flag_through_registered_state(
     assert statuses.await_count == 4
 
 
+def _extract_release_notes(result: object) -> str:
+    """Extract release notes text across HA 2026.9-2026.11 and 2026.12+ shapes."""
+    if isinstance(result, str):
+        return result
+    if (
+        isinstance(result, dict)
+        and isinstance(result.get("release_notes"), str)
+        and isinstance(result.get("messages"), list)
+    ):
+        return result["release_notes"]
+    raise AssertionError(f"Unexpected update/release_notes result shape: {result!r}")
+
+
 async def assert_reporting(
     hass: HomeAssistant,
     ws: MockHAClientWebSocket,
@@ -158,7 +171,7 @@ async def assert_reporting(
         "off": "No update reported",
         "unknown": "Unknown",
     }
-    assert expected_note[expected] in response["result"]
+    assert expected_note[expected] in _extract_release_notes(response["result"])
 
 
 @pytest.mark.parametrize(
@@ -285,3 +298,28 @@ async def test_docker_refresh_requested_while_status_query_is_running(
 
     assert inventory.await_count == 3
     assert statuses.await_count == 3
+
+
+def test_extract_release_notes_supports_legacy_and_envelope_shapes() -> None:
+    """Accept legacy string payloads and HA 2026.12+ release_notes envelopes."""
+    assert _extract_release_notes("Update available") == "Update available"
+    assert (
+        _extract_release_notes({"release_notes": "Update available", "messages": []})
+        == "Update available"
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_payload",
+    [
+        None,
+        {},
+        {"release_notes": 123, "messages": []},
+        {"release_notes": "Update available"},
+        {"release_notes": "Update available", "messages": "not-a-list"},
+    ],
+)
+def test_extract_release_notes_rejects_unexpected_shapes(bad_payload: object) -> None:
+    """Reject unexpected update/release_notes WebSocket payload shapes."""
+    with pytest.raises(AssertionError, match="Unexpected update/release_notes"):
+        _extract_release_notes(bad_payload)
