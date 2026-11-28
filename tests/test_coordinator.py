@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -2528,3 +2528,84 @@ async def test_temperature_metrics_errors(
     selected.assert_awaited_once_with()
     unused.assert_not_awaited()
     mock_api_client.typed_get_vms.assert_not_awaited()
+
+
+class _UnreachableError(UpdateFailed):
+    """Sentinel UpdateFailedUnreachable subclass for coordinator routing tests."""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        UnraidConnectionError("connection"),
+        UnraidTimeoutError("timeout"),
+        RuntimeError("session closed"),
+    ],
+)
+@pytest.mark.parametrize("kind", ["system", "storage", "infra"])
+async def test_coordinators_raise_update_failed_unreachable_on_outage(
+    hass, mock_api_client, mock_config_entry, kind, error
+):
+    """Route connection, timeout, and runtime errors through UpdateFailedUnreachable."""
+    if kind == "system":
+        coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
+        target: Any = mock_api_client.get_system_metrics_safe
+    elif kind == "storage":
+        coordinator = _storage_coordinator(hass, mock_api_client, mock_config_entry)
+        target = mock_api_client.typed_get_array
+    else:
+        coordinator = _infra_coordinator(hass, mock_api_client, mock_config_entry)
+        target = None
+
+    with patch(
+        "custom_components.unraid.coordinator.UpdateFailedUnreachable",
+        _UnreachableError,
+    ):
+        if kind == "infra":
+            with (
+                patch.object(
+                    coordinator, "_query_optional_services", side_effect=error
+                ),
+                pytest.raises(_UnreachableError, match="Connection error"),
+            ):
+                await coordinator._async_update_data()
+        else:
+            target.side_effect = error
+            with pytest.raises(_UnreachableError, match="Connection error"):
+                await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["system", "storage", "infra"])
+async def test_coordinators_raise_plain_update_failed_on_api_error(
+    hass, mock_api_client, mock_config_entry, kind
+):
+    """Keep UnraidAPIError mapped to UpdateFailed, not UpdateFailedUnreachable."""
+    error = UnraidAPIError("api failure")
+    if kind == "system":
+        coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
+        mock_api_client.get_system_metrics_safe.side_effect = error
+    elif kind == "storage":
+        coordinator = _storage_coordinator(hass, mock_api_client, mock_config_entry)
+        mock_api_client.typed_get_array.side_effect = error
+    else:
+        coordinator = _infra_coordinator(hass, mock_api_client, mock_config_entry)
+
+    with patch(
+        "custom_components.unraid.coordinator.UpdateFailedUnreachable",
+        _UnreachableError,
+    ):
+        if kind == "infra":
+            with (
+                patch.object(
+                    coordinator, "_query_optional_services", side_effect=error
+                ),
+                pytest.raises(UpdateFailed, match="API error") as exc_info,
+            ):
+                await coordinator._async_update_data()
+        else:
+            with pytest.raises(UpdateFailed, match="API error") as exc_info:
+                await coordinator._async_update_data()
+
+    assert not isinstance(exc_info.value, _UnreachableError)
