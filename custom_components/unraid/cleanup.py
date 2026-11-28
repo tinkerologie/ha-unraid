@@ -547,7 +547,7 @@ def async_cleanup_stale_entities(
 def _async_cleanup_disabled_resource_entities(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    server_uuid: str,
+    server_uuid: str | None,
     *,
     raw_uuid: str | None,
     resource_label: str,
@@ -612,7 +612,7 @@ def _async_cleanup_disabled_resource_entities(
 def async_cleanup_disabled_docker_entities(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    server_uuid: str,
+    server_uuid: str | None,
     *,
     raw_uuid: str | None = None,
 ) -> int:
@@ -631,7 +631,7 @@ def async_cleanup_disabled_docker_entities(
 def async_cleanup_disabled_vm_entities(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    server_uuid: str,
+    server_uuid: str | None,
     *,
     raw_uuid: str | None = None,
 ) -> int:

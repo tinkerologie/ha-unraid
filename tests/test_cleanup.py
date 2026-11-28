@@ -1416,6 +1416,35 @@ class TestAsyncCleanupDisabledDockerEntities:
         assert "Settings → Devices & services → Unraid → Entities" in caplog.text
         assert "server device" in caplog.text
 
+    async def test_cleans_up_when_server_uuid_is_none(
+        self, hass: HomeAssistant
+    ) -> None:
+        """Removes per-container and per-VM records created under a None server UUID."""
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain=DOMAIN, unique_id="192.168.1.100")
+        entry.add_to_hass(hass)
+        ent_reg = er.async_get(hass)
+
+        docker_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"None_{DockerEntityKind.SWITCH.resource_id('web')}",
+            config_entry=entry,
+        )
+        vm_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"None_{VmEntityKind.SWITCH.resource_id('ubuntu')}",
+            config_entry=entry,
+        )
+
+        assert async_cleanup_disabled_docker_entities(hass, entry, None) == 1
+        assert async_cleanup_disabled_vm_entities(hass, entry, None) == 1
+        assert ent_reg.async_get(docker_rec.entity_id) is None
+        assert ent_reg.async_get(vm_rec.entity_id) is None
+
 
 class TestAsyncCleanupDisabledVmEntities:
     """Real-registry tests for option-driven disabled VM entity cleanup."""
@@ -1552,3 +1581,32 @@ class TestAsyncCleanupDisabledVmEntities:
         assert ent_reg.async_get(legacy_rec.entity_id) is not None
         assert "Settings → Devices & services → Unraid → Entities" in caplog.text
         assert "server device" in caplog.text
+
+    async def test_cleans_up_when_server_uuid_is_none(
+        self, hass: HomeAssistant
+    ) -> None:
+        """Removes per-container and per-VM records created under a None server UUID."""
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain=DOMAIN, unique_id="192.168.1.100")
+        entry.add_to_hass(hass)
+        ent_reg = er.async_get(hass)
+
+        docker_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"None_{DockerEntityKind.SWITCH.resource_id('web')}",
+            config_entry=entry,
+        )
+        vm_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"None_{VmEntityKind.SWITCH.resource_id('ubuntu')}",
+            config_entry=entry,
+        )
+
+        assert async_cleanup_disabled_docker_entities(hass, entry, None) == 1
+        assert async_cleanup_disabled_vm_entities(hass, entry, None) == 1
+        assert ent_reg.async_get(docker_rec.entity_id) is None
+        assert ent_reg.async_get(vm_rec.entity_id) is None

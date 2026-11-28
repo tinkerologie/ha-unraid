@@ -142,9 +142,15 @@ You can change integration options at any time after setup. Saving changes reloa
 
 > **Important**: Disabling Docker or VM monitoring removes only Home Assistant entity records. It does not touch containers or VMs on your Unraid server.
 >
-> Removing records discards entity customisations and can break dashboards or automations that use them. When you enable the option again, Home Assistant recreates entities with default settings.
+> Removing records discards entity customisations and can break dashboards or automations. When you enable an option again, Home Assistant recreates entities with default settings.
 >
-> If stale container or VM entities remain after an identity migration conflict, delete them manually. Go to **Settings** → **Devices & services** → **Unraid** → **Entities**, filter by container or VM name, and delete each stale entity. Do not delete the shared server device.
+> If stale container or VM entities remain after an identity migration conflict, delete them manually:
+>
+> 1. Go to **Settings** → **Devices & services** → **Unraid** → **Entities**.
+> 2. Filter the list by the container or VM name.
+> 3. Delete each stale entity.
+>
+> Do not delete the shared server device.
 
 > **Note**: The integration uses fixed polling intervals, as specified by the Home Assistant Core guidelines.
 >

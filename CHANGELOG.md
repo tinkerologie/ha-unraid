@@ -9,7 +9,7 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 
 ### Added
 
-- Add **Enable Docker container monitoring** and **Enable virtual machine monitoring** options in the integration options flow ([#448](https://github.com/tinkerologie/ha-unraid/issues/448)). When disabled, the integration skips per-container or per-VM entity discovery and removes existing per-container or per-VM entity records while keeping server-level Docker summary entities, system, storage, and UPS entities intact.
+- Add **Enable Docker container monitoring** and **Enable virtual machine monitoring** options in the integration options flow ([#448](https://github.com/tinkerologie/ha-unraid/issues/448)). When an option is off, the integration skips discovery and removes existing entities for that category. Server-level Docker summary entities, system, storage, and UPS entities remain.
 
 ### Changed
 
