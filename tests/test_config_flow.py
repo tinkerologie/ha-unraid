@@ -29,9 +29,13 @@ from custom_components.unraid.config_flow import (
 )
 from custom_components.unraid.const import (
     CONF_ENABLE_CONTAINER_UPDATES,
+    CONF_ENABLE_DOCKER_MONITORING,
+    CONF_ENABLE_VM_MONITORING,
     CONF_IGNORE_SSL,
     CONF_UPS_CAPACITY_VA,
     CONF_UPS_NOMINAL_POWER,
+    DEFAULT_ENABLE_DOCKER_MONITORING,
+    DEFAULT_ENABLE_VM_MONITORING,
     DEFAULT_PORT,
     DEFAULT_UPS_CAPACITY_VA,
     DEFAULT_UPS_NOMINAL_POWER,
@@ -2292,3 +2296,142 @@ async def test_handle_generic_error_maps_http_auth_status(
     )
     with pytest.raises(InvalidAuthError):
         flow._handle_generic_error(err)
+
+
+async def test_user_step_omits_docker_monitoring_and_defaults_options(
+    hass: HomeAssistant, mock_setup_entry: None, mock_api_client: MagicMock
+) -> None:
+    """User setup omits Docker and VM toggles and defaults them in options."""
+    form_result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    assert form_result["type"] is FlowResultType.FORM
+    schema_keys = {str(k) for k in form_result["data_schema"].schema}
+    assert CONF_ENABLE_DOCKER_MONITORING not in schema_keys
+    assert CONF_ENABLE_VM_MONITORING not in schema_keys
+
+    with patch(
+        "custom_components.unraid.config_flow.UnraidClient",
+        return_value=mock_api_client,
+    ):
+        create_result = await hass.config_entries.flow.async_configure(
+            form_result["flow_id"],
+            {CONF_HOST: "unraid.local", CONF_API_KEY: "valid-api-key"},
+        )
+
+    assert create_result["type"] is FlowResultType.CREATE_ENTRY
+    entry = create_result["result"]
+    assert entry.options[CONF_ENABLE_DOCKER_MONITORING] is (
+        DEFAULT_ENABLE_DOCKER_MONITORING
+    )
+    assert entry.options[CONF_ENABLE_VM_MONITORING] is DEFAULT_ENABLE_VM_MONITORING
+    assert CONF_ENABLE_DOCKER_MONITORING not in entry.data
+    assert CONF_ENABLE_VM_MONITORING not in entry.data
+
+
+async def test_options_flow_docker_monitoring_order_default_and_persistence(
+    hass: HomeAssistant, mock_setup_entry: None
+) -> None:
+    """Options flow orders Docker and VM toggles, defaults True, saves False."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="tower",
+        data={CONF_HOST: "unraid.local", CONF_API_KEY: "key"},
+        options={},
+        unique_id="test-uuid",
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    schema_keys = list(result["data_schema"].schema)
+    schema_key_names = [str(k) for k in schema_keys]
+    assert CONF_ENABLE_DOCKER_MONITORING in schema_key_names
+    assert CONF_ENABLE_CONTAINER_UPDATES in schema_key_names
+    assert CONF_ENABLE_VM_MONITORING in schema_key_names
+    assert schema_key_names.index(
+        CONF_ENABLE_DOCKER_MONITORING
+    ) < schema_key_names.index(CONF_ENABLE_CONTAINER_UPDATES)
+    assert schema_key_names.index(
+        CONF_ENABLE_CONTAINER_UPDATES
+    ) < schema_key_names.index(CONF_ENABLE_VM_MONITORING)
+
+    docker_marker = next(
+        k for k in schema_keys if str(k) == CONF_ENABLE_DOCKER_MONITORING
+    )
+    vm_marker = next(k for k in schema_keys if str(k) == CONF_ENABLE_VM_MONITORING)
+    assert docker_marker.default() is True
+    assert vm_marker.default() is True
+
+    result2 = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_ENABLE_DOCKER_MONITORING: False,
+            CONF_ENABLE_VM_MONITORING: False,
+        },
+    )
+    assert result2["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_ENABLE_DOCKER_MONITORING] is False
+    assert entry.options[CONF_ENABLE_CONTAINER_UPDATES] is True
+    assert entry.options[CONF_ENABLE_VM_MONITORING] is False
+
+
+async def test_reauth_and_reconfigure_do_not_add_docker_monitoring_to_data(
+    hass: HomeAssistant, mock_setup_entry: None, mock_api_client: MagicMock
+) -> None:
+    """Reauth and reconfigure do not write Docker or VM monitoring to data."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="tower",
+        data={CONF_HOST: "unraid.local", CONF_API_KEY: "old-key"},
+        options={
+            CONF_ENABLE_DOCKER_MONITORING: False,
+            CONF_ENABLE_VM_MONITORING: False,
+        },
+        unique_id="test-uuid",
+    )
+    entry.add_to_hass(hass)
+
+    reauth_init = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_REAUTH, "entry_id": entry.entry_id},
+        data={CONF_HOST: "unraid.local"},
+    )
+    with patch(
+        "custom_components.unraid.config_flow.UnraidClient",
+        return_value=mock_api_client,
+    ):
+        reauth_done = await hass.config_entries.flow.async_configure(
+            reauth_init["flow_id"],
+            {CONF_API_KEY: "new-api-key"},
+        )
+    assert reauth_done["type"] is FlowResultType.ABORT
+    assert reauth_done["reason"] == "reauth_successful"
+    assert CONF_ENABLE_DOCKER_MONITORING not in entry.data
+    assert CONF_ENABLE_VM_MONITORING not in entry.data
+    assert entry.options[CONF_ENABLE_DOCKER_MONITORING] is False
+    assert entry.options[CONF_ENABLE_VM_MONITORING] is False
+
+    reconf_init = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_RECONFIGURE,
+            "entry_id": entry.entry_id,
+        },
+    )
+    with patch(
+        "custom_components.unraid.config_flow.UnraidClient",
+        return_value=mock_api_client,
+    ):
+        reconf_done = await hass.config_entries.flow.async_configure(
+            reconf_init["flow_id"],
+            {CONF_HOST: "192.168.1.100", CONF_API_KEY: "new-key"},
+        )
+    assert reconf_done["type"] is FlowResultType.ABORT
+    assert reconf_done["reason"] == "reconfigure_successful"
+    assert CONF_ENABLE_DOCKER_MONITORING not in entry.data
+    assert CONF_ENABLE_VM_MONITORING not in entry.data
+    assert entry.options[CONF_ENABLE_DOCKER_MONITORING] is False
+    assert entry.options[CONF_ENABLE_VM_MONITORING] is False

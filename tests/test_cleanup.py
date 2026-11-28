@@ -12,12 +12,17 @@ from custom_components.unraid.cleanup import (
     _MISSING_STREAK_THRESHOLD,
     _get_dynamic_resource_category,
     _is_dynamic_resource_id,
+    async_cleanup_disabled_docker_entities,
+    async_cleanup_disabled_vm_entities,
     async_cleanup_stale_entities,
     build_expected_dynamic_unique_ids,
 )
-from custom_components.unraid.const import DOMAIN
-from custom_components.unraid.docker_entities import DockerEntityLifecycle
-from custom_components.unraid.vm_entities import VmEntityLifecycle
+from custom_components.unraid.const import CONF_ENABLE_CONTAINER_UPDATES, DOMAIN
+from custom_components.unraid.docker_entities import (
+    DockerEntityKind,
+    DockerEntityLifecycle,
+)
+from custom_components.unraid.vm_entities import VmEntityKind, VmEntityLifecycle
 from tests.conftest import make_storage_data, make_system_data
 
 # Fake server UUID used throughout these tests
@@ -1245,3 +1250,305 @@ def test_pause_controls_follow_reported_container_inventory(state: str) -> None:
         assert _is_dynamic_resource_id(resource)
         assert f"{_UUID}_{resource}" in expected
         assert f"{_UUID}_{resource}" not in empty
+
+
+class TestAsyncCleanupDisabledDockerEntities:
+    """Real-registry tests for option-driven disabled Docker entity cleanup."""
+
+    async def test_removes_all_per_container_kinds_and_keeps_others(
+        self, hass: HomeAssistant
+    ) -> None:
+        """Remove all 12 Docker kinds and disabled/stale records; keep others."""
+        from homeassistant.helpers import device_registry as dr
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant.common import MockConfigEntry
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=_UUID,
+            options={CONF_ENABLE_CONTAINER_UPDATES: False},
+        )
+        entry.add_to_hass(hass)
+        other_entry = MockConfigEntry(domain=DOMAIN, unique_id="other-server")
+        other_entry.add_to_hass(hass)
+
+        dev_reg = dr.async_get(hass)
+        ent_reg = er.async_get(hass)
+
+        server_device = dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, _UUID)},
+            name="tower",
+        )
+
+        # All 12 per-container kinds for container "web"
+        per_container_entries = [
+            ent_reg.async_get_or_create(
+                kind.value[0],
+                DOMAIN,
+                f"{_UUID}_{kind.resource_id('web')}",
+                config_entry=entry,
+                device_id=server_device.id,
+            )
+            for kind in DockerEntityKind
+        ]
+        # Disabled per-container entity and stale container outside inventory
+        disabled_entry = ent_reg.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{_UUID}_{DockerEntityKind.CPU.resource_id('disabled_app')}",
+            config_entry=entry,
+            device_id=server_device.id,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+        stale_entry = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"{_UUID}_{DockerEntityKind.SWITCH.resource_id('old_app')}",
+            config_entry=entry,
+            device_id=server_device.id,
+        )
+
+        # Retained entities on the same entry
+        retained_entries = [
+            ent_reg.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                f"{_UUID}_container_updates_count",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                f"{_UUID}_docker_total_cpu",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "button",
+                DOMAIN,
+                f"{_UUID}_update_all_containers",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "switch",
+                DOMAIN,
+                f"{_UUID}_vm_switch_ubuntu",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                f"{_UUID}_cpu_usage",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                f"{_UUID}_disk_sda_usage",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "switch",
+                "other_integration",
+                f"{_UUID}_container_switch_web",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "switch",
+                DOMAIN,
+                "other-server_container_switch_web",
+                config_entry=other_entry,
+            ),
+        ]
+
+        removed = async_cleanup_disabled_docker_entities(hass, entry, _UUID)
+        assert removed == len(per_container_entries) + 2
+
+        for removed_entry in [*per_container_entries, disabled_entry, stale_entry]:
+            assert ent_reg.async_get(removed_entry.entity_id) is None
+
+        for retained in retained_entries:
+            assert ent_reg.async_get(retained.entity_id) is not None
+
+        assert dev_reg.async_get(server_device.id) is not None
+
+    async def test_legacy_placeholder_conflict_left_and_logged(
+        self, hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Legacy raw-prefix records are left intact and logged with manual guidance."""
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant.common import MockConfigEntry
+
+        raw_uuid = "03000200-0400-0500-0006-000700080009"
+        resolved_uuid = f"{raw_uuid}_tower"
+        entry = MockConfigEntry(domain=DOMAIN, unique_id=resolved_uuid)
+        entry.add_to_hass(hass)
+        ent_reg = er.async_get(hass)
+
+        resolved_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"{resolved_uuid}_container_switch_web",
+            config_entry=entry,
+        )
+        legacy_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"{raw_uuid}_container_switch_web",
+            config_entry=entry,
+        )
+
+        with caplog.at_level("WARNING"):
+            removed = async_cleanup_disabled_docker_entities(
+                hass, entry, resolved_uuid, raw_uuid=raw_uuid
+            )
+
+        assert removed == 1
+        assert ent_reg.async_get(resolved_rec.entity_id) is None
+        assert ent_reg.async_get(legacy_rec.entity_id) is not None
+        assert "Settings → Devices & services → Unraid → Entities" in caplog.text
+        assert "server device" in caplog.text
+
+
+class TestAsyncCleanupDisabledVmEntities:
+    """Real-registry tests for option-driven disabled VM entity cleanup."""
+
+    async def test_removes_all_per_vm_kinds_and_keeps_others(
+        self, hass: HomeAssistant
+    ) -> None:
+        """Remove all 7 VM kinds and disabled/stale records; keep others."""
+        from homeassistant.helpers import device_registry as dr
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain=DOMAIN, unique_id=_UUID)
+        entry.add_to_hass(hass)
+        other_entry = MockConfigEntry(domain=DOMAIN, unique_id="other-server")
+        other_entry.add_to_hass(hass)
+
+        dev_reg = dr.async_get(hass)
+        ent_reg = er.async_get(hass)
+
+        server_device = dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, _UUID)},
+            name="tower",
+        )
+
+        per_vm_entries = [
+            ent_reg.async_get_or_create(
+                kind.value[0],
+                DOMAIN,
+                f"{_UUID}_{kind.resource_id('ubuntu')}",
+                config_entry=entry,
+                device_id=server_device.id,
+            )
+            for kind in VmEntityKind
+        ]
+        disabled_entry = ent_reg.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{_UUID}_{VmEntityKind.STATUS.resource_id('disabled_vm')}",
+            config_entry=entry,
+            device_id=server_device.id,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+        stale_entry = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"{_UUID}_{VmEntityKind.SWITCH.resource_id('old_vm')}",
+            config_entry=entry,
+            device_id=server_device.id,
+        )
+
+        retained_entries = [
+            ent_reg.async_get_or_create(
+                "switch",
+                DOMAIN,
+                f"{_UUID}_{DockerEntityKind.SWITCH.resource_id('web')}",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                f"{_UUID}_cpu_usage",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                f"{_UUID}_disk_sda_usage",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "switch",
+                "other_integration",
+                f"{_UUID}_vm_switch_ubuntu",
+                config_entry=entry,
+                device_id=server_device.id,
+            ),
+            ent_reg.async_get_or_create(
+                "switch",
+                DOMAIN,
+                "other-server_vm_switch_ubuntu",
+                config_entry=other_entry,
+            ),
+        ]
+
+        removed = async_cleanup_disabled_vm_entities(hass, entry, _UUID)
+        assert removed == len(per_vm_entries) + 2
+
+        for removed_entry in [*per_vm_entries, disabled_entry, stale_entry]:
+            assert ent_reg.async_get(removed_entry.entity_id) is None
+
+        for retained in retained_entries:
+            assert ent_reg.async_get(retained.entity_id) is not None
+
+        assert dev_reg.async_get(server_device.id) is not None
+
+    async def test_legacy_placeholder_conflict_left_and_logged(
+        self, hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Leave legacy raw-prefix VM records intact and log manual guidance."""
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant.common import MockConfigEntry
+
+        raw_uuid = "03000200-0400-0500-0006-000700080009"
+        resolved_uuid = f"{raw_uuid}_tower"
+        entry = MockConfigEntry(domain=DOMAIN, unique_id=resolved_uuid)
+        entry.add_to_hass(hass)
+        ent_reg = er.async_get(hass)
+
+        resolved_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"{resolved_uuid}_vm_switch_ubuntu",
+            config_entry=entry,
+        )
+        legacy_rec = ent_reg.async_get_or_create(
+            "switch",
+            DOMAIN,
+            f"{raw_uuid}_vm_switch_ubuntu",
+            config_entry=entry,
+        )
+
+        with caplog.at_level("WARNING"):
+            removed = async_cleanup_disabled_vm_entities(
+                hass, entry, resolved_uuid, raw_uuid=raw_uuid
+            )
+
+        assert removed == 1
+        assert ent_reg.async_get(resolved_rec.entity_id) is None
+        assert ent_reg.async_get(legacy_rec.entity_id) is not None
+        assert "Settings → Devices & services → Unraid → Entities" in caplog.text
+        assert "server device" in caplog.text

@@ -10,6 +10,11 @@ from unraid_api.models import DockerContainer
 from .entity_lifecycle import EntityLifecycle
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.helpers.entity import Entity
+
+    from .coordinator import UnraidSystemCoordinator
     from .entity_lifecycle import RegistryKey
 
 
@@ -63,10 +68,29 @@ def is_docker_resource_id(resource_id: str, platform: str | None = None) -> bool
 class DockerEntityLifecycle(EntityLifecycle[DockerContainer]):
     """Select inventory and name keys for Docker resources."""
 
-    def __init__(self) -> None:
+    def __init__(self, enabled: bool = True) -> None:
         """Track Docker names without their leading slash."""
         super().__init__(
             "Docker",
             lambda data: data.containers,
             lambda container: container_name(container.name),
+        )
+        self._enabled = enabled
+
+    def async_register_platform(
+        self,
+        coordinator: UnraidSystemCoordinator,
+        async_add_entities: Callable[[list[Entity]], None],
+        create_entities: Callable[[DockerContainer], list[Entity]],
+        *,
+        platform: str,
+    ) -> Callable[[], None]:
+        """Create entities on discovery when Docker monitoring is enabled."""
+        if not self._enabled:
+            return lambda: None
+        return super().async_register_platform(
+            coordinator=coordinator,
+            async_add_entities=async_add_entities,
+            create_entities=create_entities,
+            platform=platform,
         )

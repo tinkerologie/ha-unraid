@@ -4,21 +4,23 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant.common import MockConfigEntry
 from unraid_api.exceptions import UnraidConnectionError, UnraidTimeoutError
-from unraid_api.models import ParityCheck, Vars, VmDomain
+from unraid_api.models import DockerContainer, ParityCheck, UPSDevice, Vars, VmDomain
 
-from custom_components.unraid.const import DOMAIN
-from tests.conftest import create_mock_unraid_client, make_server_info
+from custom_components.unraid.const import CONF_ENABLE_VM_MONITORING, DOMAIN
+from custom_components.unraid.docker_entities import DockerEntityLifecycle
+from custom_components.unraid.vm_entities import VmEntityLifecycle, is_vm_resource_id
+from tests.conftest import create_mock_unraid_client, make_server_info, make_system_data
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from unittest.mock import MagicMock
 
     import pytest
     from homeassistant.core import HomeAssistant
@@ -285,4 +287,159 @@ async def test_vm_recovers_only_pruned_entities(
         assert _vm_ids(registry, entry) == initial
         assert registry.async_get(survivor.entity_id) is survivor
         assert "already exists" not in caplog.text
+        assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_disabled_vm_lifecycle_skips_registration_while_docker_discovers() -> (
+    None
+):
+    """Disabled VM lifecycle skips registration while Docker still discovers."""
+    listeners: list = []
+    coordinator = MagicMock()
+    coordinator.data = make_system_data(
+        containers=[DockerContainer(id="ct:1", name="/web", state="RUNNING")],
+        vms=[VmDomain(id="vm:1", name="ubuntu", state="RUNNING")],
+    )
+    coordinator.async_add_listener.side_effect = lambda cb: (
+        listeners.append(cb) or (lambda: listeners.remove(cb))
+    )
+
+    vm_lifecycle = VmEntityLifecycle(enabled=False)
+    vm_add = MagicMock()
+    vm_factory = MagicMock()
+    unsub_vm = vm_lifecycle.async_register_platform(
+        coordinator=coordinator,
+        async_add_entities=vm_add,
+        create_entities=vm_factory,
+        platform="switch",
+    )
+
+    vm_factory.assert_not_called()
+    vm_add.assert_not_called()
+    assert listeners == []
+    unsub_vm()
+
+    docker_lifecycle = DockerEntityLifecycle()
+    docker_entity = MagicMock(unique_id="tower_container_switch_web")
+    docker_add = MagicMock()
+    docker_factory = MagicMock(return_value=[docker_entity])
+    unsub_docker = docker_lifecycle.async_register_platform(
+        coordinator=coordinator,
+        async_add_entities=docker_add,
+        create_entities=docker_factory,
+        platform="switch",
+    )
+
+    docker_factory.assert_called_once()
+    docker_add.assert_called_once_with([docker_entity])
+    assert len(listeners) == 1
+
+    coordinator.data = make_system_data(
+        containers=[DockerContainer(id="ct:1", name="/web", state="RUNNING")],
+        vms=[
+            VmDomain(id="vm:1", name="ubuntu", state="RUNNING"),
+            VmDomain(id="vm:2", name="win11", state="SHUTOFF"),
+        ],
+    )
+    for listener in listeners:
+        listener()
+    vm_factory.assert_not_called()
+    vm_add.assert_not_called()
+    unsub_docker()
+
+
+async def test_vm_monitoring_option_full_transition(
+    hass: HomeAssistant, mock_unraid_client: MagicMock
+) -> None:
+    """Test disabling and re-enabling VM monitoring across all platforms."""
+    ubuntu = VmDomain(id="vm:1", name="ubuntu", state="RUNNING")
+    win11 = VmDomain(id="vm:2", name="win11", state="SHUTOFF")
+    debian = VmDomain(id="vm:3", name="debian", state="RUNNING")
+    mock_unraid_client.typed_get_vms.return_value = [ubuntu]
+    mock_unraid_client.typed_get_containers_safe.return_value = [
+        DockerContainer(id="ct:1", name="/web", state="RUNNING")
+    ]
+    mock_unraid_client.typed_get_ups_devices.return_value = [
+        UPSDevice(id="ups:1", name="APC")
+    ]
+
+    entry = _entry(hass, "test-uuid-123", "tower")
+    registry = er.async_get(hass)
+
+    with _patch_optional_startup():
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        uuid = entry.runtime_data.server_info["uuid"]
+        prefix = f"{uuid}_"
+
+        def vm_entries() -> list[er.RegistryEntry]:
+            return [
+                item
+                for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+                if item.unique_id.startswith(prefix)
+                and is_vm_resource_id(item.unique_id[len(prefix) :], item.domain)
+            ]
+
+        assert len(vm_entries()) == 7
+        docker_switch_id = registry.async_get_entity_id(
+            "switch", DOMAIN, f"{prefix}container_switch_web"
+        )
+        cpu_id = registry.async_get_entity_id("sensor", DOMAIN, f"{prefix}cpu_usage")
+        array_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{prefix}array_state"
+        )
+        ups_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{prefix}ups_ups:1_battery"
+        )
+        for eid in (docker_switch_id, cpu_id, array_id, ups_id):
+            assert eid is not None
+            assert hass.states.get(eid) is not None
+
+        # Save False via options flow -> reload removes per-VM entities
+        opt_init = await hass.config_entries.options.async_init(entry.entry_id)
+        opt_done = await hass.config_entries.options.async_configure(
+            opt_init["flow_id"],
+            {CONF_ENABLE_VM_MONITORING: False},
+        )
+        assert opt_done["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done()
+
+        assert vm_entries() == []
+        for eid in (docker_switch_id, cpu_id, array_id, ups_id):
+            assert registry.async_get(eid) is not None
+            assert hass.states.get(eid) is not None
+
+        # Adding a VM while disabled creates no entities
+        mock_unraid_client.typed_get_vms.return_value = [ubuntu, win11]
+        await entry.runtime_data.system_coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert vm_entries() == []
+
+        # Save True via options flow -> reload restores current VM inventory
+        opt_init2 = await hass.config_entries.options.async_init(entry.entry_id)
+        opt_done2 = await hass.config_entries.options.async_configure(
+            opt_init2["flow_id"],
+            {CONF_ENABLE_VM_MONITORING: True},
+        )
+        assert opt_done2["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done()
+
+        for vname in ("ubuntu", "win11"):
+            assert (
+                registry.async_get_entity_id(
+                    "switch", DOMAIN, f"{prefix}vm_switch_{vname}"
+                )
+                is not None
+            )
+
+        # Later VM discovery works without another reload
+        mock_unraid_client.typed_get_vms.return_value = [ubuntu, win11, debian]
+        await entry.runtime_data.system_coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert (
+            registry.async_get_entity_id("switch", DOMAIN, f"{prefix}vm_switch_debian")
+            is not None
+        )
+
         assert await hass.config_entries.async_unload(entry.entry_id)

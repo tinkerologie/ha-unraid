@@ -1140,7 +1140,7 @@ requires-dist = [
     { name = "pytest-homeassistant", marker = "extra == 'test'", git = "https://github.com/home-assistant/core.git?subdirectory=packages%2Fpytest-homeassistant&rev=74cf5a49c63ed8d4d87717844bf14f79c28c9cea" },
     { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.4.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.17.6" },
-    { name = "unraid-api", specifier = ">=1.16.0" },
+    { name = "unraid-api", specifier = ">=1.16.1" },
 ]
 provides-extras = ["test", "dev"]
 
@@ -2788,16 +2788,16 @@ wheels = [
 
 [[package]]
 name = "unraid-api"
-version = "1.16.0"
+version = "1.16.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "packaging" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/19/41/58e1add1245976133822071319a1b9bc4e383b8c7c88e50af122ac2fd8c4/unraid_api-1.16.0.tar.gz", hash = "sha256:604eba92a3533405b862383a1865cbf4f8c5c09125ca68caef4c1dc27ff467f7", size = 69391, upload-time = "2026-11-07T03:02:50.681Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/8e/e8dd53330acc4ef09f7faeecea63dc756a557265d41503259c77aad04e48/unraid_api-1.16.1.tar.gz", hash = "sha256:3a36a103591e0d75d1c9242f7ecdd850944bf41af2b4771d48f3c8e19181cfaa", size = 69283, upload-time = "2026-11-28T03:26:26.776Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/8a/6dd5d98e6f5d866c3bf22b7c5acd043ca71e2141b8ac1f3f3797175a4756/unraid_api-1.16.0-py3-none-any.whl", hash = "sha256:da109d35b50764b641dab4df48e1594c5c984373e16489fdb8dd7f791b5ac46c", size = 72157, upload-time = "2026-11-07T03:02:49.171Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/9f/b898b5f12c5f8ccd77597f5b8e262648626d1ac1ef378daa5ee513e3c9b3/unraid_api-1.16.1-py3-none-any.whl", hash = "sha256:fd0370bc917b7d18c769e1512731bdbba1a4dd926ce876a324c0d6225d037a25", size = 72032, upload-time = "2026-11-28T03:26:25.403Z" },
 ]
 
 [[package]]

@@ -36,9 +36,17 @@ from unraid_api.exceptions import (
 )
 from yarl import URL
 
-from .cleanup import async_cleanup_stale_entities
+from .cleanup import (
+    async_cleanup_disabled_docker_entities,
+    async_cleanup_disabled_vm_entities,
+    async_cleanup_stale_entities,
+)
 from .const import (
+    CONF_ENABLE_DOCKER_MONITORING,
+    CONF_ENABLE_VM_MONITORING,
     CONF_IGNORE_SSL,
+    DEFAULT_ENABLE_DOCKER_MONITORING,
+    DEFAULT_ENABLE_VM_MONITORING,
     DEFAULT_PORT,
     DOMAIN,
     LEGACY_REPAIR_AUTH_FAILED,
@@ -503,6 +511,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: UnraidConfigEntry) -> bo
     # servers sharing a placeholder SMBIOS UUID stay distinct at runtime (#351).
     server_info["uuid"] = _resolve_server_identity(info.uuid, entry.unique_id)
     _async_migrate_registry_identity(hass, entry, info.uuid, server_info["uuid"])
+
+    if server_info["uuid"]:
+        if not entry.options.get(
+            CONF_ENABLE_DOCKER_MONITORING, DEFAULT_ENABLE_DOCKER_MONITORING
+        ):
+            async_cleanup_disabled_docker_entities(
+                hass,
+                entry,
+                server_info["uuid"],
+                raw_uuid=info.uuid,
+            )
+        if not entry.options.get(
+            CONF_ENABLE_VM_MONITORING, DEFAULT_ENABLE_VM_MONITORING
+        ):
+            async_cleanup_disabled_vm_entities(
+                hass,
+                entry,
+                server_info["uuid"],
+                raw_uuid=info.uuid,
+            )
 
     (
         system_coordinator,

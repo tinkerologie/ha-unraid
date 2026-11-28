@@ -23,10 +23,14 @@ from unraid_api.exceptions import (
 
 from .const import (
     CONF_ENABLE_CONTAINER_UPDATES,
+    CONF_ENABLE_DOCKER_MONITORING,
+    CONF_ENABLE_VM_MONITORING,
     CONF_IGNORE_SSL,
     CONF_UPS_CAPACITY_VA,
     CONF_UPS_NOMINAL_POWER,
     DEFAULT_ENABLE_CONTAINER_UPDATES,
+    DEFAULT_ENABLE_DOCKER_MONITORING,
+    DEFAULT_ENABLE_VM_MONITORING,
     DEFAULT_PORT,
     DEFAULT_UPS_CAPACITY_VA,
     DEFAULT_UPS_NOMINAL_POWER,
@@ -132,9 +136,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_IGNORE_SSL: self._ignore_ssl,
                     },
                     options={
+                        CONF_ENABLE_DOCKER_MONITORING: DEFAULT_ENABLE_DOCKER_MONITORING,
                         CONF_ENABLE_CONTAINER_UPDATES: (
                             DEFAULT_ENABLE_CONTAINER_UPDATES
                         ),
+                        CONF_ENABLE_VM_MONITORING: DEFAULT_ENABLE_VM_MONITORING,
                         CONF_UPS_CAPACITY_VA: DEFAULT_UPS_CAPACITY_VA,
                         CONF_UPS_NOMINAL_POWER: DEFAULT_UPS_NOMINAL_POWER,
                     },
@@ -510,9 +516,25 @@ class UnraidOptionsFlowHandler(OptionsFlowWithReload):
         # General behavioural toggles (always shown, independent of hardware)
         schema_dict[
             vol.Optional(
+                CONF_ENABLE_DOCKER_MONITORING,
+                default=options.get(
+                    CONF_ENABLE_DOCKER_MONITORING, DEFAULT_ENABLE_DOCKER_MONITORING
+                ),
+            )
+        ] = bool
+        schema_dict[
+            vol.Optional(
                 CONF_ENABLE_CONTAINER_UPDATES,
                 default=options.get(
                     CONF_ENABLE_CONTAINER_UPDATES, DEFAULT_ENABLE_CONTAINER_UPDATES
+                ),
+            )
+        ] = bool
+        schema_dict[
+            vol.Optional(
+                CONF_ENABLE_VM_MONITORING,
+                default=options.get(
+                    CONF_ENABLE_VM_MONITORING, DEFAULT_ENABLE_VM_MONITORING
                 ),
             )
         ] = bool

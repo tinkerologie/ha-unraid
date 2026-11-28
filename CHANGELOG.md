@@ -7,6 +7,14 @@ This project uses [Calendar Versioning](https://calver.org/) (YYYY.MM.MICRO), th
 
 ## [Unreleased]
 
+### Added
+
+- Add **Enable Docker container monitoring** and **Enable virtual machine monitoring** options in the integration options flow ([#448](https://github.com/tinkerologie/ha-unraid/issues/448)). When disabled, the integration skips per-container or per-VM entity discovery and removes existing per-container or per-VM entity records while keeping server-level Docker summary entities, system, storage, and UPS entities intact.
+
+### Changed
+
+- Require `unraid-api>=1.16.1` to eliminate the blocking `import_module` warning when reading Unraid notifications ([unraid-api#178](https://github.com/tinkerologie/unraid-api/issues/178)).
+
 ## [2026.11.3] - 2026-11-17
 
 ### Added
