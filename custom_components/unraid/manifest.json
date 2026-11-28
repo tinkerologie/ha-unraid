@@ -1,6 +1,6 @@
 {
   "domain": "unraid",
-  "name": "Unraid",
+  "name": "UNRAID",
   "after_dependencies": ["http", "frontend", "lovelace"],
   "categories": ["computers_network.nas_servers"],
   "codeowners": ["@ruaan-deysel"],
