@@ -1370,6 +1370,8 @@ class TestAsyncCleanupDisabledDockerEntities:
 
         removed = async_cleanup_disabled_docker_entities(hass, entry, _UUID)
         assert removed == len(per_container_entries) + 2
+        # Repeating cleanup on a clean registry is an idempotent no-op.
+        assert async_cleanup_disabled_docker_entities(hass, entry, _UUID) == 0
 
         for removed_entry in [*per_container_entries, disabled_entry, stale_entry]:
             assert ent_reg.async_get(removed_entry.entity_id) is None
