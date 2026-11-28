@@ -2545,8 +2545,12 @@ class _UnreachableError(UpdateFailed):
 )
 @pytest.mark.parametrize("kind", ["system", "storage", "infra"])
 async def test_coordinators_raise_update_failed_unreachable_on_outage(
-    hass, mock_api_client, mock_config_entry, kind, error
-):
+    hass: HomeAssistant,
+    mock_api_client: MagicMock,
+    mock_config_entry: MagicMock,
+    kind: str,
+    error: Exception,
+) -> None:
     """Route connection, timeout, and runtime errors through UpdateFailedUnreachable."""
     if kind == "system":
         coordinator = _system_coordinator(hass, mock_api_client, mock_config_entry)
@@ -2579,8 +2583,11 @@ async def test_coordinators_raise_update_failed_unreachable_on_outage(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["system", "storage", "infra"])
 async def test_coordinators_raise_plain_update_failed_on_api_error(
-    hass, mock_api_client, mock_config_entry, kind
-):
+    hass: HomeAssistant,
+    mock_api_client: MagicMock,
+    mock_config_entry: MagicMock,
+    kind: str,
+) -> None:
     """Keep UnraidAPIError mapped to UpdateFailed, not UpdateFailedUnreachable."""
     error = UnraidAPIError("api failure")
     if kind == "system":
