@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Final
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from .const import DOMAIN
 from .coordinator import UnraidStorageData, UnraidSystemData
 from .docker_entities import DockerEntityKind, is_docker_resource_id
 from .vm_entities import VmEntityKind, is_vm_resource_id
@@ -39,6 +40,7 @@ from .vm_entities import VmEntityKind, is_vm_resource_id
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
     from .coordinator import (
@@ -540,6 +542,109 @@ def async_cleanup_stale_entities(
 
     # Remove any devices that are now empty after entity removal.
     _async_remove_orphaned_devices(hass, entry_id)
+
+
+def _async_cleanup_disabled_resource_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    server_uuid: str | None,
+    *,
+    raw_uuid: str | None,
+    resource_label: str,
+    matches: Callable[[str, str | None], bool],
+    manual_filter_hint: str,
+) -> int:
+    """
+    Remove all per-resource entity records for a disabled monitoring category.
+
+    Matches only records belonging to *entry*, ``DOMAIN``, and *server_uuid*
+    whose resource ID satisfies *matches* for the record's entity domain.
+    Never removes devices or raw legacy placeholder-prefix records.
+    """
+    ent_reg = er.async_get(hass)
+    registered = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
+    server_prefix = f"{server_uuid}_"
+    raw_prefix = f"{raw_uuid}_" if raw_uuid and raw_uuid != server_uuid else None
+
+    removed = 0
+    legacy_remaining = 0
+    for entity_entry in registered:
+        if entity_entry.platform != DOMAIN:
+            continue
+        uid = entity_entry.unique_id
+        domain = entity_entry.domain
+        if uid.startswith(server_prefix) and matches(uid[len(server_prefix) :], domain):
+            _missing_streaks.pop(uid, None)
+            ent_reg.async_remove(entity_entry.entity_id)
+            removed += 1
+        elif (
+            raw_prefix is not None
+            and uid.startswith(raw_prefix)
+            and matches(uid[len(raw_prefix) :], domain)
+        ):
+            legacy_remaining += 1
+
+    if removed:
+        _LOGGER.info(
+            "Removed %d %s %s for entry %s (%s monitoring disabled)",
+            removed,
+            resource_label,
+            "entity" if removed == 1 else "entities",
+            entry.entry_id,
+            resource_label,
+        )
+    if legacy_remaining:
+        _LOGGER.warning(
+            "Left %d legacy %s %s for entry %s after an identity migration "
+            "conflict. Go to Settings → Devices & services → Unraid → Entities, "
+            "filter by %s, and delete each stale entity without deleting the "
+            "shared server device",
+            legacy_remaining,
+            resource_label,
+            "entity" if legacy_remaining == 1 else "entities",
+            entry.entry_id,
+            manual_filter_hint,
+        )
+
+    return removed
+
+
+def async_cleanup_disabled_docker_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    server_uuid: str | None,
+    *,
+    raw_uuid: str | None = None,
+) -> int:
+    """Remove all per-container Docker entity records when Docker monitoring is off."""
+    return _async_cleanup_disabled_resource_entities(
+        hass,
+        entry,
+        server_uuid,
+        raw_uuid=raw_uuid,
+        resource_label="per-container Docker",
+        matches=is_docker_resource_id,
+        manual_filter_hint="container name",
+    )
+
+
+def async_cleanup_disabled_vm_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    server_uuid: str | None,
+    *,
+    raw_uuid: str | None = None,
+) -> int:
+    """Remove all per-VM entity records when VM monitoring is off."""
+    return _async_cleanup_disabled_resource_entities(
+        hass,
+        entry,
+        server_uuid,
+        raw_uuid=raw_uuid,
+        resource_label="per-VM",
+        matches=is_vm_resource_id,
+        manual_filter_hint="VM name",
+    )
 
 
 def _async_remove_orphaned_devices(hass: HomeAssistant, entry_id: str) -> None:

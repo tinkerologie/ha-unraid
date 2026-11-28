@@ -129,13 +129,28 @@ The integration will validate the connection and create entities for all discove
 
 ### Step 3: Configure Options (Optional)
 
-After setup, the integration shows UPS settings if it finds a UPS.
+You can change integration options at any time after setup. Saving changes reloads the integration automatically.
 
-1. Go to **Settings** → **Devices & Services**
-2. Find the Unraid entry and click **Configure**
-3. Adjust:
-   - **UPS capacity (VA)**: Your UPS VA rating for reference
-   - **UPS nominal power (W)**: Required for UPS Power sensor in Energy Dashboard
+1. Go to **Settings** → **Devices & Services**.
+2. Find the Unraid entry and select **Configure**.
+3. Adjust these options:
+   - **Enable Docker container monitoring**: Enabled by default. When disabled, Home Assistant does not create per-container switches, buttons, sensors, binary sensors, or update entities. It also removes existing per-container entities for that server. Docker data polling and server-level Docker summary sensors and buttons continue.
+   - **Enable container update sensors**: Enabled by default. Applies only when Docker container monitoring is enabled.
+   - **Enable virtual machine monitoring**: Enabled by default. When disabled, Home Assistant does not create per-VM switches, buttons, or status sensors. It also removes existing per-VM entities for that server.
+   - **UPS capacity (VA)**: Optional. Your UPS VA rating for reference. Shown when the server reports a UPS.
+   - **UPS nominal power (W)**: Required for the UPS Power sensor in the Energy Dashboard. Shown when the server reports a UPS.
+
+> **Important**: Disabling Docker or VM monitoring removes only Home Assistant entity records. It does not touch containers or VMs on your Unraid server.
+>
+> Removing records discards entity customisations and can break dashboards or automations. When you enable an option again, Home Assistant recreates entities with default settings.
+>
+> If stale container or VM entities remain after an identity migration conflict, delete them manually:
+>
+> 1. Go to **Settings** → **Devices & services** → **Unraid** → **Entities**.
+> 2. Filter the list by the container or VM name.
+> 3. Delete each stale entity.
+>
+> Do not delete the shared server device.
 
 > **Note**: The integration uses fixed polling intervals, as specified by the Home Assistant Core guidelines.
 >
@@ -245,7 +260,7 @@ The integration only creates entities for available services:
 - **No VMs defined** → No VM switches created
 - **No shares** → No share sensors created
 
-Entities are automatically created when services become available.
+Entities are automatically created when services become available. Per-container Docker discovery pauses while **Enable Docker container monitoring** is off. Per-VM discovery pauses while **Enable virtual machine monitoring** is off.
 
 ## Custom Dashboard Cards
 

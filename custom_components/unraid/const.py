@@ -75,7 +75,9 @@ def is_placeholder_uuid(uuid: str | None) -> bool:
 CONF_IGNORE_SSL: Final = "ignore_ssl"
 CONF_UPS_CAPACITY_VA: Final = "ups_capacity_va"
 CONF_UPS_NOMINAL_POWER: Final = "ups_nominal_power"
+CONF_ENABLE_DOCKER_MONITORING: Final = "enable_docker_monitoring"
 CONF_ENABLE_CONTAINER_UPDATES: Final = "enable_container_updates"
+CONF_ENABLE_VM_MONITORING: Final = "enable_vm_monitoring"
 
 # =============================================================================
 # Default Values
@@ -83,7 +85,9 @@ CONF_ENABLE_CONTAINER_UPDATES: Final = "enable_container_updates"
 DEFAULT_PORT: Final = 80  # HTTP port for Unraid GraphQL API
 DEFAULT_UPS_CAPACITY_VA: Final = 0  # 0 = informational only
 DEFAULT_UPS_NOMINAL_POWER: Final = 0  # 0 = disabled, user must set for UPS Power sensor
+DEFAULT_ENABLE_DOCKER_MONITORING: Final = True  # create per-container Docker entities
 DEFAULT_ENABLE_CONTAINER_UPDATES: Final = True  # create container update entities
+DEFAULT_ENABLE_VM_MONITORING: Final = True  # create per-VM entities
 
 # Docker update dialog text uses only cached, currently installed image metadata.
 DOCKER_UPDATE_SUMMARY: Final = (

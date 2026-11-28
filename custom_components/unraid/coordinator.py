@@ -56,6 +56,10 @@ from unraid_api.models import (
 
 from .array_operation import ArrayOperation
 from .const import (
+    CONF_ENABLE_DOCKER_MONITORING,
+    CONF_ENABLE_VM_MONITORING,
+    DEFAULT_ENABLE_DOCKER_MONITORING,
+    DEFAULT_ENABLE_VM_MONITORING,
     DOCKER_POLL_INTERVAL,
     DOCKER_UPDATE_STATUS_UNKNOWN,
     DOMAIN,
@@ -217,12 +221,24 @@ class UnraidSystemCoordinator(TimestampDataUpdateCoordinator[UnraidSystemData]):
         self._last_docker_refresh: float = -DOCKER_POLL_INTERVAL
         self._force_docker_refresh: bool = True
         self._docker_inventory_generation = 0
-        self.docker_entities = DockerEntityLifecycle()
+        self.docker_entities = DockerEntityLifecycle(
+            enabled=bool(
+                config_entry.options.get(
+                    CONF_ENABLE_DOCKER_MONITORING, DEFAULT_ENABLE_DOCKER_MONITORING
+                )
+            )
+        )
         # Cached VM list to keep the last known-good value across failed
         # optional queries.
         self._cached_vms: list[VmDomain] = []
         self._vm_inventory_generation = 0
-        self.vm_entities = VmEntityLifecycle()
+        self.vm_entities = VmEntityLifecycle(
+            enabled=bool(
+                config_entry.options.get(
+                    CONF_ENABLE_VM_MONITORING, DEFAULT_ENABLE_VM_MONITORING
+                )
+            )
+        )
         # Cached UPS device list to keep the last known-good value across
         # failed optional queries.
         self._cached_ups_devices: list[UPSDevice] = []

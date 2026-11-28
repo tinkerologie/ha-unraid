@@ -20,6 +20,8 @@ For other resource types, cleanup counts each applicable cleanup pass.
 The delay keeps entity settings during temporary outages.
 The integration can show old data until a query succeeds.
 
+Option-driven cleanup when **Enable Docker container monitoring** or **Enable virtual machine monitoring** is disabled is separate from inventory reconciliation and does not create absence evidence.
+
 ## Related files
 
 - [optional queries and caches](../../custom_components/unraid/coordinator.py)

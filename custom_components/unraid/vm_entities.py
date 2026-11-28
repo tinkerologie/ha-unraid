@@ -10,6 +10,11 @@ from unraid_api.models import VmDomain
 from .entity_lifecycle import EntityLifecycle
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.helpers.entity import Entity
+
+    from .coordinator import UnraidSystemCoordinator
     from .entity_lifecycle import RegistryKey
 
 
@@ -52,6 +57,25 @@ def is_vm_resource_id(resource_id: str, platform: str | None = None) -> bool:
 class VmEntityLifecycle(EntityLifecycle[VmDomain]):
     """Select inventory and name keys for VM resources."""
 
-    def __init__(self) -> None:
+    def __init__(self, enabled: bool = True) -> None:
         """Track exact VM names."""
         super().__init__("VM", lambda data: data.vms, lambda vm: vm.name)
+        self._enabled = enabled
+
+    def async_register_platform(
+        self,
+        coordinator: UnraidSystemCoordinator,
+        async_add_entities: Callable[[list[Entity]], None],
+        create_entities: Callable[[VmDomain], list[Entity]],
+        *,
+        platform: str,
+    ) -> Callable[[], None]:
+        """Create entities on discovery when VM monitoring is enabled."""
+        if not self._enabled:
+            return lambda: None
+        return super().async_register_platform(
+            coordinator=coordinator,
+            async_add_entities=async_add_entities,
+            create_entities=create_entities,
+            platform=platform,
+        )
